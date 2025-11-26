@@ -288,8 +288,9 @@ export default function Reports() {
             </div>
           ) : (
             <>
-              <div className="h-64 sm:h-80 w-full" style={{ minWidth: 0, minHeight: '256px' }}>
-                <ResponsiveContainer width="100%" height="100%">
+              <div className="w-full" style={{ width: '100%', height: '320px', minHeight: '256px', position: 'relative', overflow: 'hidden' }}>
+                {(data.length > 0 || propertyPerformance.length > 0 || tenantPerformance.length > 0) && (
+                  <ResponsiveContainer width="100%" height="100%" debounce={1}>
                   {reportType === 'monthly' ? (
                     <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -357,7 +358,13 @@ export default function Reports() {
                       <Bar dataKey="totalPaid" name="Total pago" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   )}
-                </ResponsiveContainer>
+                  </ResponsiveContainer>
+                )}
+                {data.length === 0 && propertyPerformance.length === 0 && tenantPerformance.length === 0 && (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    <p>Nenhum dado disponível para exibir</p>
+                  </div>
+                )}
               </div>
               <div className="mt-4 text-center">
                 <div className="text-sm sm:text-base font-semibold text-primary">
@@ -466,26 +473,33 @@ export default function Reports() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-64 w-full" style={{ minWidth: 0, minHeight: '256px' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={paymentTypeData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={(props: any) => `${props.name} ${(props.percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {paymentTypeData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                  </PieChart>
-                </ResponsiveContainer>
+              <div className="w-full" style={{ width: '100%', height: '256px', minHeight: '256px', position: 'relative', overflow: 'hidden' }}>
+                {paymentTypeData.length > 0 && (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={paymentTypeData}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={(props: any) => `${props.name} ${(props.percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {paymentTypeData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                )}
+                {paymentTypeData.length === 0 && (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    <p>Nenhum dado disponível</p>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
