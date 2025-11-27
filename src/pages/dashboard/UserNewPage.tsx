@@ -12,7 +12,7 @@ import { validateDocument } from '../../lib/validation';
 import { usersAPI } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
 
-const ROLES = [
+const ALL_ROLES = [
   { value: 'CEO', label: 'CEO - Administrador MR3X' },
   { value: 'ADMIN', label: 'Admin - Administrador Sistema' },
   { value: 'AGENCY_MANAGER', label: 'Gestor - Gerente de Agência' },
@@ -26,6 +26,16 @@ const ROLES = [
   { value: 'API_CLIENT', label: 'Cliente API - Integração' },
 ];
 
+// Filter roles based on current user's role
+const getAvailableRoles = (userRole: string | undefined) => {
+  // Only CEO can create CEO and ADMIN users
+  if (userRole === 'CEO') {
+    return ALL_ROLES;
+  }
+  // ADMIN and other roles cannot create CEO or ADMIN users
+  return ALL_ROLES.filter(role => role.value !== 'CEO' && role.value !== 'ADMIN');
+};
+
 const STATUS_OPTIONS = [
   { value: 'ACTIVE', label: 'Ativo' },
   { value: 'INVITED', label: 'Convidado' },
@@ -34,8 +44,9 @@ const STATUS_OPTIONS = [
 
 export function UserNewPage() {
   const navigate = useNavigate();
-  const { hasPermission } = useAuth();
+  const { hasPermission, user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const availableRoles = getAvailableRoles(user?.role);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -208,7 +219,7 @@ export function UserNewPage() {
                   required
                 >
                   <option value="">Selecione a função</option>
-                  {ROLES.map((role) => (
+                  {availableRoles.map((role) => (
                     <option key={role.value} value={role.value}>
                       {role.label}
                     </option>

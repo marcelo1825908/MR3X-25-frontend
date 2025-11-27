@@ -323,7 +323,7 @@ export function DashboardHome() {
                     <XAxis dataKey="month" fontSize={12} />
                     <YAxis fontSize={12} />
                     <Tooltip />
-                      <Bar dataKey="inadimplencia" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      <Bar dataKey="inadimplencia" fill="#fd8431" radius={[4, 4, 0, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
