@@ -10,6 +10,9 @@ import { Properties } from './pages/dashboard/Properties';
 import { Contracts } from './pages/dashboard/Contracts';
 import { Payments } from './pages/dashboard/Payments';
 import { UsersPage } from './pages/dashboard/UsersPage';
+import { UserNewPage } from './pages/dashboard/UserNewPage';
+import { UserDetailPage } from './pages/dashboard/UserDetailPage';
+import { UserEditPage } from './pages/dashboard/UserEditPage';
 import { Tenants } from './pages/dashboard/Tenants';
 import { Brokers } from './pages/dashboard/Brokers';
 import { Owners } from './pages/dashboard/Owners';
@@ -82,9 +85,9 @@ function App() {
               <Route path="payments/:id/edit" element={<PlaceholderPage title="Editar Pagamento" />} />
 
               <Route path="users" element={<UsersPage />} />
-              <Route path="users/new" element={<PlaceholderPage title="Novo Usuario" />} />
-              <Route path="users/:id" element={<PlaceholderPage title="Detalhes do Usuario" />} />
-              <Route path="users/:id/edit" element={<PlaceholderPage title="Editar Usuario" />} />
+              <Route path="users/new" element={<UserNewPage />} />
+              <Route path="users/:id" element={<UserDetailPage />} />
+              <Route path="users/:id/edit" element={<UserEditPage />} />
 
               <Route path="tenants" element={<Tenants />} />
               <Route path="tenants/new" element={<PlaceholderPage title="Novo Inquilino" />} />

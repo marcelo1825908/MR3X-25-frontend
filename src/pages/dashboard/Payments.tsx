@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { paymentsAPI, propertiesAPI, usersAPI } from '../../api';
+import { paymentsAPI, propertiesAPI, contractsAPI } from '../../api';
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
@@ -61,22 +61,18 @@ export function Payments() {
   // Form states
   const [newPayment, setNewPayment] = useState({
     propertyId: '',
-    tenantId: '',
-    amount: '',
-    paymentDate: '',
-    paymentType: 'PIX',
-    description: '',
-    referenceMonth: '',
+    contratoId: '',
+    valorPago: '',
+    dataPagamento: '',
+    tipo: 'ALUGUEL',
   });
 
   const [editForm, setEditForm] = useState({
     propertyId: '',
-    tenantId: '',
-    amount: '',
-    paymentDate: '',
-    paymentType: 'PIX',
-    description: '',
-    referenceMonth: '',
+    contratoId: '',
+    valorPago: '',
+    dataPagamento: '',
+    tipo: 'ALUGUEL',
   });
 
   // Other states
@@ -84,7 +80,7 @@ export function Payments() {
   const [paymentToDelete, setPaymentToDelete] = useState<any>(null);
   const [paymentDetail, setPaymentDetail] = useState<any>(null);
   const [properties, setProperties] = useState<any[]>([]);
-  const [tenants, setTenants] = useState<any[]>([]);
+  const [contracts, setContracts] = useState<any[]>([]);
   const [selectedYear] = useState(new Date().getFullYear());
   const [_loading, _setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -114,16 +110,16 @@ export function Payments() {
     queryFn: () => paymentsAPI.getAnnualReport(selectedYear),
   });
 
-  // Load properties and tenants
+  // Load properties and contracts
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [propertiesData, tenantsData] = await Promise.all([
+        const [propertiesData, contractsData] = await Promise.all([
           propertiesAPI.getProperties(),
-          usersAPI.getTenants()
+          contractsAPI.getContracts()
         ]);
         setProperties(propertiesData);
-        setTenants(tenantsData);
+        setContracts(contractsData);
       } catch (error) {
         console.error('Error loading data:', error);
       }
@@ -149,8 +145,8 @@ export function Payments() {
       queryClient.invalidateQueries({ queryKey: ['annual-report'] });
       closeAllModals();
       setNewPayment({
-        propertyId: '', tenantId: '', amount: '', paymentDate: '',
-        paymentType: 'PIX', description: '', referenceMonth: ''
+        propertyId: '', contratoId: '', valorPago: '', dataPagamento: '',
+        tipo: 'ALUGUEL'
       });
       toast.success('Pagamento registrado com sucesso');
     },
@@ -195,10 +191,11 @@ export function Payments() {
     setCreating(true);
     try {
       const paymentToSend = {
-        ...newPayment,
-        amount: Number(newPayment.amount),
-        paymentDate: new Date(newPayment.paymentDate),
-        referenceMonth: new Date(newPayment.referenceMonth),
+        propertyId: newPayment.propertyId,
+        contratoId: newPayment.contratoId,
+        valorPago: Number(newPayment.valorPago),
+        dataPagamento: newPayment.dataPagamento,
+        tipo: newPayment.tipo,
       };
       createPaymentMutation.mutate(paymentToSend);
     } finally {
@@ -212,10 +209,11 @@ export function Payments() {
     setUpdating(true);
     try {
       const paymentToSend = {
-        ...editForm,
-        amount: Number(editForm.amount),
-        paymentDate: new Date(editForm.paymentDate),
-        referenceMonth: new Date(editForm.referenceMonth),
+        propertyId: editForm.propertyId,
+        contratoId: editForm.contratoId,
+        valorPago: Number(editForm.valorPago),
+        dataPagamento: editForm.dataPagamento,
+        tipo: editForm.tipo,
       };
       updatePaymentMutation.mutate({ id: selectedPayment.id, data: paymentToSend });
     } finally {
@@ -236,12 +234,10 @@ export function Payments() {
     setSelectedPayment(payment);
     setEditForm({
       propertyId: payment.propertyId?.toString() || '',
-      tenantId: payment.tenantId?.toString() || '',
-      amount: payment.amount?.toString() || '',
-      paymentDate: payment.paymentDate ? payment.paymentDate.split('T')[0] : '',
-      paymentType: payment.paymentType || 'PIX',
-      description: payment.description || '',
-      referenceMonth: payment.referenceMonth ? payment.referenceMonth.split('T')[0] : '',
+      contratoId: payment.contractId?.toString() || payment.contratoId?.toString() || '',
+      valorPago: (payment.valorPago || payment.amount)?.toString() || '',
+      dataPagamento: (payment.dataPagamento || payment.paymentDate) ? (payment.dataPagamento || payment.paymentDate).split('T')[0] : '',
+      tipo: payment.tipo || payment.paymentType || 'ALUGUEL',
     });
     setShowEditModal(true);
   };
@@ -480,19 +476,21 @@ export function Payments() {
                   </select>
                 </div>
                 <div>
-                  <Label htmlFor="tenantId">Inquilino</Label>
+                  <Label htmlFor="contratoId">Contrato</Label>
                   <select
-                    id="tenantId"
-                    name="tenantId"
-                    value={newPayment.tenantId}
+                    id="contratoId"
+                    name="contratoId"
+                    value={newPayment.contratoId}
                     onChange={handleInputChange}
                     className="w-full p-2 border border-input rounded-md"
                     required
                   >
-                    <option value="">Selecione um inquilino</option>
-                    {tenants.map((tenant) => (
-                      <option key={tenant.id} value={tenant.id}>
-                        {tenant.name}
+                    <option value="">Selecione um contrato</option>
+                    {contracts
+                      .filter((c: any) => !newPayment.propertyId || c.propertyId === newPayment.propertyId)
+                      .map((contract: any) => (
+                      <option key={contract.id} value={contract.id}>
+                        {contract.property?.address || contract.property?.name || `Contrato #${contract.id}`} - {contract.tenantUser?.name || 'Inquilino'}
                       </option>
                     ))}
                   </select>
@@ -501,69 +499,45 @@ export function Payments() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="amount">Valor</Label>
+                  <Label htmlFor="valorPago">Valor</Label>
                   <Input
-                    id="amount"
-                    name="amount"
+                    id="valorPago"
+                    name="valorPago"
                     type="number"
                     step="0.01"
-                    value={newPayment.amount}
+                    value={newPayment.valorPago}
                     onChange={handleInputChange}
                     placeholder="0.00"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="paymentType">Tipo de pagamento</Label>
+                  <Label htmlFor="tipo">Tipo de pagamento</Label>
                   <select
-                    id="paymentType"
-                    name="paymentType"
-                    value={newPayment.paymentType}
+                    id="tipo"
+                    name="tipo"
+                    value={newPayment.tipo}
                     onChange={handleInputChange}
                     className="w-full p-2 border border-input rounded-md"
                     required
                   >
-                    <option value="PIX">PIX</option>
-                    <option value="BOLETO">Boleto</option>
-                    <option value="TRANSFERENCIA">Transferência</option>
-                    <option value="DINHEIRO">Dinheiro</option>
+                    <option value="ALUGUEL">Aluguel</option>
+                    <option value="CONDOMINIO">Condomínio</option>
+                    <option value="IPTU">IPTU</option>
+                    <option value="OUTROS">Outros</option>
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="paymentDate">Data do pagamento</Label>
-                  <Input
-                    id="paymentDate"
-                    name="paymentDate"
-                    type="date"
-                    value={newPayment.paymentDate}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="referenceMonth">Mês de referência</Label>
-                  <Input
-                    id="referenceMonth"
-                    name="referenceMonth"
-                    type="month"
-                    value={newPayment.referenceMonth}
-                    onChange={handleInputChange}
-                    required
-                  />
-                </div>
-              </div>
-
               <div>
-                <Label htmlFor="description">Descrição</Label>
+                <Label htmlFor="dataPagamento">Data do pagamento</Label>
                 <Input
-                  id="description"
-                  name="description"
-                  value={newPayment.description}
+                  id="dataPagamento"
+                  name="dataPagamento"
+                  type="date"
+                  value={newPayment.dataPagamento}
                   onChange={handleInputChange}
-                  placeholder="Descrição do pagamento"
+                  required
                 />
               </div>
 
@@ -607,19 +581,21 @@ export function Payments() {
                   </select>
                 </div>
                 <div>
-                  <Label htmlFor="edit-tenantId">Inquilino</Label>
+                  <Label htmlFor="edit-contratoId">Contrato</Label>
                   <select
-                    id="edit-tenantId"
-                    name="tenantId"
-                    value={editForm.tenantId}
+                    id="edit-contratoId"
+                    name="contratoId"
+                    value={editForm.contratoId}
                     onChange={handleEditInputChange}
                     className="w-full p-2 border border-input rounded-md"
                     required
                   >
-                    <option value="">Selecione um inquilino</option>
-                    {tenants.map((tenant) => (
-                      <option key={tenant.id} value={tenant.id}>
-                        {tenant.name}
+                    <option value="">Selecione um contrato</option>
+                    {contracts
+                      .filter((c: any) => !editForm.propertyId || c.propertyId === editForm.propertyId)
+                      .map((contract: any) => (
+                      <option key={contract.id} value={contract.id}>
+                        {contract.property?.address || contract.property?.name || `Contrato #${contract.id}`} - {contract.tenantUser?.name || 'Inquilino'}
                       </option>
                     ))}
                   </select>
@@ -628,69 +604,45 @@ export function Payments() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="edit-amount">Valor</Label>
+                  <Label htmlFor="edit-valorPago">Valor</Label>
                   <Input
-                    id="edit-amount"
-                    name="amount"
+                    id="edit-valorPago"
+                    name="valorPago"
                     type="number"
                     step="0.01"
-                    value={editForm.amount}
+                    value={editForm.valorPago}
                     onChange={handleEditInputChange}
                     placeholder="0.00"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="edit-paymentType">Tipo de pagamento</Label>
+                  <Label htmlFor="edit-tipo">Tipo de pagamento</Label>
                   <select
-                    id="edit-paymentType"
-                    name="paymentType"
-                    value={editForm.paymentType}
+                    id="edit-tipo"
+                    name="tipo"
+                    value={editForm.tipo}
                     onChange={handleEditInputChange}
                     className="w-full p-2 border border-input rounded-md"
                     required
                   >
-                    <option value="PIX">PIX</option>
-                    <option value="BOLETO">Boleto</option>
-                    <option value="TRANSFERENCIA">Transferência</option>
-                    <option value="DINHEIRO">Dinheiro</option>
+                    <option value="ALUGUEL">Aluguel</option>
+                    <option value="CONDOMINIO">Condomínio</option>
+                    <option value="IPTU">IPTU</option>
+                    <option value="OUTROS">Outros</option>
                   </select>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-paymentDate">Data do pagamento</Label>
-                  <Input
-                    id="edit-paymentDate"
-                    name="paymentDate"
-                    type="date"
-                    value={editForm.paymentDate}
-                    onChange={handleEditInputChange}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-referenceMonth">Mês de referência</Label>
-                  <Input
-                    id="edit-referenceMonth"
-                    name="referenceMonth"
-                    type="month"
-                    value={editForm.referenceMonth}
-                    onChange={handleEditInputChange}
-                    required
-                  />
-                </div>
-              </div>
-
               <div>
-                <Label htmlFor="edit-description">Descrição</Label>
+                <Label htmlFor="edit-dataPagamento">Data do pagamento</Label>
                 <Input
-                  id="edit-description"
-                  name="description"
-                  value={editForm.description}
+                  id="edit-dataPagamento"
+                  name="dataPagamento"
+                  type="date"
+                  value={editForm.dataPagamento}
                   onChange={handleEditInputChange}
-                  placeholder="Descrição do pagamento"
+                  required
                 />
               </div>
 

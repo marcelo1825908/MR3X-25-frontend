@@ -288,9 +288,9 @@ export default function Reports() {
             </div>
           ) : (
             <>
-              <div className="w-full" style={{ width: '100%', height: '320px', minHeight: '256px', position: 'relative', overflow: 'hidden' }}>
+              <div className="w-full" style={{ width: '100%', height: '320px', minHeight: '256px', minWidth: '200px', position: 'relative', overflow: 'hidden' }}>
                 {(data.length > 0 || propertyPerformance.length > 0 || tenantPerformance.length > 0) && (
-                  <ResponsiveContainer width="100%" height="100%" debounce={1}>
+                  <ResponsiveContainer width="100%" height={300} minWidth={200} debounce={50}>
                   {reportType === 'monthly' ? (
                     <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
                       <CartesianGrid strokeDasharray="3 3" />
@@ -473,9 +473,9 @@ export default function Reports() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="w-full" style={{ width: '100%', height: '256px', minHeight: '256px', position: 'relative', overflow: 'hidden' }}>
+              <div className="w-full" style={{ width: '100%', height: '256px', minHeight: '256px', minWidth: '200px', position: 'relative', overflow: 'hidden' }}>
                 {paymentTypeData.length > 0 && (
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height={240} minWidth={200} debounce={50}>
                     <PieChart>
                       <Pie
                         data={paymentTypeData}

@@ -7,15 +7,7 @@ import { Badge } from '../../components/ui/badge';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 
-type UserItem = {
-  id: string;
-  name: string | null;
-  email: string;
-  role: string;
-  status: string;
-  plan?: string;
-  createdAt?: string;
-};
+type UserItem = { id: string; name: string | null; email: string; role: string; status: string; plan?: string; createdAt?: string };
 
 export function UsersPage() {
   const { user, hasPermission } = useAuth();
