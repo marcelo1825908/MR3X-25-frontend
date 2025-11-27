@@ -235,20 +235,20 @@ export function Brokers() {
   const handleNewBrokerCEPData = useCallback((data: any) => {
     setNewBroker((prev: any) => ({
       ...prev,
-      address: data.street || prev.address,
-      neighborhood: data.neighborhood || prev.neighborhood,
-      city: data.city || prev.city,
-      state: data.state || prev.state,
+      address: data.logradouro || data.street || prev.address,
+      neighborhood: data.bairro || data.neighborhood || prev.neighborhood,
+      city: data.cidade || data.city || prev.city,
+      state: data.estado || data.state || prev.state,
     }))
   }, [])
 
   const handleEditBrokerCEPData = useCallback((data: any) => {
     setEditForm((prev: any) => ({
       ...prev,
-      address: data.street || prev.address,
-      neighborhood: data.neighborhood || prev.neighborhood,
-      city: data.city || prev.city,
-      state: data.state || prev.state,
+      address: data.logradouro || data.street || prev.address,
+      neighborhood: data.bairro || data.neighborhood || prev.neighborhood,
+      city: data.cidade || data.city || prev.city,
+      state: data.estado || data.state || prev.state,
     }))
   }, [])
 

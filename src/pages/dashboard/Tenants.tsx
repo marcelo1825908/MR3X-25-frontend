@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { usersAPI } from '@/api'
+import { usersAPI, agenciesAPI } from '@/api'
 import { useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
@@ -75,6 +75,7 @@ export function Tenants() {
     neighborhood: '',
     city: '',
     state: '',
+    agencyId: '',
   })
 
   const [editForm, setEditForm] = useState({
@@ -117,6 +118,14 @@ export function Tenants() {
     staleTime: 0,
   })
 
+  // Fetch agencies for CEO/ADMIN users
+  const isAdminOrCeo = user?.role === 'CEO' || user?.role === 'ADMIN'
+  const { data: agencies } = useQuery({
+    queryKey: ['agencies'],
+    queryFn: () => agenciesAPI.getAgencies(),
+    enabled: isAdminOrCeo,
+  })
+
   const closeAllModals = () => {
     setShowCreateModal(false)
     setShowEditModal(false)
@@ -141,7 +150,7 @@ export function Tenants() {
       closeAllModals()
       setNewTenant({
         document: '', name: '', phone: '', email: '', birthDate: '',
-        cep: '', address: '', neighborhood: '', city: '', state: ''
+        cep: '', address: '', neighborhood: '', city: '', state: '', agencyId: ''
       })
       toast.success('Inquilino criado com sucesso')
     },
@@ -205,6 +214,7 @@ export function Tenants() {
         role: 'INQUILINO',
         plan: 'FREE',
         birthDate: newTenant.birthDate ? new Date(newTenant.birthDate) : null,
+        agencyId: newTenant.agencyId || undefined,
       }
       createTenantMutation.mutate(tenantToSend)
     } finally {
@@ -675,6 +685,30 @@ export function Tenants() {
                     onChange={handleInputChange}
                   />
                 </div>
+
+                {/* Agency selector for CEO/ADMIN */}
+                {isAdminOrCeo && agencies && agencies.length > 0 && (
+                  <div>
+                    <Label htmlFor="agencyId">Imobiliaria</Label>
+                    <select
+                      id="agencyId"
+                      name="agencyId"
+                      value={newTenant.agencyId}
+                      onChange={(e) => setNewTenant(prev => ({ ...prev, agencyId: e.target.value }))}
+                      className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
+                    >
+                      <option value="">Selecione uma imobiliaria (opcional)</option>
+                      {agencies.map((agency: any) => (
+                        <option key={agency.id} value={agency.id}>
+                          {agency.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Associar o inquilino a uma imobiliaria permite que os gestores da imobiliaria o vejam
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-4">
