@@ -15,6 +15,7 @@ import { Brokers } from './pages/dashboard/Brokers';
 import { Owners } from './pages/dashboard/Owners';
 import { Managers } from './pages/dashboard/Managers';
 import { Agencies } from './pages/dashboard/Agencies';
+import { AgencyAdmin } from './pages/dashboard/AgencyAdmin';
 import { Audit } from './pages/dashboard/Audit';
 import { Notifications } from './pages/dashboard/Notifications';
 import { Chat } from './pages/dashboard/Chat';
@@ -101,7 +102,7 @@ function App() {
               <Route path="owners/:id/edit" element={<PlaceholderPage title="Editar Proprietario" />} />
 
               <Route path="managers" element={<Managers />} />
-              <Route path="agency-admin" element={<PlaceholderPage title="Diretor Agencia" />} />
+              <Route path="agency-admin" element={<AgencyAdmin />} />
               <Route path="agency-split-config" element={<PlaceholderPage title="Split Configuration" />} />
               <Route path="agency-plan-config" element={<PlaceholderPage title="Plano da Agencia" />} />
 

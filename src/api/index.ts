@@ -78,7 +78,8 @@ export const propertiesAPI = {
 export const contractsAPI = {
   getContracts: async () => {
     const response = await apiClient.get('/contracts');
-    return response.data;
+    // Backend returns { data: [...], total, page, limit }, extract the data array
+    return Array.isArray(response.data) ? response.data : (response.data?.data || []);
   },
 
   getContractById: async (id: string) => {
@@ -175,7 +176,14 @@ export const usersAPI = {
     });
     const query = qs.toString();
     const response = await apiClient.get(`/users${query ? `?${query}` : ''}`);
-    return response.data;
+    // Backend returns { data: [...], total, page, limit }, map to { items: [...], total }
+    const result = response.data;
+    return {
+      items: result.data || [],
+      total: result.total || 0,
+      page: result.page,
+      limit: result.limit,
+    };
   },
 
   getUserById: async (id: string) => {

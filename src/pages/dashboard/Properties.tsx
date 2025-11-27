@@ -368,10 +368,20 @@ export function Properties() {
   const handleCEPData = useCallback((data: any) => {
     setNewProperty(prev => ({
       ...prev,
-      address: data.street || prev.address,
-      neighborhood: data.neighborhood || prev.neighborhood,
-      city: data.city || prev.city,
-      state: data.state || prev.state,
+      address: data.logradouro || prev.address,
+      neighborhood: data.bairro || prev.neighborhood,
+      city: data.cidade || prev.city,
+      state: data.estado || prev.state,
+    }));
+  }, []);
+
+  const handleEditCEPData = useCallback((data: any) => {
+    setEditForm(prev => ({
+      ...prev,
+      address: data.logradouro || prev.address,
+      neighborhood: data.bairro || prev.neighborhood,
+      city: data.cidade || prev.city,
+      state: data.estado || prev.state,
     }));
   }, []);
 
@@ -1335,7 +1345,7 @@ export function Properties() {
                   <CEPInput
                     value={editForm.cep}
                     onChange={(value) => setEditForm(prev => ({ ...prev, cep: value }))}
-                    onCEPData={handleCEPData}
+                    onCEPData={handleEditCEPData}
                     label="CEP"
                     placeholder="00000-000"
                   />

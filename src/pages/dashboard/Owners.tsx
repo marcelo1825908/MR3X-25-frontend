@@ -234,20 +234,20 @@ export function Owners() {
   const handleNewOwnerCEPData = useCallback((data: any) => {
     setNewOwner((prev: any) => ({
       ...prev,
-      address: data.street || prev.address,
-      neighborhood: data.neighborhood || prev.neighborhood,
-      city: data.city || prev.city,
-      state: data.state || prev.state,
+      address: data.logradouro || prev.address,
+      neighborhood: data.bairro || prev.neighborhood,
+      city: data.cidade || prev.city,
+      state: data.estado || prev.state,
     }))
   }, [])
 
   const handleEditOwnerCEPData = useCallback((data: any) => {
     setEditForm((prev: any) => ({
       ...prev,
-      address: data.street || prev.address,
-      neighborhood: data.neighborhood || prev.neighborhood,
-      city: data.city || prev.city,
-      state: data.state || prev.state,
+      address: data.logradouro || prev.address,
+      neighborhood: data.bairro || prev.neighborhood,
+      city: data.cidade || prev.city,
+      state: data.estado || prev.state,
     }))
   }, [])
 
@@ -621,12 +621,20 @@ export function Owners() {
 
         {/* Edit Modal */}
         <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto mx-4 sm:mx-0">
             <DialogHeader>
               <DialogTitle>Editar Proprietario</DialogTitle>
             </DialogHeader>
             <form className="space-y-6" onSubmit={handleUpdateOwner}>
+              {/* Personal Information Section */}
               <div className="space-y-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Home className="w-4 h-4 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold">Informacoes Pessoais</h3>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="edit-document">Documento</Label>
@@ -655,13 +663,23 @@ export function Owners() {
                 </div>
               </div>
 
+              {/* Address Section */}
               <div className="space-y-4">
-                <CEPInput
-                  value={editForm.cep}
-                  onChange={(v: string) => setEditForm((prev: any) => ({ ...prev, cep: v }))}
-                  onCEPData={handleEditOwnerCEPData}
-                  placeholder="00000-000"
-                />
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                    <MapPin className="w-4 h-4 text-primary" />
+                  </div>
+                  <h3 className="text-lg font-semibold">Endereco</h3>
+                </div>
+
+                <div>
+                  <CEPInput
+                    value={editForm.cep}
+                    onChange={(v: string) => setEditForm((prev: any) => ({ ...prev, cep: v }))}
+                    onCEPData={handleEditOwnerCEPData}
+                    placeholder="00000-000"
+                  />
+                </div>
 
                 <div>
                   <Label htmlFor="edit-address">Endereco</Label>
@@ -686,10 +704,10 @@ export function Owners() {
               </div>
 
               <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowEditModal(false)} disabled={updating}>
+                <Button type="button" variant="outline" onClick={() => setShowEditModal(false)} disabled={updating} className="text-orange-600 border-orange-600 hover:bg-orange-50">
                   Cancelar
                 </Button>
-                <Button type="submit" className="bg-orange-600 hover:bg-orange-700 text-white" disabled={updating}>
+                <Button type="submit" className="bg-orange-600 hover:bg-orange-700 text-white border-0" disabled={updating}>
                   {updating ? 'Salvando...' : 'Salvar'}
                 </Button>
               </div>
