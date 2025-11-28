@@ -189,6 +189,21 @@ export default function PlansPage() {
     })
   }
 
+  const getPlanNameInPortuguese = (name: string) => {
+    switch (name.toLowerCase()) {
+      case 'free':
+        return 'Gratuito'
+      case 'essential':
+        return 'Essencial'
+      case 'professional':
+        return 'Profissional'
+      case 'enterprise':
+        return 'Empresarial'
+      default:
+        return name
+    }
+  }
+
   const getPlanIcon = (name: string) => {
     switch (name.toLowerCase()) {
       case 'free':
@@ -283,7 +298,7 @@ export default function PlansPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {plans.map((plan: any) => (
-          <Card key={plan.id} className="relative overflow-hidden">
+          <Card key={plan.id} className="relative overflow-hidden flex flex-col">
             <div className={`absolute top-0 right-0 w-full h-2 ${getPlanColor(plan.name)}`} />
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -292,13 +307,13 @@ export default function PlansPage() {
                     {getPlanIcon(plan.name)}
                   </div>
                   <div>
-                    <CardTitle className="text-xl">{plan.name}</CardTitle>
+                    <CardTitle className="text-xl">{getPlanNameInPortuguese(plan.name)}</CardTitle>
                     <CardDescription>{plan.description}</CardDescription>
                   </div>
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 flex-1 flex flex-col">
               <div>
                 <div className="text-3xl font-bold">
                   {plan.price === 0 ? 'Grátis' : `R$ ${plan.price.toFixed(2)}`}
@@ -324,7 +339,7 @@ export default function PlansPage() {
                 </div>
               </div>
 
-              <div className="pt-2 border-t">
+              <div className="pt-2 border-t flex-1">
                 <h4 className="text-sm font-semibold mb-2">Recursos:</h4>
                 <ul className="space-y-1">
                   {plan.features.map((feature: any, idx: number) => (
@@ -337,7 +352,7 @@ export default function PlansPage() {
               </div>
 
               {canManagePlans && (
-                <div className="flex gap-2 pt-4">
+                <div className="flex gap-2 pt-4 mt-auto">
                   <Button
                     variant="outline"
                     size="sm"
@@ -366,7 +381,7 @@ export default function PlansPage() {
               <Label htmlFor="edit-plan-name">Nome do Plano</Label>
               <Input
                 id="edit-plan-name"
-                value={selectedPlan?.name || ''}
+                value={selectedPlan ? getPlanNameInPortuguese(selectedPlan.name) : ''}
                 disabled
                 className="bg-muted"
               />
@@ -477,7 +492,7 @@ export default function PlansPage() {
                       <div className="flex items-center gap-4 flex-1">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold">{request.planName}</span>
+                            <span className="font-semibold">{getPlanNameInPortuguese(request.planName)}</span>
                             <Badge className={
                               request.status === 'PENDING' ? 'bg-yellow-500' :
                               request.status === 'APPROVED' ? 'bg-green-500' : 'bg-red-500'
@@ -630,7 +645,7 @@ export default function PlansPage() {
           <DialogHeader>
             <DialogTitle>Rejeitar Solicitação</DialogTitle>
             <DialogDescription>
-              Você está rejeitando a solicitação de modificação do plano {selectedRequest?.planName}.
+              Você está rejeitando a solicitação de modificação do plano {selectedRequest ? getPlanNameInPortuguese(selectedRequest.planName) : ''}.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
