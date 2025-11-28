@@ -24,12 +24,12 @@ const baseNavigation = [
   { name: 'Agências', href: '/dashboard/agencies', icon: Building, perm: 'agencies:read' },
   { name: 'Relatórios', href: '/dashboard/reports', icon: BarChart3, perm: 'reports:read' },
   { name: 'Planos', href: '/dashboard/plans', icon: Package, perm: undefined, roles: ['CEO', 'ADMIN'] },
-  { name: 'Faturamento', href: '/dashboard/billing', icon: Receipt, perm: 'billing:read', roles: ['CEO', 'ADMIN'] },
+  { name: 'Faturamento', href: '/dashboard/billing', icon: Receipt, perm: 'billing:read', roles: ['CEO', 'ADMIN', 'INDEPENDENT_OWNER'] },
   { name: 'Comunicação', href: '/dashboard/communications', icon: Mail, perm: undefined, roles: ['CEO', 'ADMIN'] },
-  { name: 'Centro Técnico', href: '/dashboard/integrations', icon: Wrench, perm: 'integrations:read', roles: ['CEO', 'ADMIN'] },
+  { name: 'Centro Técnico', href: '/dashboard/integrations', icon: Wrench, perm: 'integrations:read', roles: ['CEO', 'ADMIN', 'INDEPENDENT_OWNER'] },
   { name: 'Auditoria', href: '/dashboard/audit', icon: ShieldCheck, perm: 'audit:read', roles: ['CEO', 'ADMIN'] },
-  { name: 'Documentos', href: '/dashboard/documents', icon: FileDown, perm: 'documents:read', roles: ['CEO', 'ADMIN'] },
-  { name: 'Configuracoes', href: '/dashboard/settings', icon: Settings, perm: 'settings:read', roles: ['CEO', 'ADMIN'] },
+  { name: 'Documentos', href: '/dashboard/documents', icon: FileDown, perm: 'documents:read', roles: ['CEO', 'ADMIN', 'INDEPENDENT_OWNER'] },
+  { name: 'Configuracoes', href: '/dashboard/settings', icon: Settings, perm: 'settings:read', roles: ['CEO', 'ADMIN', 'INDEPENDENT_OWNER'] },
   { name: 'Chat', href: '/dashboard/chat', icon: MessageSquare, perm: 'chat:read' },
   { name: 'Notificacoes', href: '/dashboard/notifications', icon: Bell, perm: 'notifications:read' },
   { name: 'Alterar Senha', href: '/dashboard/change-password', icon: Key, perm: undefined },
@@ -125,11 +125,18 @@ export function DashboardLayout() {
       if (excludeForAgencyAdmin.includes(item.href)) return false;
     }
 
-    // AGENCY_MANAGER: Manages brokers and owners
+    // AGENCY_MANAGER (Gestor): Limited permissions
+    // Only: manages support, assists clients, views plans/tickets/statistics
     if (user?.role === 'AGENCY_MANAGER') {
       const excludeForAgencyManager = [
-        '/dashboard/users',
-        '/dashboard/agencies',
+        '/dashboard/properties', // Cannot manage properties
+        '/dashboard/contracts', // Cannot manage contracts
+        '/dashboard/payments', // Cannot manage payments
+        '/dashboard/tenants', // Cannot manage tenants
+        '/dashboard/brokers', // Cannot manage brokers
+        '/dashboard/owners', // Cannot manage owners
+        '/dashboard/users', // Cannot manage users
+        '/dashboard/agencies', // Cannot manage agencies
         '/dashboard/managers', // Only AGENCY_ADMIN sees this
         '/dashboard/agency-admin',
         '/dashboard/agency-split-config',
@@ -191,20 +198,21 @@ export function DashboardLayout() {
     }
 
     // INDEPENDENT_OWNER: Self-managed "mini agency"
+    // Full CRUD for: Tenants, Properties, Contracts, Payments, Notifications, Documents
+    // Access to: Settings, Billing (Asaas split config), Integrations (Asaas)
     if (user?.role === 'INDEPENDENT_OWNER') {
       const excludeForIndependentOwner = [
-        '/dashboard/brokers',
-        '/dashboard/owners',
-        '/dashboard/agencies',
-        '/dashboard/managers',
-        '/dashboard/agency-admin',
-        '/dashboard/agency-split-config',
-        '/dashboard/agency-plan-config',
-        '/dashboard/users',
-        '/dashboard/plans',
-        '/dashboard/billing',
-        '/dashboard/communications',
-        '/dashboard/audit',
+        '/dashboard/brokers', // No brokers - manages alone
+        '/dashboard/owners', // No other owners
+        '/dashboard/agencies', // Not an agency
+        '/dashboard/managers', // No managers
+        '/dashboard/agency-admin', // Not agency admin
+        '/dashboard/agency-split-config', // Uses own split config
+        '/dashboard/agency-plan-config', // Not an agency
+        '/dashboard/users', // Uses specific pages (tenants)
+        '/dashboard/plans', // CEO/ADMIN only
+        '/dashboard/communications', // CEO/ADMIN only
+        '/dashboard/audit', // CEO/ADMIN only
       ];
       if (excludeForIndependentOwner.includes(item.href)) return false;
     }

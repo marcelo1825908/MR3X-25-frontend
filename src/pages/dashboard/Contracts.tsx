@@ -137,7 +137,7 @@ export function Contracts() {
     enabled: canCreateContracts,
   });
 
-  // Load properties and tenants
+  // Load properties and tenants only if user can create or update contracts
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -151,8 +151,11 @@ export function Contracts() {
         console.error('Error loading data:', error);
       }
     };
-    loadData();
-  }, []);
+    // Only load form data if user can create or update contracts
+    if (canCreateContracts || canUpdateContracts) {
+      loadData();
+    }
+  }, [canCreateContracts, canUpdateContracts]);
 
   // Helper function to close all modals
   const closeAllModals = () => {

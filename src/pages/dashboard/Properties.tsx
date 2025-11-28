@@ -279,6 +279,12 @@ export function Properties() {
   };
 
   const loadOwners = async () => {
+    // INDEPENDENT_OWNER is their own owner - no need to load owner list
+    if (user?.role === 'INDEPENDENT_OWNER') {
+      setOwners([]);
+      setOwnersLoading(false);
+      return;
+    }
     try {
       setOwnersLoading(true);
       const data = await usersAPI.listUsers({ role: 'PROPRIETARIO', pageSize: 200 });
@@ -501,7 +507,11 @@ export function Properties() {
         setCreating(false);
         return;
       }
-      if (!newProperty.ownerId) {
+      // INDEPENDENT_OWNER is their own owner - use their own ID
+      const isIndependentOwner = user?.role === 'INDEPENDENT_OWNER';
+      const ownerIdToUse = isIndependentOwner ? user?.id : newProperty.ownerId;
+
+      if (!ownerIdToUse && !isIndependentOwner) {
         toast.error('Selecione um proprietário antes de cadastrar o imóvel');
         setCreating(false);
         return;
@@ -516,7 +526,7 @@ export function Properties() {
         cep: newProperty.cep,
         dueDay: newProperty.dueDay ? Number(newProperty.dueDay) : undefined,
         stateNumber: newProperty.state,
-        ownerId: newProperty.ownerId,
+        ownerId: ownerIdToUse,
         agencyFee: parsePercentageInput(newProperty.agencyFee),
       };
       await createPropertyMutation.mutateAsync(propertyToSend);
@@ -537,7 +547,11 @@ export function Properties() {
         setUpdating(false);
         return;
       }
-      if (!editForm.ownerId) {
+      // INDEPENDENT_OWNER is their own owner - use their own ID
+      const isIndependentOwner = user?.role === 'INDEPENDENT_OWNER';
+      const ownerIdToUse = isIndependentOwner ? user?.id : editForm.ownerId;
+
+      if (!ownerIdToUse && !isIndependentOwner) {
         toast.error('Selecione um proprietário antes de salvar o imóvel');
         setUpdating(false);
         return;
@@ -552,7 +566,7 @@ export function Properties() {
         cep: editForm.cep,
         dueDay: editForm.dueDay ? Number(editForm.dueDay) : undefined,
         stateNumber: editForm.state,
-        ownerId: editForm.ownerId,
+        ownerId: ownerIdToUse,
         agencyFee: parsePercentageInput(editForm.agencyFee),
       };
 
@@ -1281,30 +1295,40 @@ export function Properties() {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="ownerId">Proprietário</Label>
-                <select
-                  id="ownerId"
-                  name="ownerId"
-                  value={newProperty.ownerId}
-                  onChange={handleInputChange}
-                  required
-                  disabled={ownersLoading}
-                  className="border rounded-md px-3 py-2 w-full"
-                >
-                  <option value="">{ownersLoading ? 'Carregando proprietários...' : 'Selecione um proprietário'}</option>
-                  {owners.map((owner: any) => (
-                    <option key={owner.id} value={owner.id}>
-                      {owner.name || owner.email}
-                    </option>
-                  ))}
-                </select>
-                {owners.length === 0 && !ownersLoading && (
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Cadastre proprietários na área de usuários antes de vincular um imóvel.
-                  </p>
-                )}
-              </div>
+              {/* Show owner select for non-INDEPENDENT_OWNER roles */}
+              {user?.role !== 'INDEPENDENT_OWNER' ? (
+                <div>
+                  <Label htmlFor="ownerId">Proprietário</Label>
+                  <select
+                    id="ownerId"
+                    name="ownerId"
+                    value={newProperty.ownerId}
+                    onChange={handleInputChange}
+                    required
+                    disabled={ownersLoading}
+                    className="border rounded-md px-3 py-2 w-full"
+                  >
+                    <option value="">{ownersLoading ? 'Carregando proprietários...' : 'Selecione um proprietário'}</option>
+                    {owners.map((owner: any) => (
+                      <option key={owner.id} value={owner.id}>
+                        {owner.name || owner.email}
+                      </option>
+                    ))}
+                  </select>
+                  {owners.length === 0 && !ownersLoading && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Cadastre proprietários na área de usuários antes de vincular um imóvel.
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <Label>Proprietário</Label>
+                  <div className="border rounded-md px-3 py-2 w-full bg-muted text-muted-foreground">
+                    {user?.name || user?.email} (Você)
+                  </div>
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="address">Endereço</Label>
@@ -1450,7 +1474,15 @@ export function Properties() {
                 </div>
               </div>
 
-              {user?.role === 'AGENCY_MANAGER' && !selectedProperty?.brokerId && (
+              {/* Show owner select for non-INDEPENDENT_OWNER roles */}
+              {user?.role === 'INDEPENDENT_OWNER' ? (
+                <div>
+                  <Label>Proprietário</Label>
+                  <div className="border rounded-md px-3 py-2 w-full bg-muted text-muted-foreground">
+                    {user?.name || user?.email} (Você)
+                  </div>
+                </div>
+              ) : user?.role === 'AGENCY_MANAGER' && !selectedProperty?.brokerId ? (
                 <div>
                   <Label htmlFor="edit-ownerId">Proprietário</Label>
                   <select
@@ -1475,7 +1507,7 @@ export function Properties() {
                     </p>
                   )}
                 </div>
-              )}
+              ) : null}
 
               <div>
                 <Label htmlFor="edit-address">Endereço</Label>

@@ -121,18 +121,17 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'billing:read', 'billing:update',
     'integrations:read', 'integrations:update',
   ],
+  // AGENCY_MANAGER (Gestor): Limited permissions
+  // - Manages support
+  // - Assists clients
+  // - Views plans, tickets and statistics
   AGENCY_MANAGER: [
-    'dashboard:read',
-    'users:read', 'users:create', 'users:update', 'users:delete',
-    'agencies:read', 'agencies:update',
-    'properties:read', 'properties:create', 'properties:update', 'properties:delete',
-    'contracts:read', 'contracts:create', 'contracts:update', 'contracts:delete',
-    'payments:read', 'payments:create', 'payments:update', 'payments:delete',
-    'reports:read', 'reports:create', 'reports:export',
-    'chat:read', 'chat:create', 'chat:update', 'chat:delete',
-    'notifications:read', 'notifications:create', 'notifications:update', 'notifications:delete',
-    'audit:read', 'audit:create',
-    'settings:read', 'settings:update',
+    'dashboard:read', // View statistics
+    'reports:read', // View statistics/reports
+    'chat:read', 'chat:create', 'chat:update', // Manage support/assist clients
+    'notifications:read', 'notifications:create', // View and send notifications
+    'billing:read', // View plans
+    'settings:read', // View settings
   ],
   BROKER: [
     'dashboard:read',
@@ -157,18 +156,33 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'notifications:read',
     'settings:read', 'settings:update',
   ],
+  // INDEPENDENT_OWNER: Works as a "mini-real estate agency" within MR3X
+  // Full CRUD for: Tenants, Properties, Contracts, Inspections, Notifications, Agreements
+  // Configures split directly with Asaas, sends invoices/receipts, digitally signs as landlord
   INDEPENDENT_OWNER: [
     'dashboard:read',
+    // Full CRUD for tenants (users with INQUILINO role)
     'users:read', 'users:create', 'users:update', 'users:delete',
+    // Full CRUD for properties
     'properties:read', 'properties:create', 'properties:update', 'properties:delete',
-    'contracts:read', 'contracts:create', 'contracts:update', 'contracts:delete',
+    // Full CRUD for contracts (agreements)
+    'contracts:read', 'contracts:create', 'contracts:update', 'contracts:delete', 'contracts:approve',
+    // Full CRUD for payments (invoices/receipts)
     'payments:read', 'payments:create', 'payments:update', 'payments:delete',
+    // Reports
     'reports:read', 'reports:create', 'reports:export',
-    'chat:read', 'chat:create', 'chat:update', 'chat:delete',
+    // Full CRUD for notifications
     'notifications:read', 'notifications:create', 'notifications:update', 'notifications:delete',
-    'documents:read', 'documents:create',
+    // Chat
+    'chat:read', 'chat:create', 'chat:update', 'chat:delete',
+    // Documents (for digital signing)
+    'documents:read', 'documents:create', 'documents:update', 'documents:delete',
+    // Settings
     'settings:read', 'settings:update',
-    'integrations:read', 'integrations:update',
+    // Billing - for split configuration with Asaas
+    'billing:read', 'billing:update',
+    // Integrations - for Asaas configuration
+    'integrations:read', 'integrations:create', 'integrations:update',
   ],
   // INQUILINO: Tenant - read-only access except for signing and payments
   // Cannot create or edit any registration
