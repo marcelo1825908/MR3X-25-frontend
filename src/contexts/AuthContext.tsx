@@ -89,6 +89,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'settings:read', 'settings:update', // Global settings
     'billing:read', 'billing:update', // Platform billing
     'integrations:read', 'integrations:create', 'integrations:update', 'integrations:delete', // Internal tokens
+    'plans:read', 'plans:update', // Manage subscription plans (direct update)
   ],
   // ADMIN: SaaS administrator - manages agencies, internal users, integrations
   // Does NOT manage properties, contracts, payments directly
@@ -104,6 +105,7 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'settings:read', 'settings:update',
     'billing:read', 'billing:update',
     'integrations:read', 'integrations:create', 'integrations:update', 'integrations:delete',
+    'plans:read', 'plans:update', // Manage subscription plans (needs CEO approval)
   ],
   // AGENCY_ADMIN (Agency Director): Full agency management
   // CAN: Manage staff (except Owner), clients, listings, leads, CRM pipelines,
