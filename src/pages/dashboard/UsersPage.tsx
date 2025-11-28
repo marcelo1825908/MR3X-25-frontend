@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usersAPI } from '../../api';
-import { Plus, Search, Filter, RefreshCw, Eye, Edit, UserCheck, UserX } from 'lucide-react';
+import { Plus, Search, Filter, RefreshCw, Eye, Edit, UserCheck, UserX, Users } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { toast } from 'sonner';
@@ -196,9 +196,13 @@ export function UsersPage() {
         </select>
         <select value={status} onChange={(e) => setStatus(e.target.value)} className="border rounded-md px-3 py-2">
           <option value="">Status</option>
-          {['ACTIVE', 'INVITED', 'SUSPENDED'].map((s) => (
-            <option key={s} value={s}>
-              {s}
+          {[
+            { value: 'ACTIVE', label: 'Ativo' },
+            { value: 'INVITED', label: 'Convidado' },
+            { value: 'SUSPENDED', label: 'Suspenso' },
+          ].map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
             </option>
           ))}
         </select>
@@ -218,7 +222,21 @@ export function UsersPage() {
         </div>
       ) : isMobile ? (
         <div className="space-y-3">
-          {items.map((u) => (
+          {items.length === 0 ? (
+            <div className="border border-border rounded-lg p-12 bg-card">
+              <div className="flex flex-col items-center justify-center text-center">
+                <div className="p-4 bg-muted rounded-full mb-4">
+                  <Users className="w-12 h-12 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">Nenhum usuário encontrado</h3>
+                <p className="text-sm text-muted-foreground">
+                  {search || role || status || plan
+                    ? 'Nenhum usuário corresponde aos filtros aplicados.'
+                    : 'Ainda não há usuários cadastrados no sistema.'}
+                </p>
+              </div>
+            </div>
+          ) : items.map((u) => (
             <div key={u.id} className="border border-border rounded-lg p-4 space-y-3 bg-card shadow-sm min-w-0 overflow-hidden">
               <div className="min-w-0">
                 <h3 className="text-base font-semibold leading-tight truncate" title={u.name || 'Sem nome'}>
@@ -302,61 +320,79 @@ export function UsersPage() {
               </tr>
             </thead>
             <tbody className="bg-card divide-y divide-border">
-              {items.map((u) => (
-                <tr key={u.id} className="hover:bg-muted/40">
-                  <td className="px-4 py-2 whitespace-nowrap">
-                    <div className="font-medium text-foreground">{u.name || 'Sem nome'}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Criado em {u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : 'data desconhecida'}
-                    </div>
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="text-sm text-muted-foreground break-all">{u.email}</div>
-                  </td>
-                  <td className="px-4 py-2">
-                    <Badge className={getRoleColor(u.role)}>{u.role}</Badge>
-                  </td>
-                  <td className="px-4 py-2">
-                    <Badge className={getStatusColor(u.status)}>{u.status}</Badge>
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex items-center gap-2">
-                      <Button asChild variant="ghost" size="sm">
-                        <Link to={`/dashboard/users/${u.id}`}>
-                          <Eye className="w-4 h-4" />
-                        </Link>
-                      </Button>
-                      {canEditUsers && (
-                        <Button asChild variant="ghost" size="sm">
-                          <Link to={`/dashboard/users/${u.id}/edit`}>
-                            <Edit className="w-4 h-4" />
-                          </Link>
-                        </Button>
-                      )}
-                      {canDeleteUsers &&
-                        (u.status === 'ACTIVE' ? (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleStatusChange(u.id, 'SUSPENDED')}
-                            className="text-red-600 hover:text-red-700"
-                          >
-                            <UserX className="w-4 h-4" />
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleStatusChange(u.id, 'ACTIVE')}
-                            className="text-green-600 hover:text-green-700"
-                          >
-                            <UserCheck className="w-4 h-4" />
-                          </Button>
-                        ))}
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-12">
+                    <div className="flex flex-col items-center justify-center text-center">
+                      <div className="p-4 bg-muted rounded-full mb-4">
+                        <Users className="w-12 h-12 text-muted-foreground" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-foreground mb-2">Nenhum usuário encontrado</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {search || role || status || plan
+                          ? 'Nenhum usuário corresponde aos filtros aplicados.'
+                          : 'Ainda não há usuários cadastrados no sistema.'}
+                      </p>
                     </div>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                items.map((u) => (
+                  <tr key={u.id} className="hover:bg-muted/40">
+                    <td className="px-4 py-2 whitespace-nowrap">
+                      <div className="font-medium text-foreground">{u.name || 'Sem nome'}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Criado em {u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : 'data desconhecida'}
+                      </div>
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="text-sm text-muted-foreground break-all">{u.email}</div>
+                    </td>
+                    <td className="px-4 py-2">
+                      <Badge className={getRoleColor(u.role)}>{u.role}</Badge>
+                    </td>
+                    <td className="px-4 py-2">
+                      <Badge className={getStatusColor(u.status)}>{u.status}</Badge>
+                    </td>
+                    <td className="px-4 py-2">
+                      <div className="flex items-center gap-2">
+                        <Button asChild variant="ghost" size="sm">
+                          <Link to={`/dashboard/users/${u.id}`}>
+                            <Eye className="w-4 h-4" />
+                          </Link>
+                        </Button>
+                        {canEditUsers && (
+                          <Button asChild variant="ghost" size="sm">
+                            <Link to={`/dashboard/users/${u.id}/edit`}>
+                              <Edit className="w-4 h-4" />
+                            </Link>
+                          </Button>
+                        )}
+                        {canDeleteUsers &&
+                          (u.status === 'ACTIVE' ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleStatusChange(u.id, 'SUSPENDED')}
+                              className="text-red-600 hover:text-red-700"
+                            >
+                              <UserX className="w-4 h-4" />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleStatusChange(u.id, 'ACTIVE')}
+                              className="text-green-600 hover:text-green-700"
+                            >
+                              <UserCheck className="w-4 h-4" />
+                            </Button>
+                          ))}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
