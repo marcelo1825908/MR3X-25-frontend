@@ -124,29 +124,50 @@ export function DashboardLayout() {
       if (excludeForAgencyAdmin.includes(item.href)) return false;
     }
 
-    // AGENCY_MANAGER (Gestor): Limited permissions
-    // Only: manages support, assists clients, views plans/tickets/statistics
+    // PLATFORM_MANAGER: MR3X Internal Manager (created by ADMIN)
+    // - Works for MR3X internally
+    // - Handles support, statistics, client assistance
+    // - Has ZERO access to agency operations (properties, contracts, payments)
+    if (user?.role === 'PLATFORM_MANAGER') {
+      const excludeForPlatformManager = [
+        '/dashboard/properties', // NO agency operations
+        '/dashboard/contracts', // NO agency operations
+        '/dashboard/payments', // NO agency operations
+        '/dashboard/tenants', // NO agency operations
+        '/dashboard/brokers', // NO agency operations
+        '/dashboard/owners', // NO agency operations
+        '/dashboard/users', // Cannot manage users (support role)
+        '/dashboard/managers', // NO agency operations
+        '/dashboard/agency-admin', // NO agency operations
+        '/dashboard/agency-split-config', // NO agency operations
+        '/dashboard/agency-plan-config', // NO agency operations
+        '/dashboard/plans', // CEO/ADMIN only
+        '/dashboard/billing', // Can only read
+        '/dashboard/communications', // CEO/ADMIN only
+        '/dashboard/integrations', // CEO/ADMIN only
+        '/dashboard/settings', // Can only read
+      ];
+      if (excludeForPlatformManager.includes(item.href)) return false;
+    }
+
+    // AGENCY_MANAGER (Agency Gestor): Full agency operational permissions
+    // Created ONLY by AGENCY_ADMIN (Director)
+    // Works inside a real estate agency
+    // Controls agency team: creates brokers, owners, contracts, properties
     if (user?.role === 'AGENCY_MANAGER') {
       const excludeForAgencyManager = [
-        '/dashboard/properties', // Cannot manage properties
-        '/dashboard/contracts', // Cannot manage contracts
-        '/dashboard/payments', // Cannot manage payments
-        '/dashboard/tenants', // Cannot manage tenants
-        '/dashboard/brokers', // Cannot manage brokers
-        '/dashboard/owners', // Cannot manage owners
-        '/dashboard/users', // Cannot manage users
-        '/dashboard/agencies', // Cannot manage agencies
+        '/dashboard/agencies', // Only CEO/ADMIN manage agencies
+        '/dashboard/users', // Uses specific pages for brokers, owners, etc.
         '/dashboard/managers', // Only AGENCY_ADMIN sees this
         '/dashboard/agency-admin',
-        '/dashboard/agency-split-config',
-        '/dashboard/agency-plan-config',
-        '/dashboard/plans',
-        '/dashboard/billing',
-        '/dashboard/communications',
-        '/dashboard/integrations',
-        '/dashboard/audit',
-        '/dashboard/documents',
-        '/dashboard/settings',
+        '/dashboard/agency-split-config', // Only AGENCY_ADMIN
+        '/dashboard/agency-plan-config', // Only AGENCY_ADMIN
+        '/dashboard/plans', // CEO/ADMIN only
+        '/dashboard/billing', // Can only read
+        '/dashboard/communications', // CEO/ADMIN only
+        '/dashboard/integrations', // CEO/ADMIN only
+        '/dashboard/audit', // CEO/ADMIN only
+        '/dashboard/settings', // Can only read
       ];
       if (excludeForAgencyManager.includes(item.href)) return false;
     }

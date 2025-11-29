@@ -11,7 +11,6 @@ import {
   DollarSign,
   Building2,
   User,
-  Percent,
   Info,
   Calculator
 } from 'lucide-react';
@@ -27,18 +26,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '../../components/ui/tooltip';
-
-interface Agency {
-  id: string;
-  name: string;
-  agencyFee: number;
-  plan: string;
-}
-
-interface PaymentConfig {
-  platformFee: number;
-  agencyFee: number;
-}
 
 export function AgencySplitConfig() {
   const { user, hasPermission } = useAuth();

@@ -106,10 +106,16 @@ export function UsersPage() {
         return 'bg-purple-100 text-purple-800';
       case 'ADMIN':
         return 'bg-red-100 text-red-800';
+      case 'PLATFORM_MANAGER':
+        return 'bg-orange-100 text-orange-800';
+      case 'AGENCY_ADMIN':
+        return 'bg-indigo-100 text-indigo-800';
       case 'AGENCY_MANAGER':
         return 'bg-blue-100 text-blue-800';
       case 'PROPRIETARIO':
         return 'bg-green-100 text-green-800';
+      case 'INDEPENDENT_OWNER':
+        return 'bg-emerald-100 text-emerald-800';
       case 'BROKER':
         return 'bg-yellow-100 text-yellow-800';
       case 'INQUILINO':
@@ -117,7 +123,7 @@ export function UsersPage() {
       case 'BUILDING_MANAGER':
         return 'bg-cyan-100 text-cyan-800';
       case 'LEGAL_AUDITOR':
-        return 'bg-indigo-100 text-indigo-800';
+        return 'bg-violet-100 text-violet-800';
       case 'REPRESENTATIVE':
         return 'bg-pink-100 text-pink-800';
       case 'API_CLIENT':
@@ -181,9 +187,12 @@ export function UsersPage() {
           {[
             { value: 'CEO', label: 'CEO' },
             { value: 'ADMIN', label: 'Admin' },
-            { value: 'AGENCY_MANAGER', label: 'Gestor' },
+            { value: 'PLATFORM_MANAGER', label: 'Gerente Interno MR3X' },
+            { value: 'AGENCY_ADMIN', label: 'Diretor de Agência' },
+            { value: 'AGENCY_MANAGER', label: 'Gestor de Agência' },
             { value: 'BROKER', label: 'Corretor' },
             { value: 'PROPRIETARIO', label: 'Proprietário' },
+            { value: 'INDEPENDENT_OWNER', label: 'Proprietário Independente' },
             { value: 'INQUILINO', label: 'Inquilino' },
             { value: 'BUILDING_MANAGER', label: 'Síndico' },
             { value: 'LEGAL_AUDITOR', label: 'Auditor' },

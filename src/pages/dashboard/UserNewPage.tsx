@@ -18,8 +18,9 @@ import { useAuth } from '../../contexts/AuthContext';
 const ROLE_LABELS: Record<string, string> = {
   'CEO': 'CEO - Administrador MR3X',
   'ADMIN': 'Admin - Administrador Sistema',
+  'PLATFORM_MANAGER': 'Gerente Interno MR3X - Suporte e Estatísticas',
   'AGENCY_ADMIN': 'Diretor de Agência - Dono de Imobiliária',
-  'AGENCY_MANAGER': 'Gestor - Gerente de Agência',
+  'AGENCY_MANAGER': 'Gestor de Agência - Gerente Operacional',
   'BROKER': 'Corretor - Agente Imobiliário',
   'PROPRIETARIO': 'Proprietário - Dono de Imóvel',
   'INDEPENDENT_OWNER': 'Proprietário Independente - Sem Agência',
@@ -34,8 +35,20 @@ const ROLE_LABELS: Record<string, string> = {
  * Role Creation Hierarchy - Who can create which roles
  * Based on MR3X Complete Hierarchy Requirements:
  *
+ * IMPORTANT: Two types of Managers exist:
+ * 1. PLATFORM_MANAGER - MR3X Internal Manager (created by ADMIN)
+ *    - Works for MR3X internally
+ *    - Handles support, statistics, client assistance
+ *    - Has ZERO access to agency operations
+ *
+ * 2. AGENCY_MANAGER - Agency Manager/Gestor (created by AGENCY_ADMIN)
+ *    - Works inside a real estate agency
+ *    - Controls agency team, creates brokers, owners, contracts, properties
+ *    - Has legal representation permissions for the agency
+ *
  * CEO -> ADMIN only
- * ADMIN -> AGENCY_MANAGER (MR3X), LEGAL_AUDITOR, REPRESENTATIVE, API_CLIENT
+ * ADMIN -> PLATFORM_MANAGER, LEGAL_AUDITOR, REPRESENTATIVE, API_CLIENT (NOT AGENCY_MANAGER!)
+ * PLATFORM_MANAGER -> NONE (support role only)
  * AGENCY_ADMIN -> AGENCY_MANAGER, BROKER, PROPRIETARIO
  * AGENCY_MANAGER -> BROKER, PROPRIETARIO
  * INDEPENDENT_OWNER -> INQUILINO, BUILDING_MANAGER
@@ -43,7 +56,8 @@ const ROLE_LABELS: Record<string, string> = {
  */
 const ROLE_CREATION_ALLOWED: Record<string, string[]> = {
   'CEO': ['ADMIN'],
-  'ADMIN': ['AGENCY_MANAGER', 'LEGAL_AUDITOR', 'REPRESENTATIVE', 'API_CLIENT'],
+  'ADMIN': ['PLATFORM_MANAGER', 'LEGAL_AUDITOR', 'REPRESENTATIVE', 'API_CLIENT'],
+  'PLATFORM_MANAGER': [], // MR3X Internal Manager - cannot create users
   'AGENCY_ADMIN': ['AGENCY_MANAGER', 'BROKER', 'PROPRIETARIO'],
   'AGENCY_MANAGER': ['BROKER', 'PROPRIETARIO'],
   'INDEPENDENT_OWNER': ['INQUILINO', 'BUILDING_MANAGER'],

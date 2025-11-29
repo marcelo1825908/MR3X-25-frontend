@@ -31,24 +31,6 @@ import {
   DialogFooter,
 } from '../../components/ui/dialog';
 
-interface PlanUsage {
-  properties: {
-    active: number;
-    frozen: number;
-    total: number;
-    limit: number;
-  };
-  users: {
-    active: number;
-    frozen: number;
-    total: number;
-    limit: number;
-  };
-  isOverLimit: boolean;
-  upgradeRequired: boolean;
-  plan: string;
-}
-
 interface PlanChangePreview {
   currentPlan: string;
   newPlan: string;
@@ -58,17 +40,6 @@ interface PlanChangePreview {
   willFreeze: { properties: number; users: number };
   willUnfreeze: { properties: number; users: number };
   isUpgrade: boolean;
-}
-
-interface Agency {
-  id: string;
-  name: string;
-  plan: string;
-  maxProperties: number;
-  maxUsers: number;
-  agencyFee: number;
-  frozenPropertiesCount: number;
-  frozenUsersCount: number;
 }
 
 // Helper functions to get plan display info
@@ -127,7 +98,6 @@ export function AgencyPlanConfig() {
 
   // Check permissions
   const canViewPlan = hasPermission('agencies:read') || user?.role === 'AGENCY_ADMIN';
-  const canChangePlan = hasPermission('agencies:update') || user?.role === 'AGENCY_ADMIN';
   const agencyId = user?.agencyId;
 
   // Fetch agency data

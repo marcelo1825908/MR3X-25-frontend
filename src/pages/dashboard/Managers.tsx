@@ -64,6 +64,7 @@ export function Managers() {
     name: '',
     phone: '',
     email: '',
+    password: '',
     birthDate: '',
     cep: '',
     address: '',
@@ -71,6 +72,7 @@ export function Managers() {
     city: '',
     state: '',
   })
+  const [showPassword, setShowPassword] = useState(false)
 
   const [editForm, setEditForm] = useState({
     name: '',
@@ -243,20 +245,20 @@ export function Managers() {
   const handleNewManagerCEPData = useCallback((data: any) => {
     setNewManager((prev: any) => ({
       ...prev,
-      address: data.street || prev.address,
-      neighborhood: data.neighborhood || prev.neighborhood,
-      city: data.city || prev.city,
-      state: data.state || prev.state,
+      address: data.logradouro || data.street || prev.address,
+      neighborhood: data.bairro || data.neighborhood || prev.neighborhood,
+      city: data.cidade || data.city || prev.city,
+      state: data.estado || data.state || prev.state,
     }))
   }, [])
 
   const handleEditManagerCEPData = useCallback((data: any) => {
     setEditForm((prev: any) => ({
       ...prev,
-      address: data.street || prev.address,
-      neighborhood: data.neighborhood || prev.neighborhood,
-      city: data.city || prev.city,
-      state: data.state || prev.state,
+      address: data.logradouro || data.street || prev.address,
+      neighborhood: data.bairro || data.neighborhood || prev.neighborhood,
+      city: data.cidade || data.city || prev.city,
+      state: data.estado || data.state || prev.state,
     }))
   }, [])
 
