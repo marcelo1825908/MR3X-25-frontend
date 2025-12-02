@@ -7,21 +7,21 @@ import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, 
 import { useAuth } from '../../contexts/AuthContext';
 import { PlanUsageWidget } from '../../components/dashboard/PlanUsageWidget';
 import { useNavigate } from 'react-router-dom';
+import { TenantDashboard } from './TenantDashboard';
+import { BrokerDashboard } from './BrokerDashboard';
 
 export function DashboardHome() {
   const { hasPermission, user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect INQUILINO users to their dedicated tenant dashboard
+  // Render INQUILINO users tenant dashboard directly
   if (user?.role === 'INQUILINO') {
-    navigate('/dashboard/tenant-dashboard', { replace: true });
-    return null;
+    return <TenantDashboard />;
   }
 
-  // Redirect BROKER users to their dedicated broker dashboard
+  // Render BROKER users broker dashboard directly
   if (user?.role === 'BROKER') {
-    navigate('/dashboard/broker-dashboard', { replace: true });
-    return null;
+    return <BrokerDashboard />;
   }
 
   // Check permissions for different dashboard sections

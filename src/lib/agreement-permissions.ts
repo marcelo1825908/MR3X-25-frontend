@@ -6,67 +6,62 @@
  */
 
 // User roles matching backend enum
-export const UserRole = {
-  CEO: 'CEO',
-  ADMIN: 'ADMIN',
-  PLATFORM_MANAGER: 'PLATFORM_MANAGER',
-  AGENCY_ADMIN: 'AGENCY_ADMIN',
-  AGENCY_MANAGER: 'AGENCY_MANAGER',
-  BROKER: 'BROKER',
-  PROPRIETARIO: 'PROPRIETARIO',
-  INDEPENDENT_OWNER: 'INDEPENDENT_OWNER',
-  INQUILINO: 'INQUILINO',
-  BUILDING_MANAGER: 'BUILDING_MANAGER',
-  LEGAL_AUDITOR: 'LEGAL_AUDITOR',
-  REPRESENTATIVE: 'REPRESENTATIVE',
-  API_CLIENT: 'API_CLIENT',
-} as const;
-export type UserRole = typeof UserRole[keyof typeof UserRole];
+export enum UserRole {
+  CEO = 'CEO',
+  ADMIN = 'ADMIN',
+  PLATFORM_MANAGER = 'PLATFORM_MANAGER',
+  AGENCY_ADMIN = 'AGENCY_ADMIN',
+  AGENCY_MANAGER = 'AGENCY_MANAGER',
+  BROKER = 'BROKER',
+  PROPRIETARIO = 'PROPRIETARIO',
+  INDEPENDENT_OWNER = 'INDEPENDENT_OWNER',
+  INQUILINO = 'INQUILINO',
+  BUILDING_MANAGER = 'BUILDING_MANAGER',
+  LEGAL_AUDITOR = 'LEGAL_AUDITOR',
+  REPRESENTATIVE = 'REPRESENTATIVE',
+  API_CLIENT = 'API_CLIENT',
+}
 
 // Agreement actions
-export const AgreementAction = {
-  VIEW: 'view',
-  CREATE: 'create',
-  EDIT: 'edit',
-  DELETE: 'delete',
-  SIGN: 'sign',
-  SEND_FOR_SIGNATURE: 'send_for_signature',
-  APPROVE: 'approve',
-  REJECT: 'reject',
-  CANCEL: 'cancel',
-} as const;
-export type AgreementAction = typeof AgreementAction[keyof typeof AgreementAction];
+export enum AgreementAction {
+  VIEW = 'view',
+  CREATE = 'create',
+  EDIT = 'edit',
+  DELETE = 'delete',
+  SIGN = 'sign',
+  SEND_FOR_SIGNATURE = 'send_for_signature',
+  APPROVE = 'approve',
+  REJECT = 'reject',
+  CANCEL = 'cancel',
+}
 
 // Agreement status values
-export const AgreementStatus = {
-  RASCUNHO: 'RASCUNHO',
-  AGUARDANDO_ASSINATURA: 'AGUARDANDO_ASSINATURA',
-  ASSINADO: 'ASSINADO',
-  CONCLUIDO: 'CONCLUIDO',
-  REJEITADO: 'REJEITADO',
-  CANCELADO: 'CANCELADO',
-} as const;
-export type AgreementStatus = typeof AgreementStatus[keyof typeof AgreementStatus];
+export enum AgreementStatus {
+  RASCUNHO = 'RASCUNHO',
+  AGUARDANDO_ASSINATURA = 'AGUARDANDO_ASSINATURA',
+  ASSINADO = 'ASSINADO',
+  CONCLUIDO = 'CONCLUIDO',
+  REJEITADO = 'REJEITADO',
+  CANCELADO = 'CANCELADO',
+}
 
 // Signature types
-export const SignatureType = {
-  TENANT: 'tenant',
-  OWNER: 'owner',
-  AGENCY: 'agency',
-  BROKER: 'broker',
-  WITNESS: 'witness',
-} as const;
-export type SignatureType = typeof SignatureType[keyof typeof SignatureType];
+export enum SignatureType {
+  TENANT = 'tenant',
+  OWNER = 'owner',
+  AGENCY = 'agency',
+  BROKER = 'broker',
+  WITNESS = 'witness',
+}
 
 // Access scope
-export const AccessScope = {
-  ALL: 'all',
-  AGENCY: 'agency',
-  OWN_CREATED: 'own_created',
-  PARTY_TO: 'party_to',
-  NONE: 'none',
-} as const;
-export type AccessScope = typeof AccessScope[keyof typeof AccessScope];
+export enum AccessScope {
+  ALL = 'all',
+  AGENCY = 'agency',
+  OWN_CREATED = 'own_created',
+  PARTY_TO = 'party_to',
+  NONE = 'none',
+}
 
 // Permission interface
 export interface RolePermissions {
@@ -302,32 +297,32 @@ export const AGREEMENT_PERMISSION_MATRIX: Record<string, RolePermissions> = {
 };
 
 // Status-based restrictions
-export const EDITABLE_STATUSES: string[] = [
+export const EDITABLE_STATUSES = [
   AgreementStatus.RASCUNHO,
   AgreementStatus.AGUARDANDO_ASSINATURA,
 ];
 
-export const DELETABLE_STATUSES: string[] = [
+export const DELETABLE_STATUSES = [
   AgreementStatus.RASCUNHO,
 ];
 
-export const SIGNABLE_STATUSES: string[] = [
+export const SIGNABLE_STATUSES = [
   AgreementStatus.RASCUNHO,
   AgreementStatus.AGUARDANDO_ASSINATURA,
 ];
 
-export const SIGNED_STATUSES: string[] = [
+export const SIGNED_STATUSES = [
   AgreementStatus.ASSINADO,
   AgreementStatus.CONCLUIDO,
 ];
 
-export const IMMUTABLE_STATUSES: string[] = [
+export const IMMUTABLE_STATUSES = [
   AgreementStatus.CONCLUIDO,
   AgreementStatus.REJEITADO,
 ];
 
 // MR3X Platform roles (read-only access)
-export const MR3X_ROLES: string[] = [
+export const MR3X_ROLES = [
   UserRole.CEO,
   UserRole.ADMIN,
   UserRole.PLATFORM_MANAGER,
@@ -346,28 +341,28 @@ export function getPermissionsForRole(role: string): RolePermissions {
  * Check if a role is a platform (MR3X) role
  */
 export function isMR3XRole(role: string): boolean {
-  return MR3X_ROLES.includes(role);
+  return MR3X_ROLES.includes(role as UserRole);
 }
 
 /**
  * Check if status allows editing
  */
 export function isEditableStatus(status: string): boolean {
-  return EDITABLE_STATUSES.includes(status);
+  return EDITABLE_STATUSES.includes(status as AgreementStatus);
 }
 
 /**
  * Check if status allows deletion
  */
 export function isDeletableStatus(status: string): boolean {
-  return DELETABLE_STATUSES.includes(status);
+  return DELETABLE_STATUSES.includes(status as AgreementStatus);
 }
 
 /**
  * Check if status allows signing
  */
 export function isSignableStatus(status: string): boolean {
-  return SIGNABLE_STATUSES.includes(status);
+  return SIGNABLE_STATUSES.includes(status as AgreementStatus);
 }
 
 /**
@@ -385,7 +380,7 @@ export function hasBeenSigned(agreement: AgreementContext): boolean {
  * Check if status is immutable
  */
 export function isImmutableStatus(status: string): boolean {
-  return IMMUTABLE_STATUSES.includes(status);
+  return IMMUTABLE_STATUSES.includes(status as AgreementStatus);
 }
 
 /**

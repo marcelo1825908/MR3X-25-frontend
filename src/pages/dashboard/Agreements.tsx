@@ -5,7 +5,10 @@ import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useAgreementPermissions, useAgreementActions } from '../../hooks/use-agreement-permissions';
 import type { AgreementContext } from '../../lib/agreement-permissions';
-import { AgreementAction } from '../../lib/agreement-permissions';
+import {
+  SignatureType,
+  AgreementAction,
+} from '../../lib/agreement-permissions';
 import {
   FileSignature,
   Plus,
@@ -356,6 +359,8 @@ export function Agreements() {
   const {
     permissions,
     isMR3XRole,
+    checkAction,
+    AgreementAction: Action,
   } = useAgreementPermissions();
 
   // Modal states

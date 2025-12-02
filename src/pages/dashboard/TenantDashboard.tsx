@@ -4,13 +4,33 @@ import { formatCurrency } from '../../lib/utils';
 import {
   Home, FileText, DollarSign, Bell, Clock,
   CheckCircle, AlertTriangle, User, Phone, Mail,
-  CreditCard, Receipt
+  CreditCard, Receipt, TrendingUp, Calendar, Building2
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  PieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  Legend,
+  Area,
+  AreaChart
+} from 'recharts';
+import { useMemo } from 'react';
+
+const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
 export function TenantDashboard() {
   const { user } = useAuth();
@@ -20,6 +40,79 @@ export function TenantDashboard() {
     queryKey: ['tenant-dashboard', user?.id],
     queryFn: () => dashboardAPI.getDashboard(),
   });
+
+  // Process payment history for charts
+  const chartData = useMemo(() => {
+    const paymentHistory = dashboard?.paymentHistory || [];
+
+    // Monthly payment trend (last 12 months)
+    const monthlyTrend: Record<string, number> = {};
+    const now = new Date();
+
+    // Initialize last 12 months
+    for (let i = 11; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+      monthlyTrend[key] = 0;
+    }
+
+    // Fill with actual payments
+    paymentHistory.forEach((payment: any) => {
+      if (payment.date) {
+        const date = new Date(payment.date);
+        const key = date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+        if (monthlyTrend[key] !== undefined) {
+          monthlyTrend[key] += Number(payment.amount) || 0;
+        }
+      }
+    });
+
+    const monthlyData = Object.entries(monthlyTrend).map(([month, total]) => ({
+      month,
+      total,
+    }));
+
+    // Payment by type (pie chart)
+    const byType: Record<string, number> = {
+      'Aluguel': 0,
+      'Condomínio': 0,
+      'IPTU': 0,
+      'Outros': 0,
+    };
+
+    paymentHistory.forEach((payment: any) => {
+      const amount = Number(payment.amount) || 0;
+      if (payment.type === 'ALUGUEL') byType['Aluguel'] += amount;
+      else if (payment.type === 'CONDOMINIO') byType['Condomínio'] += amount;
+      else if (payment.type === 'IPTU') byType['IPTU'] += amount;
+      else byType['Outros'] += amount;
+    });
+
+    const pieData = Object.entries(byType)
+      .filter(([_, value]) => value > 0)
+      .map(([name, value]) => ({ name, value }));
+
+    // Payment status distribution
+    const statusData = [
+      { name: 'Pagos', value: paymentHistory.filter((p: any) => p.status === 'PAGO' || p.status === 'paid').length, color: '#10B981' },
+      { name: 'Pendentes', value: paymentHistory.filter((p: any) => p.status === 'PENDENTE' || p.status === 'pending').length, color: '#F59E0B' },
+      { name: 'Atrasados', value: paymentHistory.filter((p: any) => p.status === 'ATRASADO' || p.status === 'overdue').length, color: '#EF4444' },
+    ].filter(item => item.value > 0);
+
+    // Calculate totals
+    const totalPaid = paymentHistory.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+    const totalPayments = paymentHistory.length;
+    const avgPayment = totalPayments > 0 ? totalPaid / totalPayments : 0;
+
+    return {
+      monthlyData,
+      pieData,
+      statusData,
+      totalPaid,
+      totalPayments,
+      avgPayment,
+    };
+  }, [dashboard?.paymentHistory]);
 
   if (isLoading) {
     return (
@@ -51,6 +144,24 @@ export function TenantDashboard() {
 
   const paymentStatus = getPaymentStatus();
 
+  // Calculate contract progress
+  const getContractProgress = () => {
+    if (!contract?.startDate || !contract?.endDate) return { progress: 0, remaining: 0 };
+
+    const start = new Date(contract.startDate).getTime();
+    const end = new Date(contract.endDate).getTime();
+    const now = Date.now();
+
+    const total = end - start;
+    const elapsed = now - start;
+    const progress = Math.min(Math.max((elapsed / total) * 100, 0), 100);
+    const remainingDays = Math.max(Math.ceil((end - now) / (1000 * 60 * 60 * 24)), 0);
+
+    return { progress, remaining: remainingDays };
+  };
+
+  const contractProgress = getContractProgress();
+
   return (
     <div className="space-y-6">
       {/* Welcome Header */}
@@ -63,13 +174,178 @@ export function TenantDashboard() {
         </p>
       </div>
 
+      {/* Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-green-600 font-medium">Total Pago</p>
+                <p className="text-2xl font-bold text-green-700">
+                  {formatCurrency(chartData.totalPaid)}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-green-200 rounded-full flex items-center justify-center">
+                <DollarSign className="w-6 h-6 text-green-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-blue-600 font-medium">Pagamentos</p>
+                <p className="text-2xl font-bold text-blue-700">
+                  {chartData.totalPayments}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center">
+                <Receipt className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-purple-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-purple-600 font-medium">Média Mensal</p>
+                <p className="text-2xl font-bold text-purple-700">
+                  {formatCurrency(chartData.avgPayment)}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-purple-200 rounded-full flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-orange-600 font-medium">Dias Restantes</p>
+                <p className="text-2xl font-bold text-orange-700">
+                  {contractProgress.remaining}
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-orange-200 rounded-full flex items-center justify-center">
+                <Calendar className="w-6 h-6 text-orange-600" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Monthly Payment Trend */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-blue-500" />
+              Evolução dos Pagamentos
+            </CardTitle>
+            <CardDescription>Histórico mensal dos últimos 12 meses</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {chartData.monthlyData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <AreaChart data={chartData.monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                  <XAxis
+                    dataKey="month"
+                    fontSize={11}
+                    tick={{ fill: '#6B7280' }}
+                  />
+                  <YAxis
+                    tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`}
+                    fontSize={11}
+                    tick={{ fill: '#6B7280' }}
+                  />
+                  <Tooltip
+                    formatter={(value: number) => [formatCurrency(value), 'Total']}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB' }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="total"
+                    stroke="#3B82F6"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorTotal)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                Nenhum dado de pagamento disponível
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Payment by Type Pie Chart */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-green-500" />
+              Distribuição por Tipo
+            </CardTitle>
+            <CardDescription>Valores pagos por categoria</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {chartData.pieData.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={chartData.pieData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {chartData.pieData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(value: number) => formatCurrency(value)}
+                    contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB' }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+                Nenhum dado de pagamento disponível
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {/* Property Info Card */}
       {property ? (
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Home className="w-5 h-5 text-blue-500" />
+                <Building2 className="w-5 h-5 text-blue-500" />
                 <CardTitle className="text-lg">Meu Imóvel</CardTitle>
               </div>
               <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
@@ -151,13 +427,99 @@ export function TenantDashboard() {
       ) : (
         <Card>
           <CardContent className="py-8 text-center">
-            <Home className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <Building2 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="font-semibold text-lg mb-2">Nenhum imóvel vinculado</h3>
             <p className="text-muted-foreground">
               Você ainda não possui um imóvel vinculado à sua conta.
             </p>
           </CardContent>
         </Card>
+      )}
+
+      {/* Contract Progress & Status */}
+      {contract && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Contract Progress */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-purple-500" />
+                <CardTitle className="text-lg">Progresso do Contrato</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Início: {contract.startDate ? new Date(contract.startDate).toLocaleDateString('pt-BR') : '-'}
+                  </span>
+                  <span className="text-muted-foreground">
+                    Término: {contract.endDate ? new Date(contract.endDate).toLocaleDateString('pt-BR') : '-'}
+                  </span>
+                </div>
+                <div className="relative">
+                  <div className="w-full bg-gray-200 rounded-full h-4">
+                    <div
+                      className="bg-gradient-to-r from-purple-500 to-purple-600 h-4 rounded-full transition-all duration-500"
+                      style={{ width: `${contractProgress.progress}%` }}
+                    />
+                  </div>
+                  <p className="text-center mt-2 text-sm font-medium">
+                    {contractProgress.progress.toFixed(1)}% concluído
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-4 pt-4 border-t">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-purple-600">{contractProgress.remaining}</p>
+                    <p className="text-sm text-muted-foreground">Dias restantes</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-green-600">
+                      {formatCurrency(Number(contract.monthlyRent) || 0)}
+                    </p>
+                    <p className="text-sm text-muted-foreground">Valor mensal</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Payment Status Distribution */}
+          <Card>
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-green-500" />
+                <CardTitle className="text-lg">Status dos Pagamentos</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {chartData.statusData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={chartData.statusData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={70}
+                      dataKey="value"
+                      label={({ name, value }) => `${name}: ${value}`}
+                    >
+                      {chartData.statusData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+                  Nenhum dado disponível
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Quick Actions */}
@@ -203,64 +565,7 @@ export function TenantDashboard() {
         </Card>
       </div>
 
-      {/* Contract Summary */}
-      {contract && (
-        <Card>
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileText className="w-5 h-5 text-purple-500" />
-                <CardTitle className="text-lg">Resumo do Contrato</CardTitle>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => navigate('/dashboard/tenant-contract')}
-              >
-                Ver Detalhes
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Início</p>
-                <p className="font-semibold">
-                  {contract.startDate
-                    ? new Date(contract.startDate).toLocaleDateString('pt-BR')
-                    : '-'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Término</p>
-                <p className="font-semibold">
-                  {contract.endDate
-                    ? new Date(contract.endDate).toLocaleDateString('pt-BR')
-                    : '-'}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Valor Mensal</p>
-                <p className="font-semibold text-green-600">
-                  {formatCurrency(Number(contract.monthlyRent) || 0)}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Status</p>
-                <Badge className={
-                  contract.status === 'ATIVO'
-                    ? 'bg-green-100 text-green-700'
-                    : 'bg-gray-100 text-gray-700'
-                }>
-                  {contract.status === 'ATIVO' ? 'Ativo' : contract.status}
-                </Badge>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Payment History */}
+      {/* Payment History Bar Chart */}
       <Card>
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
@@ -276,10 +581,55 @@ export function TenantDashboard() {
               Ver Todos
             </Button>
           </div>
-          <CardDescription>Últimos pagamentos realizados</CardDescription>
+          <CardDescription>Pagamentos mensais realizados</CardDescription>
         </CardHeader>
         <CardContent>
-          {paymentHistory.length > 0 ? (
+          {chartData.monthlyData.some(d => d.total > 0) ? (
+            <ResponsiveContainer width="100%" height={250}>
+              <BarChart data={chartData.monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis
+                  dataKey="month"
+                  fontSize={11}
+                  tick={{ fill: '#6B7280' }}
+                />
+                <YAxis
+                  tickFormatter={(v) => `R$${(v/1000).toFixed(0)}k`}
+                  fontSize={11}
+                  tick={{ fill: '#6B7280' }}
+                />
+                <Tooltip
+                  formatter={(value: number) => [formatCurrency(value), 'Valor']}
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB' }}
+                />
+                <Bar
+                  dataKey="total"
+                  fill="#10B981"
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[250px] flex items-center justify-center text-muted-foreground">
+              <div className="text-center">
+                <Receipt className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Nenhum pagamento registrado</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Recent Payments List */}
+      {paymentHistory.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-blue-500" />
+              Últimos Pagamentos
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-3">
               {paymentHistory.slice(0, 5).map((payment: any, index: number) => (
                 <div
@@ -314,14 +664,9 @@ export function TenantDashboard() {
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              <Receipt className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>Nenhum pagamento registrado</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Payment Alert */}
       {paymentStatus.status === 'overdue' && (

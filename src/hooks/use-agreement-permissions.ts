@@ -19,6 +19,7 @@ import {
   isSignableStatus,
   hasBeenSigned,
   isImmutableStatus,
+  isMR3XRole,
 } from '../lib/agreement-permissions';
 
 /**
