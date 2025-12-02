@@ -9,6 +9,8 @@ import { PlanUsageWidget } from '../../components/dashboard/PlanUsageWidget';
 import { useNavigate } from 'react-router-dom';
 import { TenantDashboard } from './TenantDashboard';
 import { BrokerDashboard } from './BrokerDashboard';
+import { ApiClientDashboard } from './ApiClientDashboard';
+import { SalesRepDashboard } from './SalesRepDashboard';
 
 export function DashboardHome() {
   const { hasPermission, user } = useAuth();
@@ -22,6 +24,16 @@ export function DashboardHome() {
   // Render BROKER users broker dashboard directly
   if (user?.role === 'BROKER') {
     return <BrokerDashboard />;
+  }
+
+  // Render API_CLIENT users API dashboard directly
+  if (user?.role === 'API_CLIENT') {
+    return <ApiClientDashboard />;
+  }
+
+  // Render REPRESENTATIVE users sales rep dashboard directly
+  if (user?.role === 'REPRESENTATIVE') {
+    return <SalesRepDashboard />;
   }
 
   // Check permissions for different dashboard sections

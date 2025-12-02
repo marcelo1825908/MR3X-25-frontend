@@ -4,7 +4,9 @@ import {
   Home, Building2, Users, FileText, DollarSign, MessageSquare, Bell,
   LogOut, Menu, X, BarChart3, User, Shield, Building, Briefcase,
   UserCheck, UserCog, ShieldCheck, Settings, FileDown,
-  Crown, Package, Mail, Wrench, Receipt, Key, ClipboardCheck, FileSignature
+  Crown, Package, Mail, Wrench, Receipt, Key, ClipboardCheck, FileSignature,
+  Code, KeyRound, Activity, Webhook, BookOpen, UserCog2,
+  Target, Award, Inbox, TrendingUp, Kanban
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -42,6 +44,20 @@ const baseNavigation = [
   { name: 'Chat', href: '/dashboard/chat', icon: MessageSquare, perm: 'chat:read' },
   { name: 'Notificacoes', href: '/dashboard/notifications', icon: Bell, perm: 'notifications:read' },
   { name: 'Alterar Senha', href: '/dashboard/change-password', icon: Key, perm: undefined },
+  // API_CLIENT specific menu items
+  { name: 'API Credentials', href: '/dashboard/api-credentials', icon: KeyRound, perm: undefined, roles: ['API_CLIENT'] },
+  { name: 'Access Tokens', href: '/dashboard/api-tokens', icon: Code, perm: undefined, roles: ['API_CLIENT'] },
+  { name: 'API Logs', href: '/dashboard/api-logs', icon: Activity, perm: undefined, roles: ['API_CLIENT'] },
+  { name: 'Webhooks', href: '/dashboard/api-webhooks', icon: Webhook, perm: undefined, roles: ['API_CLIENT'] },
+  { name: 'Documentation', href: '/dashboard/api-docs', icon: BookOpen, perm: undefined, roles: ['API_CLIENT'] },
+  { name: 'Account Settings', href: '/dashboard/api-settings', icon: UserCog2, perm: undefined, roles: ['API_CLIENT'] },
+  // REPRESENTATIVE (Sales Rep) specific menu items
+  { name: 'Prospects', href: '/dashboard/sales-prospects', icon: Building2, perm: undefined, roles: ['REPRESENTATIVE'] },
+  { name: 'Propostas', href: '/dashboard/sales-proposals', icon: FileText, perm: undefined, roles: ['REPRESENTATIVE'] },
+  { name: 'Pipeline', href: '/dashboard/sales-pipeline', icon: Kanban, perm: undefined, roles: ['REPRESENTATIVE'] },
+  { name: 'Métricas', href: '/dashboard/sales-metrics', icon: TrendingUp, perm: undefined, roles: ['REPRESENTATIVE'] },
+  { name: 'Comissões', href: '/dashboard/sales-commissions', icon: Award, perm: undefined, roles: ['REPRESENTATIVE'] },
+  { name: 'Mensagens', href: '/dashboard/sales-inbox', icon: Inbox, perm: undefined, roles: ['REPRESENTATIVE'] },
 ];
 
 export function DashboardLayout() {
@@ -341,37 +357,34 @@ export function DashboardLayout() {
       if (excludeForAuditor.includes(item.href)) return false;
     }
 
-    // REPRESENTATIVE: Sales representative
+    // REPRESENTATIVE: Sales representative for MR3X platform
+    // Main functions: prospect agencies, send proposals, track pipeline, view metrics, manage commissions
     if (user?.role === 'REPRESENTATIVE') {
-      const excludeForRepresentative = [
-        '/dashboard/properties',
-        '/dashboard/contracts',
-        '/dashboard/inspections',
-        '/dashboard/agreements',
-        '/dashboard/invoices',
-        '/dashboard/payments',
-        '/dashboard/brokers',
-        '/dashboard/owners',
-        '/dashboard/tenants',
-        '/dashboard/managers',
-        '/dashboard/agency-admin',
-        '/dashboard/agency-split-config',
-        '/dashboard/agency-plan-config',
-        '/dashboard/plans',
-        '/dashboard/billing',
-        '/dashboard/communications',
-        '/dashboard/integrations',
-        '/dashboard/audit',
-        '/dashboard/documents',
-        '/dashboard/notifications',
+      const allowForRepresentative = [
+        '/dashboard',                    // Sales Rep Dashboard (overview, performance)
+        '/dashboard/sales-prospects',    // Agencies/Prospects management
+        '/dashboard/sales-proposals',    // Proposals management
+        '/dashboard/sales-pipeline',     // Sales Pipeline (Kanban view)
+        '/dashboard/sales-metrics',      // Metrics and KPIs
+        '/dashboard/sales-commissions',  // Commissions tracking
+        '/dashboard/sales-inbox',        // Internal messages/inbox
+        '/dashboard/change-password',    // Change password
       ];
-      if (excludeForRepresentative.includes(item.href)) return false;
+      if (!allowForRepresentative.includes(item.href)) return false;
     }
 
-    // API_CLIENT: No web interface needed
+    // API_CLIENT: External integration role with API management interface
     if (user?.role === 'API_CLIENT') {
-      // API clients should not have web access - show minimal menu
-      const allowForApiClient = ['/dashboard', '/dashboard/change-password'];
+      const allowForApiClient = [
+        '/dashboard',                  // API Dashboard (overview, usage stats)
+        '/dashboard/api-credentials',  // API Credentials
+        '/dashboard/api-tokens',       // Access Tokens
+        '/dashboard/api-logs',         // API Logs
+        '/dashboard/api-webhooks',     // Webhooks
+        '/dashboard/api-docs',         // Documentation
+        '/dashboard/api-settings',     // Account Settings
+        '/dashboard/change-password',  // Change Password
+      ];
       if (!allowForApiClient.includes(item.href)) return false;
     }
 

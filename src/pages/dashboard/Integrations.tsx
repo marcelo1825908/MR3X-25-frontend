@@ -45,7 +45,7 @@ export default function IntegrationsPage() {
     {
       id: '1',
       name: 'API Principal',
-      key: 'sk_live_1234567890abcdef',
+      key: 'mr3x_live_1234567890abcdef',
       createdAt: new Date('2024-01-01'),
       lastUsed: new Date('2024-01-20'),
       isActive: true,
@@ -53,7 +53,7 @@ export default function IntegrationsPage() {
     {
       id: '2',
       name: 'API de Desenvolvimento',
-      key: 'sk_test_abcdef1234567890',
+      key: 'mr3x_test_abcdef1234567890',
       createdAt: new Date('2024-01-10'),
       lastUsed: new Date('2024-01-19'),
       isActive: true,

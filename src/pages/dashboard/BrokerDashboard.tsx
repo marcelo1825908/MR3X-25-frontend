@@ -4,7 +4,7 @@ import { formatCurrency } from '../../lib/utils';
 import {
   Home, Building2, FileText, DollarSign, Users, Clock,
   CheckCircle, AlertTriangle, TrendingUp, Calendar, Briefcase,
-  ClipboardList, Receipt, CreditCard, PieChart as PieChartIcon
+  Receipt, CreditCard, PieChart as PieChartIcon
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';

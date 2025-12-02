@@ -27,6 +27,20 @@ import { TenantContract } from './pages/dashboard/TenantContract';
 import { TenantPayments } from './pages/dashboard/TenantPayments';
 import { TenantProfile } from './pages/dashboard/TenantProfile';
 import { BrokerDashboard } from './pages/dashboard/BrokerDashboard';
+import { ApiClientDashboard } from './pages/dashboard/ApiClientDashboard';
+import { ApiCredentials } from './pages/dashboard/ApiCredentials';
+import { ApiTokens } from './pages/dashboard/ApiTokens';
+import { ApiLogs } from './pages/dashboard/ApiLogs';
+import { ApiWebhooks } from './pages/dashboard/ApiWebhooks';
+import { ApiDocs } from './pages/dashboard/ApiDocs';
+import { ApiSettings } from './pages/dashboard/ApiSettings';
+import { SalesRepDashboard } from './pages/dashboard/SalesRepDashboard';
+import { SalesProspects } from './pages/dashboard/SalesProspects';
+import { SalesProposals } from './pages/dashboard/SalesProposals';
+import { SalesPipeline } from './pages/dashboard/SalesPipeline';
+import { SalesMetrics } from './pages/dashboard/SalesMetrics';
+import { SalesCommissions } from './pages/dashboard/SalesCommissions';
+import { SalesInbox } from './pages/dashboard/SalesInbox';
 import { Inspections } from './pages/dashboard/Inspections';
 import { Agreements } from './pages/dashboard/Agreements';
 import { Invoices } from './pages/dashboard/Invoices';
@@ -161,6 +175,24 @@ function App() {
 
               {/* Broker-specific routes */}
               <Route path="broker-dashboard" element={<BrokerDashboard />} />
+
+              {/* API Client routes */}
+              <Route path="api-dashboard" element={<ApiClientDashboard />} />
+              <Route path="api-credentials" element={<ApiCredentials />} />
+              <Route path="api-tokens" element={<ApiTokens />} />
+              <Route path="api-logs" element={<ApiLogs />} />
+              <Route path="api-webhooks" element={<ApiWebhooks />} />
+              <Route path="api-docs" element={<ApiDocs />} />
+              <Route path="api-settings" element={<ApiSettings />} />
+
+              {/* Sales Representative routes */}
+              <Route path="sales-dashboard" element={<SalesRepDashboard />} />
+              <Route path="sales-prospects" element={<SalesProspects />} />
+              <Route path="sales-proposals" element={<SalesProposals />} />
+              <Route path="sales-pipeline" element={<SalesPipeline />} />
+              <Route path="sales-metrics" element={<SalesMetrics />} />
+              <Route path="sales-commissions" element={<SalesCommissions />} />
+              <Route path="sales-inbox" element={<SalesInbox />} />
             </Route>
 
             {/* Redirect root to dashboard or login */}
