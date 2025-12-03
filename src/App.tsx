@@ -41,6 +41,31 @@ import { SalesPipeline } from './pages/dashboard/SalesPipeline';
 import { SalesMetrics } from './pages/dashboard/SalesMetrics';
 import { SalesCommissions } from './pages/dashboard/SalesCommissions';
 import { SalesInbox } from './pages/dashboard/SalesInbox';
+import {
+  AuditorDashboard,
+  AuditorLogs,
+  AuditorSignatures,
+  AuditorPayments,
+  AuditorSecurity,
+  AuditorDataIntegrity,
+  AuditorAgencies,
+  AuditorUsers,
+  AuditorDocuments,
+  AuditorTools,
+  AuditorSettings,
+} from './pages/dashboard/auditor';
+import {
+  ManagerDashboard,
+  ManagerAgencies,
+  ManagerSupportCenter,
+  ManagerInternalUsers,
+  ManagerLogsIntegrity,
+  ManagerPlansBilling,
+  ManagerIntegrations,
+  ManagerTickets,
+  ManagerKnowledgeBase,
+  ManagerSettings,
+} from './pages/dashboard/platform-manager';
 import { Inspections } from './pages/dashboard/Inspections';
 import { Agreements } from './pages/dashboard/Agreements';
 import { Invoices } from './pages/dashboard/Invoices';
@@ -193,6 +218,31 @@ function App() {
               <Route path="sales-metrics" element={<SalesMetrics />} />
               <Route path="sales-commissions" element={<SalesCommissions />} />
               <Route path="sales-inbox" element={<SalesInbox />} />
+
+              {/* Legal Auditor routes (Read-only) */}
+              <Route path="auditor" element={<AuditorDashboard />} />
+              <Route path="auditor-logs" element={<AuditorLogs />} />
+              <Route path="auditor-signatures" element={<AuditorSignatures />} />
+              <Route path="auditor-payments" element={<AuditorPayments />} />
+              <Route path="auditor-security" element={<AuditorSecurity />} />
+              <Route path="auditor-integrity" element={<AuditorDataIntegrity />} />
+              <Route path="auditor-agencies" element={<AuditorAgencies />} />
+              <Route path="auditor-users" element={<AuditorUsers />} />
+              <Route path="auditor-documents" element={<AuditorDocuments />} />
+              <Route path="auditor-tools" element={<AuditorTools />} />
+              <Route path="auditor-settings" element={<AuditorSettings />} />
+
+              {/* Platform Manager routes (MR3X Internal Manager) */}
+              <Route path="manager-dashboard" element={<ManagerDashboard />} />
+              <Route path="manager-agencies" element={<ManagerAgencies />} />
+              <Route path="manager-support" element={<ManagerSupportCenter />} />
+              <Route path="manager-users" element={<ManagerInternalUsers />} />
+              <Route path="manager-logs" element={<ManagerLogsIntegrity />} />
+              <Route path="manager-billing" element={<ManagerPlansBilling />} />
+              <Route path="manager-integrations" element={<ManagerIntegrations />} />
+              <Route path="manager-tickets" element={<ManagerTickets />} />
+              <Route path="manager-knowledge" element={<ManagerKnowledgeBase />} />
+              <Route path="manager-settings" element={<ManagerSettings />} />
             </Route>
 
             {/* Redirect root to dashboard or login */}

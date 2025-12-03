@@ -474,8 +474,8 @@ export function SalesInbox() {
             <CardHeader>
               <CardTitle className="text-sm">Mensagens ({filteredMessages.length})</CardTitle>
             </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y max-h-[600px] overflow-y-auto">
+            <CardContent className="p-0 overflow-hidden">
+              <div className="divide-y max-h-[600px] overflow-y-auto overflow-x-hidden">
                 {filteredMessages.map((message: Message) => (
                   <div
                     key={message.id}
@@ -489,13 +489,13 @@ export function SalesInbox() {
                       }
                     }}
                   >
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
+                    <div className="flex items-start gap-2">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
                           <User className="w-5 h-5 text-primary" />
                         </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className={`text-sm truncate ${!message.isRead ? 'font-bold' : 'font-medium'}`}>
                               {message.senderName}
                             </p>
@@ -509,7 +509,7 @@ export function SalesInbox() {
                           </p>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-1">
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
                         <span className="text-xs text-muted-foreground whitespace-nowrap">
                           {formatDate(message.createdAt)}
                         </span>
@@ -518,6 +518,7 @@ export function SalesInbox() {
                             e.stopPropagation();
                             handleToggleStar(message.id);
                           }}
+                          className="p-1 hover:bg-gray-200 rounded"
                         >
                           {message.isStarred ? (
                             <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />

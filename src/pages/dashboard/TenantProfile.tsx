@@ -265,47 +265,6 @@ export function TenantProfile() {
         </CardContent>
       </Card>
 
-      {/* Security */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Shield className="w-5 h-5 text-green-500" />
-            <CardTitle className="text-lg">Segurança</CardTitle>
-          </div>
-          <CardDescription>
-            Configurações de segurança da sua conta
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div>
-                <p className="font-medium">Senha</p>
-                <p className="text-sm text-muted-foreground">
-                  Última alteração: Nunca
-                </p>
-              </div>
-              <Button
-                variant="outline"
-                onClick={() => navigate('/dashboard/change-password')}
-              >
-                Alterar Senha
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-              <div>
-                <p className="font-medium">Autenticação em duas etapas</p>
-                <p className="text-sm text-muted-foreground">
-                  Adicione uma camada extra de segurança
-                </p>
-              </div>
-              <Badge variant="outline">Em breve</Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Account Info */}
       <Card>
         <CardHeader>
@@ -328,6 +287,57 @@ export function TenantProfile() {
                   ? new Date(details.lastLogin).toLocaleDateString('pt-BR')
                   : 'Primeiro acesso'}
               </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Security */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <Shield className="w-5 h-5 text-green-500" />
+            <CardTitle className="text-lg">Segurança</CardTitle>
+          </div>
+          <CardDescription>
+            Configurações de segurança da sua conta
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-medium">Autenticação em duas etapas</p>
+                <p className="text-sm text-muted-foreground">
+                  Adicione uma camada extra de segurança
+                </p>
+              </div>
+              <Badge variant="outline">Em breve</Badge>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-medium">Configurações</p>
+                <p className="text-sm text-muted-foreground">
+                  Preferências de segurança da conta
+                </p>
+              </div>
+              <Badge variant="outline">Em breve</Badge>
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div>
+                <p className="font-medium">Senha</p>
+                <p className="text-sm text-muted-foreground">
+                  Última alteração: Nunca
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                onClick={() => navigate('/dashboard/change-password')}
+              >
+                Alterar Senha
+              </Button>
             </div>
           </div>
         </CardContent>

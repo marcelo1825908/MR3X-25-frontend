@@ -11,6 +11,8 @@ import { TenantDashboard } from './TenantDashboard';
 import { BrokerDashboard } from './BrokerDashboard';
 import { ApiClientDashboard } from './ApiClientDashboard';
 import { SalesRepDashboard } from './SalesRepDashboard';
+import { AuditorDashboard } from './auditor';
+import { ManagerDashboard } from './platform-manager';
 
 export function DashboardHome() {
   const { hasPermission, user } = useAuth();
@@ -34,6 +36,16 @@ export function DashboardHome() {
   // Render REPRESENTATIVE users sales rep dashboard directly
   if (user?.role === 'REPRESENTATIVE') {
     return <SalesRepDashboard />;
+  }
+
+  // Render LEGAL_AUDITOR users auditor dashboard directly
+  if (user?.role === 'LEGAL_AUDITOR') {
+    return <AuditorDashboard />;
+  }
+
+  // Render PLATFORM_MANAGER users manager dashboard directly
+  if (user?.role === 'PLATFORM_MANAGER') {
+    return <ManagerDashboard />;
   }
 
   // Check permissions for different dashboard sections

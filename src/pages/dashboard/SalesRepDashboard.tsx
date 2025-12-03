@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { useAuth } from '../../contexts/AuthContext';
-import apiClient from '../../api/client';
+import { salesRepAPI } from '../../api';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, BarChart, Bar, Legend
@@ -10,70 +10,56 @@ import {
 import type { PieLabelRenderProps } from 'recharts';
 import {
   TrendingUp, Users, FileText, DollarSign, Target, Award,
-  Clock, CheckCircle
+  Clock, CheckCircle, Loader2, Inbox
 } from 'lucide-react';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'];
 
-const mockStats = {
-  leadsInProgress: 12,
-  conversions: 8,
-  monthlyTarget: 15,
-  monthlyAchieved: 8,
-  totalProspects: 45,
-  proposalsSent: 18,
-  proposalsAccepted: 8,
-  proposalsPending: 6,
-  proposalsRejected: 4,
-  expectedRevenue: 125000,
-  commissionEarned: 8500,
-  commissionPending: 3200,
-  avgTicket: 15625,
-  conversionRate: 44.4,
-  weeklyPerformance: [
-    { week: 'Sem 1', leads: 10, conversions: 4 },
-    { week: 'Sem 2', leads: 12, conversions: 5 },
-    { week: 'Sem 3', leads: 8, conversions: 3 },
-    { week: 'Sem 4', leads: 15, conversions: 8 },
-  ],
-  pipelineData: [
-    { name: 'Prospecção', value: 15, color: '#3B82F6' },
-    { name: 'Qualificação', value: 10, color: '#F59E0B' },
-    { name: 'Proposta Enviada', value: 8, color: '#8B5CF6' },
-    { name: 'Negociação', value: 5, color: '#10B981' },
-    { name: 'Fechado Ganho', value: 8, color: '#22C55E' },
-    { name: 'Fechado Perdido', value: 4, color: '#EF4444' },
-  ],
-  recentLeads: [
-    { id: 1, name: 'Imobiliária Centro', contact: 'João Silva', status: 'negotiation', value: 25000, date: '2024-12-01' },
-    { id: 2, name: 'Imóveis Premium', contact: 'Maria Santos', status: 'proposal_sent', value: 18000, date: '2024-11-30' },
-    { id: 3, name: 'Casa & Lar', contact: 'Pedro Costa', status: 'qualification', value: 12000, date: '2024-11-29' },
-    { id: 4, name: 'Invest Imóveis', contact: 'Ana Oliveira', status: 'prospecting', value: 30000, date: '2024-11-28' },
-  ],
-  topProspects: [
-    { name: 'Imobiliária Centro', value: 25000, probability: 80 },
-    { name: 'Invest Imóveis', value: 30000, probability: 45 },
-    { name: 'Imóveis Premium', value: 18000, probability: 60 },
-  ],
-};
+// Chart container to prevent -1 dimension errors
+function ChartContainer({ children, height = 256 }: { children: React.ReactNode; height?: number }) {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 0);
+    return () => clearTimeout(timer);
+  }, []);
+  if (!isMounted) {
+    return <div style={{ height }} className="flex items-center justify-center text-muted-foreground">Carregando...</div>;
+  }
+  return (
+    <div style={{ width: '100%', height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        {children}
+      </ResponsiveContainer>
+    </div>
+  );
+}
 
 export function SalesRepDashboard() {
   const { user } = useAuth();
 
-  const { data: stats, isLoading } = useQuery({
-    queryKey: ['sales-rep-stats'],
-    queryFn: async () => {
-      try {
-        const response = await apiClient.get('/sales-rep/stats');
-        return response.data;
-      } catch {
-        return mockStats;
-      }
-    },
-    staleTime: 30000,
+  const { data: salesStats = {
+    leadsInProgress: 0,
+    conversions: 0,
+    monthlyTarget: 0,
+    monthlyAchieved: 0,
+    totalProspects: 0,
+    proposalsSent: 0,
+    proposalsAccepted: 0,
+    proposalsPending: 0,
+    proposalsRejected: 0,
+    expectedRevenue: 0,
+    commissionEarned: 0,
+    commissionPending: 0,
+    avgTicket: 0,
+    conversionRate: 0,
+    weeklyPerformance: [],
+    pipelineData: [],
+    recentLeads: [],
+    topProspects: [],
+  }, isLoading } = useQuery({
+    queryKey: ['sales-rep', 'stats'],
+    queryFn: salesRepAPI.getStats,
   });
-
-  const salesStats = stats || mockStats;
 
   const progressPercentage = useMemo(() => {
     if (!salesStats) return 0;
@@ -106,7 +92,7 @@ export function SalesRepDashboard() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -210,33 +196,31 @@ export function SalesRepDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={salesStats.weeklyPerformance}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="week" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Area
-                    type="monotone"
-                    dataKey="leads"
-                    name="Leads"
-                    stroke="#3B82F6"
-                    fill="#3B82F6"
-                    fillOpacity={0.3}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="conversions"
-                    name="Conversões"
-                    stroke="#10B981"
-                    fill="#10B981"
-                    fillOpacity={0.3}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            <ChartContainer height={256}>
+              <AreaChart data={salesStats.weeklyPerformance}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="week" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Area
+                  type="monotone"
+                  dataKey="leads"
+                  name="Leads"
+                  stroke="#3B82F6"
+                  fill="#3B82F6"
+                  fillOpacity={0.3}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="conversions"
+                  name="Conversões"
+                  stroke="#10B981"
+                  fill="#10B981"
+                  fillOpacity={0.3}
+                />
+              </AreaChart>
+            </ChartContainer>
           </CardContent>
         </Card>
 
@@ -249,27 +233,25 @@ export function SalesRepDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={salesStats.pipelineData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                    label={({ name, percent }: PieLabelRenderProps) => `${name || ''}: ${((percent as number) * 100).toFixed(0)}%`}
-                  >
-                    {salesStats.pipelineData.map((entry: { name: string; value: number; color: string }, index: number) => (
-                      <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: number) => [value, 'Quantidade']} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            <ChartContainer height={256}>
+              <PieChart>
+                <Pie
+                  data={salesStats.pipelineData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={80}
+                  paddingAngle={5}
+                  dataKey="value"
+                  label={({ name, percent }: PieLabelRenderProps) => `${name || ''}: ${((percent as number) * 100).toFixed(0)}%`}
+                >
+                  {salesStats.pipelineData.map((entry: { name: string; value: number; color: string }, index: number) => (
+                    <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(value: number) => [value, 'Quantidade']} />
+              </PieChart>
+            </ChartContainer>
           </CardContent>
         </Card>
       </div>
@@ -315,24 +297,22 @@ export function SalesRepDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-48">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={[
-                    { name: 'Aceitas', value: salesStats.proposalsAccepted, fill: '#10B981' },
-                    { name: 'Pendentes', value: salesStats.proposalsPending, fill: '#F59E0B' },
-                    { name: 'Rejeitadas', value: salesStats.proposalsRejected, fill: '#EF4444' },
-                  ]}
-                  layout="vertical"
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={80} />
-                  <Tooltip />
-                  <Bar dataKey="value" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
+            <ChartContainer height={192}>
+              <BarChart
+                data={[
+                  { name: 'Aceitas', value: salesStats.proposalsAccepted, fill: '#10B981' },
+                  { name: 'Pendentes', value: salesStats.proposalsPending, fill: '#F59E0B' },
+                  { name: 'Rejeitadas', value: salesStats.proposalsRejected, fill: '#EF4444' },
+                ]}
+                layout="vertical"
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis dataKey="name" type="category" width={80} />
+                <Tooltip />
+                <Bar dataKey="value" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ChartContainer>
           </CardContent>
         </Card>
 
@@ -377,32 +357,39 @@ export function SalesRepDashboard() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Agência</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Contato</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Valor</th>
-                  <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Data</th>
-                </tr>
-              </thead>
-              <tbody>
-                {salesStats.recentLeads.map((lead: { id: number; name: string; contact: string; status: string; value: number; date: string }) => (
-                  <tr key={lead.id} className="border-b hover:bg-gray-50">
-                    <td className="py-3 px-4 text-sm font-medium">{lead.name}</td>
-                    <td className="py-3 px-4 text-sm text-muted-foreground">{lead.contact}</td>
-                    <td className="py-3 px-4">{getStatusBadge(lead.status)}</td>
-                    <td className="py-3 px-4 text-sm">{formatCurrency(lead.value)}</td>
-                    <td className="py-3 px-4 text-sm text-muted-foreground">
-                      {new Date(lead.date).toLocaleDateString('pt-BR')}
-                    </td>
+          {salesStats.recentLeads.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+              <Inbox className="w-12 h-12 mb-3 opacity-50" />
+              <p className="text-sm">Nenhum lead encontrado</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Agência</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Contato</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Status</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Valor</th>
+                    <th className="text-left py-3 px-4 text-sm font-medium text-muted-foreground">Data</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {salesStats.recentLeads.map((lead: { id: number; name: string; contact: string; status: string; value: number; date: string }) => (
+                    <tr key={lead.id} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-4 text-sm font-medium">{lead.name}</td>
+                      <td className="py-3 px-4 text-sm text-muted-foreground">{lead.contact}</td>
+                      <td className="py-3 px-4">{getStatusBadge(lead.status)}</td>
+                      <td className="py-3 px-4 text-sm">{formatCurrency(lead.value)}</td>
+                      <td className="py-3 px-4 text-sm text-muted-foreground">
+                        {new Date(lead.date).toLocaleDateString('pt-BR')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

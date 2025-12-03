@@ -846,5 +846,437 @@ export const invoicesAPI = {
   },
 };
 
+// Platform Manager Dashboard API
+export const platformManagerAPI = {
+  // Dashboard overview
+  getDashboardMetrics: async () => {
+    const response = await apiClient.get('/platform-manager/dashboard/metrics');
+    return response.data;
+  },
+
+  getAgencyStatusDistribution: async () => {
+    const response = await apiClient.get('/platform-manager/dashboard/agency-status');
+    return response.data;
+  },
+
+  getTicketStatusDistribution: async () => {
+    const response = await apiClient.get('/platform-manager/dashboard/ticket-status');
+    return response.data;
+  },
+
+  getMonthlyTickets: async () => {
+    const response = await apiClient.get('/platform-manager/dashboard/monthly-tickets');
+    return response.data;
+  },
+
+  getPlatformHealth: async () => {
+    const response = await apiClient.get('/platform-manager/dashboard/platform-health');
+    return response.data;
+  },
+
+  getRecentActivities: async () => {
+    const response = await apiClient.get('/platform-manager/dashboard/recent-activities');
+    return response.data;
+  },
+
+  getSystemStatus: async () => {
+    const response = await apiClient.get('/platform-manager/dashboard/system-status');
+    return response.data;
+  },
+
+  // Agencies management
+  getAgencies: async (params?: { search?: string; status?: string; plan?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/platform-manager/agencies${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  getAgencyById: async (id: string) => {
+    const response = await apiClient.get(`/platform-manager/agencies/${id}`);
+    return response.data;
+  },
+
+  // Support center
+  getTickets: async (params?: { status?: string; priority?: string; category?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/platform-manager/tickets${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  getTicketById: async (id: string) => {
+    const response = await apiClient.get(`/platform-manager/tickets/${id}`);
+    return response.data;
+  },
+
+  updateTicketStatus: async (id: string, status: string) => {
+    const response = await apiClient.patch(`/platform-manager/tickets/${id}/status`, { status });
+    return response.data;
+  },
+
+  // Internal users
+  getInternalUsers: async (params?: { search?: string; role?: string; status?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/platform-manager/internal-users${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  // Logs and integrity
+  getLogs: async (params?: { type?: string; startDate?: string; endDate?: string; page?: number; pageSize?: number }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/platform-manager/logs${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  // Plans and billing (read-only)
+  getPlansOverview: async () => {
+    const response = await apiClient.get('/platform-manager/plans-overview');
+    return response.data;
+  },
+
+  getBillingOverview: async () => {
+    const response = await apiClient.get('/platform-manager/billing-overview');
+    return response.data;
+  },
+
+  // Integrations monitoring
+  getWebhookLogs: async (params?: { service?: string; status?: string; startDate?: string; endDate?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/platform-manager/integrations/webhooks${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  getApiRequestLogs: async (params?: { method?: string; status?: string; startDate?: string; endDate?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/platform-manager/integrations/api-requests${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  // Tickets and communication
+  getInternalNotes: async () => {
+    const response = await apiClient.get('/platform-manager/internal-notes');
+    return response.data;
+  },
+
+  getAgencyMessages: async () => {
+    const response = await apiClient.get('/platform-manager/agency-messages');
+    return response.data;
+  },
+
+  getSupportMetrics: async () => {
+    const response = await apiClient.get('/platform-manager/support-metrics');
+    return response.data;
+  },
+
+  // Knowledge base
+  getKnowledgeBaseCategories: async () => {
+    const response = await apiClient.get('/platform-manager/knowledge-base/categories');
+    return response.data;
+  },
+
+  getKnowledgeBaseArticles: async (params?: { category?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/platform-manager/knowledge-base/articles${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  getProcedures: async () => {
+    const response = await apiClient.get('/platform-manager/knowledge-base/procedures');
+    return response.data;
+  },
+
+  getChecklists: async () => {
+    const response = await apiClient.get('/platform-manager/knowledge-base/checklists');
+    return response.data;
+  },
+
+  // Settings (limited)
+  getManagerProfile: async () => {
+    const response = await apiClient.get('/platform-manager/profile');
+    return response.data;
+  },
+
+  updateManagerProfile: async (data: { name?: string; phone?: string }) => {
+    const response = await apiClient.put('/platform-manager/profile', data);
+    return response.data;
+  },
+
+  getNotificationSettings: async () => {
+    const response = await apiClient.get('/platform-manager/notification-settings');
+    return response.data;
+  },
+
+  updateNotificationSettings: async (settings: any) => {
+    const response = await apiClient.put('/platform-manager/notification-settings', settings);
+    return response.data;
+  },
+};
+
+// Auditor Dashboard API
+export const auditorAPI = {
+  getDashboardMetrics: async () => {
+    const response = await apiClient.get('/auditor/dashboard/metrics');
+    return response.data;
+  },
+
+  getAgencyPlanDistribution: async () => {
+    const response = await apiClient.get('/auditor/dashboard/agency-plan-distribution');
+    return response.data;
+  },
+
+  getContractStatusDistribution: async () => {
+    const response = await apiClient.get('/auditor/dashboard/contract-status-distribution');
+    return response.data;
+  },
+
+  getMonthlyTransactions: async () => {
+    const response = await apiClient.get('/auditor/dashboard/monthly-transactions');
+    return response.data;
+  },
+
+  getSignatureActivity: async () => {
+    const response = await apiClient.get('/auditor/dashboard/signature-activity');
+    return response.data;
+  },
+
+  getUserRoleDistribution: async () => {
+    const response = await apiClient.get('/auditor/dashboard/user-role-distribution');
+    return response.data;
+  },
+
+  getPaymentStatusDistribution: async () => {
+    const response = await apiClient.get('/auditor/dashboard/payment-status-distribution');
+    return response.data;
+  },
+
+  getLogsSummary: async () => {
+    const response = await apiClient.get('/auditor/dashboard/logs-summary');
+    return response.data;
+  },
+
+  getRevenueTrend: async () => {
+    const response = await apiClient.get('/auditor/dashboard/revenue-trend');
+    return response.data;
+  },
+
+  getRecentActivity: async () => {
+    const response = await apiClient.get('/auditor/dashboard/recent-activity');
+    return response.data;
+  },
+
+  getSystemStatus: async () => {
+    const response = await apiClient.get('/auditor/dashboard/system-status');
+    return response.data;
+  },
+
+  getSummaryStats: async () => {
+    const response = await apiClient.get('/auditor/dashboard/summary-stats');
+    return response.data;
+  },
+
+  // Agencies view
+  getAgencies: async (params?: { search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/auditor/agencies${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  // Documents view
+  getDocuments: async (params?: { type?: string; status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/auditor/documents${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  // Users view
+  getUsers: async (params?: { role?: string; status?: string; search?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/auditor/users${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  // Payments view
+  getPayments: async (params?: { status?: string; startDate?: string; endDate?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/auditor/payments${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  // Signatures view
+  getSignatures: async (params?: { type?: string; status?: string; startDate?: string; endDate?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/auditor/signatures${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  // Security view
+  getSecurity: async () => {
+    const response = await apiClient.get('/auditor/security');
+    return response.data;
+  },
+
+  // Data integrity
+  getDataIntegrity: async () => {
+    const response = await apiClient.get('/auditor/data-integrity');
+    return response.data;
+  },
+
+  // Logs view
+  getLogs: async (params?: { type?: string; level?: string; startDate?: string; endDate?: string; page?: number; pageSize?: number }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/auditor/logs${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  // Tools
+  getTools: async () => {
+    const response = await apiClient.get('/auditor/tools');
+    return response.data;
+  },
+};
+
+// Sales Rep Dashboard API
+export const salesRepAPI = {
+  getStats: async () => {
+    const response = await apiClient.get('/sales-rep/stats');
+    return response.data;
+  },
+
+  getDashboardStats: async () => {
+    const response = await apiClient.get('/sales-rep/dashboard/stats');
+    return response.data;
+  },
+
+  getWeeklyPerformance: async () => {
+    const response = await apiClient.get('/sales-rep/dashboard/weekly-performance');
+    return response.data;
+  },
+
+  getPipelineData: async () => {
+    const response = await apiClient.get('/sales-rep/dashboard/pipeline');
+    return response.data;
+  },
+
+  getRecentLeads: async () => {
+    const response = await apiClient.get('/sales-rep/dashboard/recent-leads');
+    return response.data;
+  },
+
+  getTopProspects: async () => {
+    const response = await apiClient.get('/sales-rep/dashboard/top-prospects');
+    return response.data;
+  },
+};
+
+// API Client Dashboard API
+export const apiClientDashboardAPI = {
+  getStats: async () => {
+    const response = await apiClient.get('/api-client/stats');
+    return response.data;
+  },
+
+  getDashboardStats: async () => {
+    const response = await apiClient.get('/api-client/dashboard/stats');
+    return response.data;
+  },
+
+  getDailyRequests: async () => {
+    const response = await apiClient.get('/api-client/dashboard/daily-requests');
+    return response.data;
+  },
+
+  getRequestsByMethod: async () => {
+    const response = await apiClient.get('/api-client/dashboard/requests-by-method');
+    return response.data;
+  },
+
+  getRequestsByEndpoint: async () => {
+    const response = await apiClient.get('/api-client/dashboard/requests-by-endpoint');
+    return response.data;
+  },
+
+  getRecentRequests: async () => {
+    const response = await apiClient.get('/api-client/dashboard/recent-requests');
+    return response.data;
+  },
+};
+
 export { authApi } from './auth';
 export { default as apiClient } from './client';

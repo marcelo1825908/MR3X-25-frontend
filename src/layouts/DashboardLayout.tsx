@@ -6,7 +6,8 @@ import {
   UserCheck, UserCog, ShieldCheck, Settings, FileDown,
   Crown, Package, Mail, Wrench, Receipt, Key, ClipboardCheck, FileSignature,
   Code, KeyRound, Activity, Webhook, BookOpen, UserCog2,
-  Award, Inbox, TrendingUp, Kanban
+  Award, Inbox, TrendingUp, Kanban,
+  Database, GitCompare, Ticket, Headphones, Book, Zap
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -58,6 +59,30 @@ const baseNavigation = [
   { name: 'Métricas', href: '/dashboard/sales-metrics', icon: TrendingUp, perm: undefined, roles: ['REPRESENTATIVE'] },
   { name: 'Comissões', href: '/dashboard/sales-commissions', icon: Award, perm: undefined, roles: ['REPRESENTATIVE'] },
   { name: 'Mensagens', href: '/dashboard/sales-inbox', icon: Inbox, perm: undefined, roles: ['REPRESENTATIVE'] },
+  { name: 'Alterar Senha', href: '/dashboard/change-password', icon: Key, perm: undefined, roles: ['REPRESENTATIVE'] },
+  // LEGAL_AUDITOR specific menu items (Read-only access)
+  { name: 'Logs', href: '/dashboard/auditor-logs', icon: Activity, perm: undefined, roles: ['LEGAL_AUDITOR'] },
+  { name: 'Assinaturas', href: '/dashboard/auditor-signatures', icon: FileSignature, perm: undefined, roles: ['LEGAL_AUDITOR'] },
+  { name: 'Pagamentos', href: '/dashboard/auditor-payments', icon: Receipt, perm: undefined, roles: ['LEGAL_AUDITOR'] },
+  { name: 'Segurança', href: '/dashboard/auditor-security', icon: Shield, perm: undefined, roles: ['LEGAL_AUDITOR'] },
+  { name: 'Integridade', href: '/dashboard/auditor-integrity', icon: Database, perm: undefined, roles: ['LEGAL_AUDITOR'] },
+  { name: 'Agências', href: '/dashboard/auditor-agencies', icon: Building, perm: undefined, roles: ['LEGAL_AUDITOR'] },
+  { name: 'Usuários', href: '/dashboard/auditor-users', icon: Users, perm: undefined, roles: ['LEGAL_AUDITOR'] },
+  { name: 'Documentos', href: '/dashboard/auditor-documents', icon: FileText, perm: undefined, roles: ['LEGAL_AUDITOR'] },
+  { name: 'Ferramentas', href: '/dashboard/auditor-tools', icon: GitCompare, perm: undefined, roles: ['LEGAL_AUDITOR'] },
+  { name: 'Configurações', href: '/dashboard/auditor-settings', icon: Settings, perm: undefined, roles: ['LEGAL_AUDITOR'] },
+  // PLATFORM_MANAGER specific menu items (MR3X Internal Manager)
+  { name: 'Agências', href: '/dashboard/manager-agencies', icon: Building, perm: undefined, roles: ['PLATFORM_MANAGER'] },
+  { name: 'Suporte', href: '/dashboard/manager-support', icon: Headphones, perm: undefined, roles: ['PLATFORM_MANAGER'] },
+  { name: 'Usuários Internos', href: '/dashboard/manager-users', icon: Users, perm: undefined, roles: ['PLATFORM_MANAGER'] },
+  { name: 'Logs e Integridade', href: '/dashboard/manager-logs', icon: Activity, perm: undefined, roles: ['PLATFORM_MANAGER'] },
+  { name: 'Planos e Cobrança', href: '/dashboard/manager-billing', icon: Receipt, perm: undefined, roles: ['PLATFORM_MANAGER'] },
+  { name: 'Integrações', href: '/dashboard/manager-integrations', icon: Zap, perm: undefined, roles: ['PLATFORM_MANAGER'] },
+  { name: 'Tickets', href: '/dashboard/manager-tickets', icon: Ticket, perm: undefined, roles: ['PLATFORM_MANAGER'] },
+  { name: 'Base de Conhecimento', href: '/dashboard/manager-knowledge', icon: Book, perm: undefined, roles: ['PLATFORM_MANAGER'] },
+  { name: 'Configurações', href: '/dashboard/manager-settings', icon: Settings, perm: undefined, roles: ['PLATFORM_MANAGER'] },
+  { name: 'Notificacoes', href: '/dashboard/notifications', icon: Bell, perm: undefined, roles: ['PLATFORM_MANAGER'] },
+  { name: 'Alterar Senha', href: '/dashboard/change-password', icon: Key, perm: undefined, roles: ['PLATFORM_MANAGER'] },
 ];
 
 export function DashboardLayout() {
@@ -168,28 +193,25 @@ export function DashboardLayout() {
     // - Handles support, statistics, client assistance
     // - Has ZERO access to agency operations (properties, contracts, payments)
     if (user?.role === 'PLATFORM_MANAGER') {
-      const excludeForPlatformManager = [
-        '/dashboard/properties', // NO agency operations
-        '/dashboard/contracts', // NO agency operations
-        '/dashboard/inspections', // NO agency operations
-        '/dashboard/agreements', // NO agency operations
-        '/dashboard/invoices', // NO agency operations
-        '/dashboard/payments', // NO agency operations
-        '/dashboard/tenants', // NO agency operations
-        '/dashboard/brokers', // NO agency operations
-        '/dashboard/owners', // NO agency operations
-        '/dashboard/users', // Cannot manage users (support role)
-        '/dashboard/managers', // NO agency operations
-        '/dashboard/agency-admin', // NO agency operations
-        '/dashboard/agency-split-config', // NO agency operations
-        '/dashboard/agency-plan-config', // NO agency operations
-        '/dashboard/plans', // CEO/ADMIN only
-        '/dashboard/billing', // Can only read
-        '/dashboard/communications', // CEO/ADMIN only
-        '/dashboard/integrations', // CEO/ADMIN only
-        '/dashboard/settings', // Can only read
+      const allowForPlatformManager = [
+        '/dashboard',                       // Manager Dashboard
+        '/dashboard/manager-agencies',      // View and manage agencies
+        '/dashboard/manager-support',       // Support Center
+        '/dashboard/manager-users',         // Internal MR3X users (read-only)
+        '/dashboard/manager-logs',          // Logs and Integrity (read-only)
+        '/dashboard/manager-billing',       // Plans and Billing (read-only)
+        '/dashboard/manager-integrations',  // Integrations Monitoring
+        '/dashboard/manager-tickets',       // Tickets and Communication
+        '/dashboard/manager-knowledge',     // Knowledge Base
+        '/dashboard/manager-settings',      // Personal Settings (limited)
+        '/dashboard/notifications',         // Notifications
+        '/dashboard/change-password',       // Security
       ];
-      if (excludeForPlatformManager.includes(item.href)) return false;
+      if (!allowForPlatformManager.includes(item.href)) return false;
+      // Exclude general Notificacoes/Alterar Senha (show only the PLATFORM_MANAGER specific ones at end)
+      if ((item.href === '/dashboard/notifications' || item.href === '/dashboard/change-password') && !item.roles?.includes('PLATFORM_MANAGER')) {
+        return false;
+      }
     }
 
     // AGENCY_MANAGER (Agency Gestor): Full agency operational permissions
@@ -330,31 +352,23 @@ export function DashboardLayout() {
       if (excludeForBuildingManager.includes(item.href)) return false;
     }
 
-    // LEGAL_AUDITOR: Read-only audit access
+    // LEGAL_AUDITOR: Read-only audit access to all system data
     if (user?.role === 'LEGAL_AUDITOR') {
-      const excludeForAuditor = [
-        '/dashboard/brokers',
-        '/dashboard/owners',
-        '/dashboard/tenants',
-        '/dashboard/users',
-        '/dashboard/agencies',
-        '/dashboard/managers',
-        '/dashboard/agency-admin',
-        '/dashboard/agency-split-config',
-        '/dashboard/agency-plan-config',
-        '/dashboard/inspections',
-        '/dashboard/agreements',
-        '/dashboard/invoices',
-        '/dashboard/plans',
-        '/dashboard/billing',
-        '/dashboard/communications',
-        '/dashboard/integrations',
-        '/dashboard/documents',
-        '/dashboard/settings',
-        '/dashboard/chat', // Auditors don't chat
-        '/dashboard/notifications',
+      const allowForAuditor = [
+        '/dashboard',                     // Auditor Dashboard (main page with charts)
+        '/dashboard/auditor-logs',        // System Logs
+        '/dashboard/auditor-signatures',  // Digital Signatures
+        '/dashboard/auditor-payments',    // Payments and Splits
+        '/dashboard/auditor-security',    // Security and Tokens
+        '/dashboard/auditor-integrity',   // Data Integrity
+        '/dashboard/auditor-agencies',    // Agencies Overview
+        '/dashboard/auditor-users',       // Users Overview
+        '/dashboard/auditor-documents',   // Documents
+        '/dashboard/auditor-tools',       // Audit Tools
+        '/dashboard/auditor-settings',    // Personal Settings
+        '/dashboard/change-password',     // Change Password
       ];
-      if (excludeForAuditor.includes(item.href)) return false;
+      if (!allowForAuditor.includes(item.href)) return false;
     }
 
     // REPRESENTATIVE: Sales representative for MR3X platform
@@ -371,6 +385,10 @@ export function DashboardLayout() {
         '/dashboard/change-password',    // Change password
       ];
       if (!allowForRepresentative.includes(item.href)) return false;
+      // Exclude general Alterar Senha (show only the REPRESENTATIVE specific one at end)
+      if (item.href === '/dashboard/change-password' && !item.roles?.includes('REPRESENTATIVE')) {
+        return false;
+      }
     }
 
     // API_CLIENT: External integration role with API management interface

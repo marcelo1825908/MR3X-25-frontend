@@ -1,0 +1,10 @@
+export { ManagerDashboard } from './ManagerDashboard';
+export { ManagerAgencies } from './ManagerAgencies';
+export { ManagerSupportCenter } from './ManagerSupportCenter';
+export { ManagerInternalUsers } from './ManagerInternalUsers';
+export { ManagerLogsIntegrity } from './ManagerLogsIntegrity';
+export { ManagerPlansBilling } from './ManagerPlansBilling';
+export { ManagerIntegrations } from './ManagerIntegrations';
+export { ManagerTickets } from './ManagerTickets';
+export { ManagerKnowledgeBase } from './ManagerKnowledgeBase';
+export { ManagerSettings } from './ManagerSettings';

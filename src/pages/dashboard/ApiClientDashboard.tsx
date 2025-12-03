@@ -1,7 +1,8 @@
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Activity, Code, Webhook, Clock, CheckCircle, XCircle,
-  TrendingUp, Shield, Zap
+  TrendingUp, Shield, Zap, Loader2
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -23,66 +24,51 @@ import {
   AreaChart,
   Area,
 } from 'recharts';
-import { useMemo } from 'react';
-import apiClient from '../../api/client';
+import { apiClientDashboardAPI } from '../../api';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+
+// Chart container to prevent -1 dimension errors
+function ChartContainer({ children, height = 300 }: { children: React.ReactNode; height?: number }) {
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setIsMounted(true), 0);
+    return () => clearTimeout(timer);
+  }, []);
+  if (!isMounted) {
+    return <div style={{ height }} className="flex items-center justify-center text-muted-foreground">Carregando...</div>;
+  }
+  return (
+    <div style={{ width: '100%', height }}>
+      <ResponsiveContainer width="100%" height="100%">
+        {children}
+      </ResponsiveContainer>
+    </div>
+  );
+}
 
 export function ApiClientDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const { data: apiStats, isLoading } = useQuery({
-    queryKey: ['api-client-stats', user?.id],
-    queryFn: async () => {
-      try {
-        const response = await apiClient.get('/api-client/stats');
-        return response.data;
-      } catch {
-        // Return mock data for development
-        return {
-          totalRequests: 15420,
-          successfulRequests: 14850,
-          failedRequests: 570,
-          averageResponseTime: 245,
-          activeTokens: 3,
-          webhooksConfigured: 5,
-          lastRequestAt: new Date().toISOString(),
-          tokenHealth: 'healthy',
-          requestsThisMonth: 4523,
-          requestsLastMonth: 3890,
-          dailyRequests: [
-            { date: '01/12', requests: 450, errors: 12 },
-            { date: '02/12', requests: 520, errors: 8 },
-            { date: '03/12', requests: 380, errors: 15 },
-            { date: '04/12', requests: 610, errors: 5 },
-            { date: '05/12', requests: 490, errors: 10 },
-            { date: '06/12', requests: 550, errors: 7 },
-            { date: '07/12', requests: 420, errors: 18 },
-          ],
-          requestsByMethod: [
-            { name: 'GET', value: 8500, color: '#10B981' },
-            { name: 'POST', value: 4200, color: '#3B82F6' },
-            { name: 'PUT', value: 1800, color: '#F59E0B' },
-            { name: 'DELETE', value: 920, color: '#EF4444' },
-          ],
-          requestsByEndpoint: [
-            { endpoint: '/properties', count: 5200 },
-            { endpoint: '/contracts', count: 3800 },
-            { endpoint: '/payments', count: 2900 },
-            { endpoint: '/tenants', count: 2100 },
-            { endpoint: '/users', count: 1420 },
-          ],
-          recentRequests: [
-            { id: 1, method: 'GET', endpoint: '/api/properties', status: 200, time: '2ms', timestamp: new Date(Date.now() - 60000).toISOString() },
-            { id: 2, method: 'POST', endpoint: '/api/contracts', status: 201, time: '45ms', timestamp: new Date(Date.now() - 120000).toISOString() },
-            { id: 3, method: 'GET', endpoint: '/api/payments', status: 200, time: '12ms', timestamp: new Date(Date.now() - 180000).toISOString() },
-            { id: 4, method: 'PUT', endpoint: '/api/tenants/15', status: 500, time: '150ms', timestamp: new Date(Date.now() - 240000).toISOString() },
-            { id: 5, method: 'DELETE', endpoint: '/api/documents/8', status: 204, time: '8ms', timestamp: new Date(Date.now() - 300000).toISOString() },
-          ],
-        };
-      }
-    },
+  const { data: apiStats = {
+    totalRequests: 0,
+    successfulRequests: 0,
+    failedRequests: 0,
+    averageResponseTime: 0,
+    activeTokens: 0,
+    webhooksConfigured: 0,
+    lastRequestAt: null,
+    tokenHealth: 'healthy',
+    requestsThisMonth: 0,
+    requestsLastMonth: 0,
+    dailyRequests: [],
+    requestsByMethod: [],
+    requestsByEndpoint: [],
+    recentRequests: [],
+  }, isLoading } = useQuery({
+    queryKey: ['api-client', 'stats', user?.id],
+    queryFn: apiClientDashboardAPI.getStats,
   });
 
   const chartData = useMemo(() => {
@@ -122,7 +108,7 @@ export function ApiClientDashboard() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
       </div>
     );
   }
@@ -221,45 +207,43 @@ export function ApiClientDashboard() {
             <CardDescription>API requests and errors over time</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData.dailyRequests}>
-                  <defs>
-                    <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.1}/>
-                    </linearGradient>
-                    <linearGradient id="colorErrors" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#EF4444" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#EF4444" stopOpacity={0.1}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                  <XAxis dataKey="date" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip
-                    contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB' }}
-                  />
-                  <Legend />
-                  <Area
-                    type="monotone"
-                    dataKey="requests"
-                    stroke="#3B82F6"
-                    fillOpacity={1}
-                    fill="url(#colorRequests)"
-                    name="Requests"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="errors"
-                    stroke="#EF4444"
-                    fillOpacity={1}
-                    fill="url(#colorErrors)"
-                    name="Errors"
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
+            <ChartContainer height={300}>
+              <AreaChart data={chartData.dailyRequests}>
+                <defs>
+                  <linearGradient id="colorRequests" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#3B82F6" stopOpacity={0.1}/>
+                  </linearGradient>
+                  <linearGradient id="colorErrors" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#EF4444" stopOpacity={0.8}/>
+                    <stop offset="95%" stopColor="#EF4444" stopOpacity={0.1}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+                <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB' }}
+                />
+                <Legend />
+                <Area
+                  type="monotone"
+                  dataKey="requests"
+                  stroke="#3B82F6"
+                  fillOpacity={1}
+                  fill="url(#colorRequests)"
+                  name="Requests"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="errors"
+                  stroke="#EF4444"
+                  fillOpacity={1}
+                  fill="url(#colorErrors)"
+                  name="Errors"
+                />
+              </AreaChart>
+            </ChartContainer>
           </CardContent>
         </Card>
 
@@ -273,32 +257,30 @@ export function ApiClientDashboard() {
             <CardDescription>Distribution of HTTP methods</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={chartData.methodDistribution}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={100}
-                    paddingAngle={5}
-                    dataKey="value"
-                    label={({ name, percent }: { name?: string; percent?: number }) => `${name || ''} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                    labelLine={false}
-                  >
-                    {chartData.methodDistribution.map((entry: { name: string; value: number; color?: string }, index: number) => (
-                      <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: number) => value.toLocaleString()}
-                    contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB' }}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
+            <ChartContainer height={300}>
+              <PieChart>
+                <Pie
+                  data={chartData.methodDistribution}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={60}
+                  outerRadius={100}
+                  paddingAngle={5}
+                  dataKey="value"
+                  label={({ name, percent }: { name?: string; percent?: number }) => `${name || ''} ${((percent ?? 0) * 100).toFixed(0)}%`}
+                  labelLine={false}
+                >
+                  {chartData.methodDistribution.map((entry: { name: string; value: number; color?: string }, index: number) => (
+                    <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip
+                  formatter={(value: number) => value.toLocaleString()}
+                  contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB' }}
+                />
+                <Legend />
+              </PieChart>
+            </ChartContainer>
           </CardContent>
         </Card>
       </div>
@@ -313,20 +295,18 @@ export function ApiClientDashboard() {
           <CardDescription>Most frequently accessed endpoints</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData.endpointStats} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
-                <XAxis type="number" tick={{ fontSize: 12 }} />
-                <YAxis dataKey="endpoint" type="category" tick={{ fontSize: 12 }} width={120} />
-                <Tooltip
-                  formatter={(value: number) => value.toLocaleString()}
-                  contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB' }}
-                />
-                <Bar dataKey="count" fill="#8B5CF6" radius={[0, 4, 4, 0]} name="Requests" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          <ChartContainer height={250}>
+            <BarChart data={chartData.endpointStats} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+              <XAxis type="number" tick={{ fontSize: 12 }} />
+              <YAxis dataKey="endpoint" type="category" tick={{ fontSize: 12 }} width={120} />
+              <Tooltip
+                formatter={(value: number) => value.toLocaleString()}
+                contentStyle={{ borderRadius: '8px', border: '1px solid #E5E7EB' }}
+              />
+              <Bar dataKey="count" fill="#8B5CF6" radius={[0, 4, 4, 0]} name="Requests" />
+            </BarChart>
+          </ChartContainer>
         </CardContent>
       </Card>
 
