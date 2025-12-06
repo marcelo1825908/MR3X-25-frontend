@@ -39,7 +39,8 @@ jobs:
 
       - name: Deploy to Server
         run: |
-          tar -czf deploy.tar.gz dist/
+          # Create tarball from contents of dist (not the folder itself)
+          cd dist && tar -czf ../deploy.tar.gz . && cd ..
 
           scp -o StrictHostKeyChecking=no deploy.tar.gz \
             ${{ secrets.PRODUCTION_USER }}@${{ secrets.PRODUCTION_HOST }}:/tmp/
@@ -48,16 +49,18 @@ jobs:
             set -e
             cd ${{ secrets.PRODUCTION_PATH }}
 
-            rm -rf dist.backup 2>/dev/null || true
-            mv dist dist.backup 2>/dev/null || true
+            # Backup current files
+            rm -rf backup 2>/dev/null || true
+            mkdir -p backup
+            mv *.html *.js *.css assets 2>/dev/null backup/ || true
 
-            mkdir -p dist
+            # Extract new files directly to the directory
             tar -xzf /tmp/deploy.tar.gz
-            mv dist/* . 2>/dev/null || true
-            rmdir dist 2>/dev/null || true
 
+            # Cleanup
             rm /tmp/deploy.tar.gz
-            rm -rf dist.backup 2>/dev/null || true
+            rm -rf backup
 
             echo "✅ Frontend deployment completed!"
+            ls -la
           ENDSSH
