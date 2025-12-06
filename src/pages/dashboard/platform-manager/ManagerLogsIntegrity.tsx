@@ -18,6 +18,46 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import { platformManagerAPI } from '../../../api';
 
+interface PlatformLog {
+  id: string;
+  message: string;
+  user: string;
+  action: string;
+  type: string;
+  module: string;
+  ip: string;
+  timestamp: string;
+}
+
+interface SuspiciousActivity {
+  id: string;
+  type: string;
+  description: string;
+  severity: string;
+  status: string;
+  ip: string;
+  timestamp: string;
+}
+
+interface ActionHistory {
+  id: string;
+  action: string;
+  target: string;
+  from: string;
+  to: string;
+  performedBy: string;
+  timestamp: string;
+  validated: boolean;
+}
+
+interface APIUsageStat {
+  client: string;
+  requests: number;
+  errors: number;
+  avgLatency: number;
+  quota: number;
+}
+
 export function ManagerLogsIntegrity() {
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -38,7 +78,7 @@ export function ManagerLogsIntegrity() {
   const apiUsageStats = logsData.apiUsageStats || [];
   const integrityScore = logsData.integrityScore || 0;
 
-  const filteredLogs = platformLogs.filter((log: any) => {
+  const filteredLogs = platformLogs.filter((log: PlatformLog) => {
     const matchesSearch = log.message?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.user?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       log.action?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -132,7 +172,7 @@ export function ManagerLogsIntegrity() {
                 <AlertTriangle className="w-5 h-5 text-yellow-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{suspiciousActivities.filter((a: any) => a.status === 'investigating').length}</p>
+                <p className="text-2xl font-bold">{suspiciousActivities.filter((a: SuspiciousActivity) => a.status === 'investigating').length}</p>
                 <p className="text-sm text-muted-foreground">Em Investigação</p>
               </div>
             </div>
@@ -145,7 +185,7 @@ export function ManagerLogsIntegrity() {
                 <XCircle className="w-5 h-5 text-red-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{platformLogs.filter((l: any) => l.type === 'error').length}</p>
+                <p className="text-2xl font-bold">{platformLogs.filter((l: PlatformLog) => l.type === 'error').length}</p>
                 <p className="text-sm text-muted-foreground">Erros</p>
               </div>
             </div>
@@ -228,7 +268,7 @@ export function ManagerLogsIntegrity() {
                 {filteredLogs.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">Nenhum log encontrado</p>
                 ) : (
-                  filteredLogs.map((log: any) => (
+                  filteredLogs.map((log: PlatformLog) => (
                     <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100">
                       {getLogIcon(log.type)}
                       <div className="flex-1 min-w-0">
@@ -263,7 +303,7 @@ export function ManagerLogsIntegrity() {
                 {suspiciousActivities.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">Nenhuma atividade suspeita encontrada</p>
                 ) : (
-                  suspiciousActivities.map((activity: any) => (
+                  suspiciousActivities.map((activity: SuspiciousActivity) => (
                     <div key={activity.id} className="p-4 border rounded-lg">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-2">
@@ -309,7 +349,7 @@ export function ManagerLogsIntegrity() {
                       </tr>
                     </thead>
                     <tbody>
-                      {actionHistory.map((action: any) => (
+                      {actionHistory.map((action: ActionHistory) => (
                         <tr key={action.id} className="border-b hover:bg-gray-50">
                           <td className="py-3 px-4 font-medium">{action.action}</td>
                           <td className="py-3 px-4">{action.target}</td>
@@ -360,7 +400,7 @@ export function ManagerLogsIntegrity() {
                       </tr>
                     </thead>
                     <tbody>
-                      {apiUsageStats.map((stat: any) => {
+                      {apiUsageStats.map((stat: APIUsageStat) => {
                         const quotaPercent = stat.quota > 0 ? (stat.requests / stat.quota) * 100 : 0;
                         return (
                           <tr key={stat.client} className="border-b hover:bg-gray-50">

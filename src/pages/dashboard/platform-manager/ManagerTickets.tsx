@@ -16,6 +16,32 @@ import {
 } from 'recharts';
 import { platformManagerAPI } from '../../../api';
 
+interface AgencyMessage {
+  id: string;
+  agency: string;
+  subject: string;
+  lastMessage: string;
+  status: string;
+  unread: boolean;
+  timestamp: string;
+}
+
+interface InternalNote {
+  id: string;
+  title: string;
+  content: string;
+  priority: string;
+  category: string;
+  author: string;
+  createdAt: string;
+}
+
+interface TicketCategory {
+  name: string;
+  value: number;
+  color: string;
+}
+
 // Chart wrapper to prevent -1 dimension errors
 function ChartContainer({ children, height = 300 }: { children: React.ReactNode; height?: number }) {
   const [isMounted, setIsMounted] = useState(false);
@@ -73,7 +99,7 @@ export function ManagerTickets() {
     queryFn: platformManagerAPI.getMonthlyTickets,
   });
 
-  const unreadCount = agencyMessages.filter((m: any) => m.unread).length;
+  const unreadCount = agencyMessages.filter((m: AgencyMessage) => m.unread).length;
 
   const getPriorityBadge = (priority: string) => {
     switch (priority) {
@@ -228,7 +254,7 @@ export function ManagerTickets() {
                 {internalNotes.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">Nenhuma nota encontrada</p>
                 ) : (
-                  internalNotes.map((note: any) => (
+                  internalNotes.map((note: InternalNote) => (
                     <div key={note.id} className="p-4 border rounded-lg hover:bg-gray-50">
                       <div className="flex items-start justify-between mb-2">
                         <div className="flex items-center gap-2">
@@ -277,7 +303,7 @@ export function ManagerTickets() {
                 {agencyMessages.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">Nenhuma mensagem encontrada</p>
                 ) : (
-                  agencyMessages.map((message: any) => (
+                  agencyMessages.map((message: AgencyMessage) => (
                     <div
                       key={message.id}
                       className={`p-4 border rounded-lg cursor-pointer hover:bg-gray-50 ${
@@ -328,7 +354,7 @@ export function ManagerTickets() {
                       dataKey="value"
                       label={({ percent }) => `${((percent || 0) * 100).toFixed(0)}%`}
                     >
-                      {ticketsByCategory.map((entry: any, index: number) => (
+                      {ticketsByCategory.map((entry: TicketCategory, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>

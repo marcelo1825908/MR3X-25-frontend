@@ -13,6 +13,17 @@ import { Switch } from '../../../components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import { platformManagerAPI } from '../../../api';
 
+interface NotificationSettings {
+  emailTickets: boolean;
+  emailAgencies: boolean;
+  emailReports: boolean;
+  pushTickets: boolean;
+  pushAlerts: boolean;
+  pushMessages: boolean;
+  digestDaily: boolean;
+  digestWeekly: boolean;
+}
+
 export function ManagerSettings() {
   const [activeTab, setActiveTab] = useState('profile');
   const queryClient = useQueryClient();
@@ -81,7 +92,7 @@ export function ManagerSettings() {
 
   // Update notification settings mutation
   const updateNotificationsMutation = useMutation({
-    mutationFn: (settings: any) => platformManagerAPI.updateNotificationSettings(settings),
+    mutationFn: (settings: NotificationSettings) => platformManagerAPI.updateNotificationSettings(settings),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['platform-manager', 'notification-settings'] });
     },

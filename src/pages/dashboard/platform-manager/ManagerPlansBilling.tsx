@@ -25,11 +25,39 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
 import { platformManagerAPI } from '../../../api';
 
+interface Plan {
+  id: string;
+  name: string;
+  price: number;
+  color: string;
+  activeSubscriptions: number;
+  features: string[];
+}
+
+interface Subscription {
+  id: string;
+  agency: string;
+  plan: string;
+  status: string;
+  paymentStatus: string;
+  amount: number;
+  nextBilling: string;
+  startDate: string;
+  lastPayment?: string;
+}
+
+interface UpcomingBilling {
+  agency: string;
+  plan: string;
+  date: string;
+  amount: number;
+}
+
 export function ManagerPlansBilling() {
   const [searchTerm, setSearchTerm] = useState('');
   const [planFilter, setPlanFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [selectedSubscription, setSelectedSubscription] = useState<any | null>(null);
+  const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('plans');
 
@@ -43,7 +71,7 @@ export function ManagerPlansBilling() {
   const subscriptions = plansData.subscriptions || [];
   const upcomingBillings = plansData.upcomingBillings || [];
 
-  const filteredSubscriptions = subscriptions.filter((sub: any) => {
+  const filteredSubscriptions = subscriptions.filter((sub: Subscription) => {
     const matchesSearch = sub.agency?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesPlan = planFilter === 'all' || sub.plan === planFilter;
     const matchesStatus = statusFilter === 'all' || sub.paymentStatus === statusFilter;
@@ -51,12 +79,12 @@ export function ManagerPlansBilling() {
   });
 
   const totalMRR = subscriptions
-    .filter((s: any) => s.status === 'active')
-    .reduce((sum: number, s: any) => sum + (s.amount || 0), 0);
+    .filter((s: Subscription) => s.status === 'active')
+    .reduce((sum: number, s: Subscription) => sum + (s.amount || 0), 0);
 
-  const paidCount = subscriptions.filter((s: any) => s.paymentStatus === 'paid').length;
-  const pendingCount = subscriptions.filter((s: any) => s.paymentStatus === 'pending').length;
-  const overdueCount = subscriptions.filter((s: any) => s.paymentStatus === 'overdue').length;
+  const paidCount = subscriptions.filter((s: Subscription) => s.paymentStatus === 'paid').length;
+  const pendingCount = subscriptions.filter((s: Subscription) => s.paymentStatus === 'pending').length;
+  const overdueCount = subscriptions.filter((s: Subscription) => s.paymentStatus === 'overdue').length;
 
   const getPaymentStatusBadge = (status: string) => {
     switch (status) {
@@ -88,7 +116,7 @@ export function ManagerPlansBilling() {
     }
   };
 
-  const openDetails = (sub: any) => {
+  const openDetails = (sub: Subscription) => {
     setSelectedSubscription(sub);
     setDetailsOpen(true);
   };
@@ -179,7 +207,7 @@ export function ManagerPlansBilling() {
             {plans.length === 0 ? (
               <p className="text-muted-foreground text-center py-4 col-span-full">Nenhum plano encontrado</p>
             ) : (
-              plans.map((plan: any) => (
+              plans.map((plan: Plan) => (
                 <Card key={plan.id} className="relative overflow-hidden">
                   <div className={`absolute top-0 left-0 right-0 h-1 ${
                     plan.color === 'gray' ? 'bg-gray-400' :
@@ -282,7 +310,7 @@ export function ManagerPlansBilling() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filteredSubscriptions.map((sub: any) => (
+                      {filteredSubscriptions.map((sub: Subscription) => (
                         <tr key={sub.id} className="border-b hover:bg-gray-50">
                           <td className="py-3 px-4 font-medium">{sub.agency}</td>
                           <td className="py-3 px-4">
@@ -322,7 +350,7 @@ export function ManagerPlansBilling() {
                 {upcomingBillings.length === 0 ? (
                   <p className="text-muted-foreground text-center py-4">Nenhuma cobrança programada</p>
                 ) : (
-                  upcomingBillings.map((billing: any, index: number) => (
+                  upcomingBillings.map((billing: UpcomingBilling, index: number) => (
                     <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-100 rounded-lg">
