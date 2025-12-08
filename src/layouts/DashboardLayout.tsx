@@ -7,7 +7,7 @@ import {
   Crown, Package, Mail, Wrench, Receipt, Key, ClipboardCheck, FileSignature,
   Code, KeyRound, Activity, Webhook, BookOpen, UserCog2,
   Award, Inbox, TrendingUp, Kanban,
-  Database, GitCompare, Ticket, Headphones, Book, Zap, UserSearch
+  Database, GitCompare, Headphones, UserSearch
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -79,9 +79,6 @@ const baseNavigation = [
   { name: 'Usuários Internos', href: '/dashboard/manager-users', icon: Users, perm: undefined, roles: ['PLATFORM_MANAGER'] },
   { name: 'Logs e Integridade', href: '/dashboard/manager-logs', icon: Activity, perm: undefined, roles: ['PLATFORM_MANAGER'] },
   { name: 'Planos e Cobrança', href: '/dashboard/manager-billing', icon: Receipt, perm: undefined, roles: ['PLATFORM_MANAGER'] },
-  { name: 'Integrações', href: '/dashboard/manager-integrations', icon: Zap, perm: undefined, roles: ['PLATFORM_MANAGER'] },
-  { name: 'Tickets', href: '/dashboard/manager-tickets', icon: Ticket, perm: undefined, roles: ['PLATFORM_MANAGER'] },
-  { name: 'Base de Conhecimento', href: '/dashboard/manager-knowledge', icon: Book, perm: undefined, roles: ['PLATFORM_MANAGER'] },
   { name: 'Configurações', href: '/dashboard/manager-settings', icon: Settings, perm: undefined, roles: ['PLATFORM_MANAGER'] },
   { name: 'Notificacoes', href: '/dashboard/notifications', icon: Bell, perm: undefined, roles: ['PLATFORM_MANAGER'] },
   { name: 'Alterar Senha', href: '/dashboard/change-password', icon: Key, perm: undefined, roles: ['PLATFORM_MANAGER'] },
@@ -202,9 +199,6 @@ export function DashboardLayout() {
         '/dashboard/manager-users',         // Internal MR3X users (read-only)
         '/dashboard/manager-logs',          // Logs and Integrity (read-only)
         '/dashboard/manager-billing',       // Plans and Billing (read-only)
-        '/dashboard/manager-integrations',  // Integrations Monitoring
-        '/dashboard/manager-tickets',       // Tickets and Communication
-        '/dashboard/manager-knowledge',     // Knowledge Base
         '/dashboard/manager-settings',      // Personal Settings (limited)
         '/dashboard/notifications',         // Notifications
         '/dashboard/change-password',       // Security
