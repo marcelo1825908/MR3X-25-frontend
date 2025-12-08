@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Building2, Users, Ticket, Activity, TrendingUp, TrendingDown,
@@ -14,22 +14,42 @@ import { platformManagerAPI } from '../../../api';
 
 // Chart wrapper to prevent -1 dimension errors
 function ChartContainer({ children, height = 300 }: { children: React.ReactNode; height?: number }) {
-  const [isMounted, setIsMounted] = useState(false);
+  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsMounted(true), 0);
-    return () => clearTimeout(timer);
+    const updateDimensions = () => {
+      if (containerRef.current) {
+        const { offsetWidth, offsetHeight } = containerRef.current;
+        if (offsetWidth > 0 && offsetHeight > 0) {
+          setDimensions({ width: offsetWidth, height: offsetHeight });
+        }
+      }
+    };
+
+    // Initial measurement with a small delay to ensure DOM is ready
+    const timer = setTimeout(updateDimensions, 100);
+
+    // Also listen for resize events
+    window.addEventListener('resize', updateDimensions);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', updateDimensions);
+    };
   }, []);
 
-  if (!isMounted) {
-    return <div style={{ height }} className="flex items-center justify-center text-muted-foreground">Carregando...</div>;
-  }
-
   return (
-    <div style={{ width: '100%', height }}>
-      <ResponsiveContainer width="100%" height="100%">
-        {children}
-      </ResponsiveContainer>
+    <div ref={containerRef} style={{ width: '100%', height, minHeight: height }}>
+      {dimensions.width > 0 && dimensions.height > 0 ? (
+        <ResponsiveContainer width="100%" height={height} minWidth={100}>
+          {children}
+        </ResponsiveContainer>
+      ) : (
+        <div style={{ height }} className="flex items-center justify-center text-muted-foreground">
+          Carregando gráfico...
+        </div>
+      )}
     </div>
   );
 }
