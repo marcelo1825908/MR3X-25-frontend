@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuthStore } from '../../stores/authStore';
+import { getOwnerPermissions, getRestrictionMessage } from '../../lib/owner-permissions';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
@@ -804,6 +806,10 @@ export function TenantAnalysis() {
     limit: 10,
   });
 
+  // Permission check for PROPRIETARIO
+  const { user } = useAuthStore();
+  const permissions = getOwnerPermissions(user?.role, 'tenant_analysis');
+
   const { data: history, isLoading: isLoadingHistory } = useQuery({
     queryKey: ['tenant-analysis-history', filters],
     queryFn: () => tenantAnalysisAPI.getHistory({
@@ -939,47 +945,56 @@ export function TenantAnalysis() {
         </div>
       )}
 
-      {/* New Analysis Form */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Nova Análise</CardTitle>
-          <CardDescription>
-            Digite o CPF ou CNPJ do candidato para realizar uma análise completa
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleAnalyzeClick} className="flex gap-4">
-            <div className="flex-1">
-              <Input
-                placeholder="CPF ou CNPJ"
-                value={document}
-                onChange={(e) => setDocument(formatCPFCNPJ(e.target.value))}
-                maxLength={18}
-              />
-            </div>
-            <div className="flex-1">
-              <Input
-                placeholder="Nome (opcional)"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-            <Button type="submit" disabled={analyzeMutation.isPending}>
-              {analyzeMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Analisando...
-                </>
-              ) : (
-                <>
-                  <Search className="w-4 h-4 mr-2" />
-                  Analisar
-                </>
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+      {/* New Analysis Form - Only visible if user can create */}
+      {permissions.canCreate ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Nova Análise</CardTitle>
+            <CardDescription>
+              Digite o CPF ou CNPJ do candidato para realizar uma análise completa
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleAnalyzeClick} className="flex gap-4">
+              <div className="flex-1">
+                <Input
+                  placeholder="CPF ou CNPJ"
+                  value={document}
+                  onChange={(e) => setDocument(formatCPFCNPJ(e.target.value))}
+                  maxLength={18}
+                />
+              </div>
+              <div className="flex-1">
+                <Input
+                  placeholder="Nome (opcional)"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
+              </div>
+              <Button type="submit" disabled={analyzeMutation.isPending}>
+                {analyzeMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Analisando...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-4 h-4 mr-2" />
+                    Analisar
+                  </>
+                )}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      ) : (
+        <Alert>
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            {getRestrictionMessage('tenant_analysis')}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {}
       <Card>

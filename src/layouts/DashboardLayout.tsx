@@ -447,18 +447,7 @@ export function DashboardLayout() {
                         user.role === 'REPRESENTATIVE' ? 'bg-pink-100 text-pink-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
-                          {user.role === 'CEO' ? 'CEO' :
-                           user.role === 'ADMIN' ? 'Admin' :
-                           user.role === 'AGENCY_ADMIN' ? 'Diretor' :
-                           user.role === 'AGENCY_MANAGER' ? 'Gestor' :
-                         user.role === 'BROKER' ? 'Corretor' :
-                         user.role === 'INDEPENDENT_OWNER' ? 'Imóvel Indep.' :
-                         user.role === 'PROPRIETARIO' ? 'Imóvel' :
-                         user.role === 'INQUILINO' ? 'Inquilino' :
-                         user.role === 'BUILDING_MANAGER' ? 'Síndico' :
-                         user.role === 'LEGAL_AUDITOR' ? 'Auditor' :
-                         user.role === 'REPRESENTATIVE' ? 'Representante' :
-                         user.role || 'Usuário'}
+                          {user.role || 'Usuário'}
                       </span>
                     </div>
                   </div>

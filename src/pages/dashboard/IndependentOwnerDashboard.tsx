@@ -27,17 +27,17 @@ function ChartContainer({ children, height = 280 }: { children: React.ReactNode;
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsMounted(true), 0);
+    const timer = setTimeout(() => setIsMounted(true), 100);
     return () => clearTimeout(timer);
   }, []);
 
   if (!isMounted) {
-    return <div style={{ height }} className="flex items-center justify-center text-muted-foreground">Carregando...</div>;
+    return <div style={{ height: `${height}px` }} className="flex items-center justify-center text-muted-foreground">Carregando...</div>;
   }
 
   return (
-    <div style={{ width: '100%', height }}>
-      <ResponsiveContainer width="100%" height="100%">
+    <div style={{ width: '100%', height: `${height}px`, minHeight: `${height}px` }}>
+      <ResponsiveContainer width="100%" height={height} minWidth={200}>
         {children}
       </ResponsiveContainer>
     </div>
