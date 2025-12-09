@@ -185,8 +185,8 @@ export function AgencyPlanConfig() {
     }
   };
 
-  const propertyPercent = planUsage?.properties?.limit > 0
-    ? Math.min(100, (planUsage.properties.active / planUsage.properties.limit) * 100)
+  const propertyPercent = planUsage?.contracts?.limit > 0
+    ? Math.min(100, (planUsage.contracts.active / planUsage.contracts.limit) * 100)
     : 0;
 
   const userPercent = planUsage?.users?.limit > 0
@@ -273,17 +273,17 @@ export function AgencyPlanConfig() {
             <div className="flex items-center justify-between text-sm">
               <span>Ativas</span>
               <span className="font-medium">
-                {planUsage?.properties?.active || 0} / {planUsage?.properties?.limit === -1 ? 'Ilimitado' : planUsage?.properties?.limit || 0}
+                {planUsage?.contracts?.active || 0} / {planUsage?.contracts?.limit === -1 ? 'Ilimitado' : planUsage?.contracts?.limit || 0}
               </span>
             </div>
-            {planUsage?.properties?.limit !== -1 && (
+            {planUsage?.contracts?.limit !== -1 && (
               <Progress value={propertyPercent} className="h-3" />
             )}
-            {planUsage?.properties?.frozen > 0 && (
+            {(planUsage?.contracts?.frozen || 0) > 0 && (
               <div className="flex items-center gap-2 p-2 bg-amber-50 rounded-lg">
                 <Lock className="w-4 h-4 text-amber-600" />
                 <span className="text-sm text-amber-800">
-                  {planUsage.properties.frozen} imóvel(eis) congelado(s)
+                  {planUsage.contracts.frozen} imóvel(eis) congelado(s)
                 </span>
               </div>
             )}

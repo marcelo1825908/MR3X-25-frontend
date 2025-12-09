@@ -252,9 +252,9 @@ export function AgencyAdminDashboard() {
             <CardDescription>Recebido, Pendente e Vencido</CardDescription>
           </CardHeader>
           <CardContent>
-            <div style={{ width: '100%', height: 320 }}>
+            <div className="w-full">
               {revenueData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
                     <Pie
                       data={revenueData}
@@ -274,7 +274,7 @@ export function AgencyAdminDashboard() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
+                <div className="flex items-center justify-center h-[320px] text-muted-foreground">
                   <p>Nenhum dado de receita disponível</p>
                 </div>
               )}
@@ -289,9 +289,9 @@ export function AgencyAdminDashboard() {
             <CardDescription>Distribuição por status</CardDescription>
           </CardHeader>
           <CardContent>
-            <div style={{ width: '100%', height: 320 }}>
+            <div className="w-full">
               {propertyStatusData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
                     <Pie
                       data={propertyStatusData}
@@ -311,7 +311,7 @@ export function AgencyAdminDashboard() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
+                <div className="flex items-center justify-center h-[320px] text-muted-foreground">
                   <p>Nenhum imóvel cadastrado</p>
                 </div>
               )}
@@ -329,9 +329,9 @@ export function AgencyAdminDashboard() {
             <CardDescription>Ativos, A vencer e Vencidos</CardDescription>
           </CardHeader>
           <CardContent>
-            <div style={{ width: '100%', height: 320 }}>
+            <div className="w-full">
               {contractStatusData.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={320}>
                   <PieChart>
                     <Pie
                       data={contractStatusData}
@@ -351,7 +351,7 @@ export function AgencyAdminDashboard() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-full text-muted-foreground">
+                <div className="flex items-center justify-center h-[320px] text-muted-foreground">
                   <p>Nenhum contrato cadastrado</p>
                 </div>
               )}
@@ -366,8 +366,8 @@ export function AgencyAdminDashboard() {
             <CardDescription>Evolução dos últimos 6 meses</CardDescription>
           </CardHeader>
           <CardContent>
-            <div style={{ width: '100%', height: 320 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="w-full">
+              <ResponsiveContainer width="100%" height={320}>
                 <AreaChart data={paymentTrendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" fontSize={12} />
@@ -391,8 +391,8 @@ export function AgencyAdminDashboard() {
             <CardDescription>Valores por imóvel</CardDescription>
           </CardHeader>
           <CardContent>
-            <div style={{ width: '100%', height: 320 }}>
-              <ResponsiveContainer width="100%" height="100%">
+            <div className="w-full">
+              <ResponsiveContainer width="100%" height={320}>
                 <BarChart data={dueDatesChartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
