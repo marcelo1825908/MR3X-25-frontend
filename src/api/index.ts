@@ -1475,8 +1475,8 @@ export const apiClientDashboardAPI = {
 };
 
 export const tenantAnalysisAPI = {
-  
-  analyze: async (data: { document: string; name?: string; analysisType?: 'FULL' | 'FINANCIAL' | 'BACKGROUND' | 'QUICK' }) => {
+
+  analyze: async (data: { document: string; name?: string; analysisType?: 'FULL' | 'FINANCIAL' | 'BACKGROUND' | 'QUICK'; lgpdAccepted: boolean }) => {
     const response = await apiClient.post('/tenant-analysis/analyze', data);
     return response.data;
   },
@@ -1506,6 +1506,17 @@ export const tenantAnalysisAPI = {
 
   getById: async (id: string) => {
     const response = await apiClient.get(`/tenant-analysis/${id}`);
+    return response.data;
+  },
+
+  uploadPhoto: async (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append('photo', file);
+    const response = await apiClient.post(`/tenant-analysis/${id}/photo`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
     return response.data;
   },
 

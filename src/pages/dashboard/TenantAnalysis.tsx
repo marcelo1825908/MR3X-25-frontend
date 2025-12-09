@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
+import { Checkbox } from '../../components/ui/checkbox';
+import { Label } from '../../components/ui/label';
 import {
   Table,
   TableBody,
@@ -24,7 +26,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from '../../components/ui/dialog';
+import {
+  Alert,
+  AlertDescription,
+} from '../../components/ui/alert';
 import {
   UserSearch,
   Shield,
@@ -44,15 +52,54 @@ import {
   RefreshCw,
   ChevronLeft,
   ChevronRight,
+  MapPin,
+  Phone,
+  Building2,
+  User,
+  Calendar,
+  Image,
+  Hash,
 } from 'lucide-react';
 import { tenantAnalysisAPI } from '../../api';
 import { toast } from 'sonner';
 
+interface BasicDataCPF {
+  type: 'CPF';
+  name?: string;
+  status?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  phone?: string;
+  birthDate?: string;
+  motherName?: string;
+}
+
+interface BasicDataCNPJ {
+  type: 'CNPJ';
+  companyName?: string;
+  tradingName?: string;
+  status?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  phone?: string;
+  openingDate?: string;
+}
+
 interface AnalysisResult {
   id: string;
+  token?: string;
   document: string;
   documentType: 'CPF' | 'CNPJ';
   name?: string;
+  basicData?: BasicDataCPF | BasicDataCNPJ;
+  photo?: {
+    path: string;
+    filename: string;
+  } | null;
   financial: {
     creditScore: number;
     totalDebts: number;
@@ -71,8 +118,25 @@ interface AnalysisResult {
     hasEvictions: boolean;
     evictionsCount: number;
     hasProtests: boolean;
-    protestRecords: Array<{ notaryOffice: string; amount: number; creditor: string; status: string }>;
+    protestRecords: Array<{
+      notaryOffice: string;
+      amount: number;
+      creditor: string;
+      status: string;
+      date?: string;
+      city?: string;
+      state?: string;
+      type?: string;
+      protocol?: string;
+      source?: string;
+    }>;
     totalProtestValue: number;
+    infoSimplesData?: {
+      source: string;
+      consultationProtocol?: string;
+      consultationDate?: string;
+      cartoriosWithProtests?: number;
+    };
     status: 'CLEAR' | 'WARNING' | 'CRITICAL';
   };
   documentValidation: {
@@ -91,6 +155,10 @@ interface AnalysisResult {
   status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'EXPIRED';
   analyzedAt: string;
   validUntil?: string;
+  lgpd?: {
+    acceptedAt?: string;
+    acceptedBy?: string;
+  };
   summary: {
     financialStatus: string;
     criminalStatus: string;
@@ -102,6 +170,7 @@ interface AnalysisResult {
 
 interface HistoryItem {
   id: string;
+  token?: string;
   document: string;
   documentType: string;
   name?: string;
@@ -226,8 +295,129 @@ const RiskGauge = ({ score, level }: { score: number; level: string }) => {
   );
 };
 
-const AnalysisDetailModal = ({ analysis, open, onClose }: { analysis: AnalysisResult | null; open: boolean; onClose: () => void }) => {
+const AnalysisDetailModal = ({
+  analysis,
+  open,
+  onClose,
+  onPhotoUpload
+}: {
+  analysis: AnalysisResult | null;
+  open: boolean;
+  onClose: () => void;
+  onPhotoUpload?: (id: string, file: File) => void;
+}) => {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   if (!analysis) return null;
+
+  const handlePhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && onPhotoUpload) {
+      onPhotoUpload(analysis.id, file);
+    }
+  };
+
+  const renderBasicData = () => {
+    if (!analysis.basicData) return null;
+
+    if (analysis.basicData.type === 'CPF') {
+      const data = analysis.basicData as BasicDataCPF;
+      return (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <User className="w-5 h-5" />
+              Dados Básicos do CPF
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Nome</p>
+                <p className="font-medium">{data.name || '-'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Status</p>
+                <Badge variant={data.status === 'REGULAR' ? 'default' : 'destructive'}>
+                  {data.status || '-'}
+                </Badge>
+              </div>
+              <div className="col-span-2">
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <MapPin className="w-4 h-4" /> Endereço
+                </p>
+                <p className="font-medium">
+                  {data.address ? `${data.address}, ${data.city || ''} - ${data.state || ''} ${data.zipCode ? `CEP: ${data.zipCode}` : ''}` : '-'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Phone className="w-4 h-4" /> Telefone
+                </p>
+                <p className="font-medium">{data.phone || '-'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Calendar className="w-4 h-4" /> Data de Nascimento
+                </p>
+                <p className="font-medium">{data.birthDate || '-'}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    } else {
+      const data = analysis.basicData as BasicDataCNPJ;
+      return (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Building2 className="w-5 h-5" />
+              Dados Básicos do CNPJ
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Razão Social</p>
+                <p className="font-medium">{data.companyName || '-'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Status</p>
+                <Badge variant={data.status === 'ATIVA' ? 'default' : 'destructive'}>
+                  {data.status || '-'}
+                </Badge>
+              </div>
+              <div className="col-span-2">
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <MapPin className="w-4 h-4" /> Endereço
+                </p>
+                <p className="font-medium">
+                  {data.address ? `${data.address}, ${data.city || ''} - ${data.state || ''} ${data.zipCode ? `CEP: ${data.zipCode}` : ''}` : '-'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Phone className="w-4 h-4" /> Telefone
+                </p>
+                <p className="font-medium">{data.phone || '-'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Calendar className="w-4 h-4" /> Data de Abertura
+                </p>
+                <p className="font-medium">{data.openingDate || '-'}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -237,10 +427,51 @@ const AnalysisDetailModal = ({ analysis, open, onClose }: { analysis: AnalysisRe
             <UserSearch className="w-5 h-5" />
             Análise de Inquilino - {analysis.name || analysis.document}
           </DialogTitle>
+          {analysis.token && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+              <Hash className="w-4 h-4" />
+              <span className="font-mono">{analysis.token}</span>
+            </div>
+          )}
         </DialogHeader>
 
         <div className="space-y-6">
-          {}
+          {/* Photo Section */}
+          <div className="flex items-center gap-4">
+            <div
+              className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center cursor-pointer hover:border-blue-500 transition-colors"
+              onClick={handlePhotoClick}
+            >
+              {analysis.photo ? (
+                <img
+                  src={`${import.meta.env.VITE_API_URL || 'http://localhost:8081'}/uploads/tenant-analysis/${analysis.photo.filename}`}
+                  alt="Foto"
+                  className="w-full h-full object-cover rounded-lg"
+                />
+              ) : (
+                <div className="text-center">
+                  <Image className="w-8 h-8 mx-auto text-gray-400" />
+                  <span className="text-xs text-gray-500">Adicionar foto</span>
+                </div>
+              )}
+            </div>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="image/*"
+              className="hidden"
+            />
+            <div className="flex-1">
+              <p className="text-sm text-muted-foreground">Foto de Identificação</p>
+              <p className="text-xs text-muted-foreground">Clique para adicionar ou alterar a foto</p>
+            </div>
+          </div>
+
+          {/* Basic Data Card */}
+          {renderBasicData()}
+
+          {/* Risk Score */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-lg">Score de Risco</CardTitle>
@@ -407,11 +638,74 @@ const AnalysisDetailModal = ({ analysis, open, onClose }: { analysis: AnalysisRe
                 </div>
               )}
               {analysis.background.hasProtests && (
-                <div className="mt-4">
-                  <p className="text-sm font-medium mb-2">Protesto ({analysis.background.protestRecords.length})</p>
-                  <p className="text-lg font-bold text-orange-600">
-                    Total: {formatCurrency(analysis.background.totalProtestValue)}
-                  </p>
+                <div className="mt-4 border-t pt-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-sm font-medium flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-orange-600" />
+                      Protestos ({analysis.background.protestRecords.length})
+                    </p>
+                    <p className="text-lg font-bold text-orange-600">
+                      Total: {formatCurrency(analysis.background.totalProtestValue)}
+                    </p>
+                  </div>
+                  {analysis.background.infoSimplesData && (
+                    <div className="mb-3 p-2 bg-blue-50 rounded text-xs text-blue-700">
+                      <span className="font-medium">Fonte: </span>
+                      {analysis.background.infoSimplesData.source}
+                      {analysis.background.infoSimplesData.consultationProtocol && (
+                        <span className="ml-2">| Protocolo: {analysis.background.infoSimplesData.consultationProtocol}</span>
+                      )}
+                      {analysis.background.infoSimplesData.cartoriosWithProtests && (
+                        <span className="ml-2">| {analysis.background.infoSimplesData.cartoriosWithProtests} cartório(s)</span>
+                      )}
+                    </div>
+                  )}
+                  <div className="space-y-2 max-h-60 overflow-y-auto">
+                    {analysis.background.protestRecords.map((protest, i) => (
+                      <div key={i} className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <p className="font-medium text-sm">{protest.notaryOffice}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {protest.city && `${protest.city}`}
+                              {protest.state && ` - ${protest.state}`}
+                            </p>
+                            {protest.creditor && (
+                              <p className="text-xs mt-1">
+                                <span className="text-muted-foreground">Credor: </span>
+                                {protest.creditor}
+                              </p>
+                            )}
+                            {protest.type && (
+                              <p className="text-xs">
+                                <span className="text-muted-foreground">Tipo: </span>
+                                {protest.type}
+                              </p>
+                            )}
+                            {protest.date && (
+                              <p className="text-xs">
+                                <span className="text-muted-foreground">Data: </span>
+                                {new Date(protest.date).toLocaleDateString('pt-BR')}
+                              </p>
+                            )}
+                            {protest.protocol && (
+                              <p className="text-xs font-mono text-muted-foreground">
+                                #{protest.protocol}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-orange-700">{formatCurrency(protest.amount)}</p>
+                            {protest.source && (
+                              <Badge variant="outline" className="text-xs mt-1">
+                                {protest.source === 'INFOSIMPLES_CENPROT_SP' ? 'CENPROT-SP' : protest.source}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </CardContent>
@@ -476,12 +770,87 @@ const AnalysisDetailModal = ({ analysis, open, onClose }: { analysis: AnalysisRe
   );
 };
 
+// LGPD Disclaimer Modal
+const LGPDDisclaimerModal = ({
+  open,
+  onAccept,
+  onCancel,
+  isLoading,
+}: {
+  open: boolean;
+  onAccept: () => void;
+  onCancel: () => void;
+  isLoading: boolean;
+}) => {
+  const [accepted, setAccepted] = useState(false);
+
+  return (
+    <Dialog open={open} onOpenChange={() => !isLoading && onCancel()}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-amber-600">
+            <AlertTriangle className="w-5 h-5" />
+            Aviso Legal - LGPD
+          </DialogTitle>
+          <DialogDescription>
+            Leia atentamente antes de prosseguir com a consulta.
+          </DialogDescription>
+        </DialogHeader>
+
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertDescription className="text-amber-800">
+            <p className="font-semibold mb-2">Termo de Responsabilidade</p>
+            <p className="text-sm leading-relaxed">
+              O usuário se responsabiliza pelo uso indevido dos dados pesquisados conforme determina a LGPD (Lei Geral de Proteção de Dados).
+            </p>
+            <p className="text-sm leading-relaxed mt-2">
+              A plataforma possui auditoria constante, ficando armazenados os logs de acesso e uso nos moldes da Lei.
+            </p>
+          </AlertDescription>
+        </Alert>
+
+        <div className="flex items-center space-x-2 mt-4">
+          <Checkbox
+            id="lgpd-accept"
+            checked={accepted}
+            onCheckedChange={(checked) => setAccepted(checked as boolean)}
+          />
+          <Label htmlFor="lgpd-accept" className="text-sm cursor-pointer">
+            Li e aceito os termos de uso conforme a LGPD
+          </Label>
+        </div>
+
+        <DialogFooter className="mt-4">
+          <Button variant="outline" onClick={onCancel} disabled={isLoading}>
+            Cancelar
+          </Button>
+          <Button onClick={onAccept} disabled={!accepted || isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Analisando...
+              </>
+            ) : (
+              <>
+                <Search className="w-4 h-4 mr-2" />
+                Prosseguir com Análise
+              </>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 export function TenantAnalysis() {
   const queryClient = useQueryClient();
   const [document, setDocument] = useState('');
   const [name, setName] = useState('');
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisResult | null>(null);
   const [showDetail, setShowDetail] = useState(false);
+  const [showLGPDModal, setShowLGPDModal] = useState(false);
   const [filters, setFilters] = useState({
     riskLevel: '',
     status: '',
@@ -505,12 +874,13 @@ export function TenantAnalysis() {
   });
 
   const analyzeMutation = useMutation({
-    mutationFn: (data: { document: string; name?: string }) =>
+    mutationFn: (data: { document: string; name?: string; lgpdAccepted: boolean }) =>
       tenantAnalysisAPI.analyze({ ...data, analysisType: 'FULL' }),
     onSuccess: (data) => {
       toast.success('Análise concluída com sucesso!');
       setSelectedAnalysis(data);
       setShowDetail(true);
+      setShowLGPDModal(false);
       setDocument('');
       setName('');
       queryClient.invalidateQueries({ queryKey: ['tenant-analysis-history'] });
@@ -521,14 +891,37 @@ export function TenantAnalysis() {
     },
   });
 
-  const handleAnalyze = (e: React.FormEvent) => {
+  const photoUploadMutation = useMutation({
+    mutationFn: ({ id, file }: { id: string; file: File }) =>
+      tenantAnalysisAPI.uploadPhoto(id, file),
+    onSuccess: (data) => {
+      toast.success('Foto enviada com sucesso!');
+      setSelectedAnalysis(data);
+      queryClient.invalidateQueries({ queryKey: ['tenant-analysis-history'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Erro ao enviar foto');
+    },
+  });
+
+  const handlePhotoUpload = (id: string, file: File) => {
+    photoUploadMutation.mutate({ id, file });
+  };
+
+  const handleAnalyzeClick = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanDocument = document.replace(/\D/g, '');
     if (cleanDocument.length !== 11 && cleanDocument.length !== 14) {
       toast.error('CPF deve ter 11 dígitos ou CNPJ deve ter 14 dígitos');
       return;
     }
-    analyzeMutation.mutate({ document: cleanDocument, name: name || undefined });
+    // Show LGPD modal
+    setShowLGPDModal(true);
+  };
+
+  const handleLGPDAccept = () => {
+    const cleanDocument = document.replace(/\D/g, '');
+    analyzeMutation.mutate({ document: cleanDocument, name: name || undefined, lgpdAccepted: true });
   };
 
   const handleViewAnalysis = async (id: string) => {
@@ -626,7 +1019,7 @@ export function TenantAnalysis() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleAnalyze} className="flex gap-4">
+          <form onSubmit={handleAnalyzeClick} className="flex gap-4">
             <div className="flex-1">
               <Input
                 placeholder="CPF ou CNPJ"
@@ -714,6 +1107,7 @@ export function TenantAnalysis() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Token</TableHead>
                     <TableHead>Documento</TableHead>
                     <TableHead>Nome</TableHead>
                     <TableHead>Score</TableHead>
@@ -726,6 +1120,7 @@ export function TenantAnalysis() {
                 <TableBody>
                   {history?.data?.map((item: HistoryItem) => (
                     <TableRow key={item.id}>
+                      <TableCell className="font-mono text-xs">{item.token || '-'}</TableCell>
                       <TableCell className="font-mono">{item.document}</TableCell>
                       <TableCell>{item.name || '-'}</TableCell>
                       <TableCell>
@@ -748,7 +1143,7 @@ export function TenantAnalysis() {
                   ))}
                   {(!history?.data || history.data.length === 0) && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                      <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                         Nenhuma análise encontrada
                       </TableCell>
                     </TableRow>
@@ -788,11 +1183,20 @@ export function TenantAnalysis() {
         </CardContent>
       </Card>
 
-      {}
+      {/* Analysis Detail Modal */}
       <AnalysisDetailModal
         analysis={selectedAnalysis}
         open={showDetail}
         onClose={() => setShowDetail(false)}
+        onPhotoUpload={handlePhotoUpload}
+      />
+
+      {/* LGPD Disclaimer Modal */}
+      <LGPDDisclaimerModal
+        open={showLGPDModal}
+        onAccept={handleLGPDAccept}
+        onCancel={() => setShowLGPDModal(false)}
+        isLoading={analyzeMutation.isPending}
       />
     </div>
   );
