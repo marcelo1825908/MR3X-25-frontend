@@ -390,12 +390,6 @@ const AnalysisDetailModal = ({
                 </p>
                 <p className="font-medium">{data.phone || '-'}</p>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground flex items-center gap-1">
-                  <Calendar className="w-4 h-4" /> Data de Abertura
-                </p>
-                <p className="font-medium">{data.openingDate ? data.openingDate.split('T')[0] : '-'}</p>
-              </div>
             </div>
           </CardContent>
         </Card>
