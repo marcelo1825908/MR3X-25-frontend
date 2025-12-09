@@ -24,6 +24,9 @@ import {
   Image,
   Video,
   X,
+  Printer,
+  Lock,
+  Copy,
 } from 'lucide-react';
 import { formatDate } from '../../lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../components/ui/dialog';
@@ -78,6 +81,7 @@ interface FilePreview {
 
 interface Inspection {
   id: string;
+  token?: string;
   propertyId: string;
   contractId?: string;
   agencyId?: string;
@@ -105,6 +109,7 @@ interface Inspection {
   template?: any;
   items?: InspectionItem[];
   createdAt?: string;
+  hasSignatures?: boolean;
 }
 
 export function Inspections() {
@@ -732,7 +737,7 @@ export function Inspections() {
                             >
                               <Eye className="w-4 h-4" />
                             </Button>
-                            {canUpdateInspections && inspection.status !== 'APROVADA' && (
+                            {canUpdateInspections && inspection.status !== 'APROVADA' && !inspection.hasSignatures && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -741,6 +746,23 @@ export function Inspections() {
                               >
                                 <Edit className="w-4 h-4" />
                               </Button>
+                            )}
+                            {inspection.hasSignatures && inspection.status !== 'APROVADA' && (
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled
+                                    className="text-gray-400 border-gray-300"
+                                  >
+                                    <Lock className="w-4 h-4" />
+                                  </Button>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>Bloqueado: documento já possui assinaturas</p>
+                                </TooltipContent>
+                              </Tooltip>
                             )}
                             {canApproveInspections && inspection.status === 'CONCLUIDA' && (
                               <>
@@ -807,13 +829,19 @@ export function Inspections() {
                         <Eye className="w-4 h-4 mr-1" />
                         Ver
                       </Button>
-                      {canUpdateInspections && inspection.status !== 'APROVADA' && (
+                      {canUpdateInspections && inspection.status !== 'APROVADA' && !inspection.hasSignatures && (
                         <Button size="sm" variant="outline" onClick={() => handleEditInspection(inspection)}>
                           <Edit className="w-4 h-4 mr-1" />
                           Editar
                         </Button>
                       )}
-                      {canDeleteInspections && inspection.status !== 'APROVADA' && (
+                      {inspection.hasSignatures && inspection.status !== 'APROVADA' && (
+                        <Button size="sm" variant="outline" disabled className="text-gray-400">
+                          <Lock className="w-4 h-4 mr-1" />
+                          Bloqueado
+                        </Button>
+                      )}
+                      {canDeleteInspections && inspection.status !== 'APROVADA' && !inspection.hasSignatures && (
                         <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleDeleteInspection(inspection)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -852,10 +880,16 @@ export function Inspections() {
                             <Eye className="w-4 h-4 mr-2" />
                             Ver detalhes
                           </DropdownMenuItem>
-                          {canUpdateInspections && inspection.status !== 'APROVADA' && (
+                          {canUpdateInspections && inspection.status !== 'APROVADA' && !inspection.hasSignatures && (
                             <DropdownMenuItem onClick={() => handleEditInspection(inspection)}>
                               <Edit className="w-4 h-4 mr-2" />
                               Editar
+                            </DropdownMenuItem>
+                          )}
+                          {inspection.hasSignatures && inspection.status !== 'APROVADA' && (
+                            <DropdownMenuItem disabled className="text-gray-400">
+                              <Lock className="w-4 h-4 mr-2" />
+                              Bloqueado (assinado)
                             </DropdownMenuItem>
                           )}
                           {canApproveInspections && inspection.status === 'CONCLUIDA' && (
@@ -870,7 +904,7 @@ export function Inspections() {
                               </DropdownMenuItem>
                             </>
                           )}
-                          {canDeleteInspections && inspection.status !== 'APROVADA' && (
+                          {canDeleteInspections && inspection.status !== 'APROVADA' && !inspection.hasSignatures && (
                             <DropdownMenuItem
                               onClick={() => handleDeleteInspection(inspection)}
                               className="text-red-600"
@@ -1463,15 +1497,62 @@ export function Inspections() {
           </DialogContent>
         </Dialog>
 
-        {}
+        {/* Detail Modal */}
         <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
           <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Detalhes da Vistoria</DialogTitle>
+              <div className="flex items-center justify-between">
+                <DialogTitle>Detalhes da Vistoria</DialogTitle>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => window.print()}
+                    className="flex items-center gap-1"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Imprimir
+                  </Button>
+                </div>
+              </div>
             </DialogHeader>
             {inspectionDetail && (
               <div className="space-y-6">
-                {}
+                {/* Token Display */}
+                {inspectionDetail.token && (
+                  <div className="p-4 bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-xs text-orange-700">TOKEN DE VERIFICAÇÃO</Label>
+                        <p className="font-mono text-lg font-bold text-orange-800">{inspectionDetail.token}</p>
+                      </div>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(inspectionDetail.token || '');
+                              toast.success('Token copiado para a área de transferência');
+                            }}
+                            className="text-orange-700 hover:text-orange-800"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Copiar token</TooltipContent>
+                      </Tooltip>
+                    </div>
+                    {inspectionDetail.hasSignatures && (
+                      <div className="flex items-center gap-2 mt-2 text-xs text-orange-700">
+                        <Lock className="w-3 h-3" />
+                        <span>Documento bloqueado para edição (possui assinaturas)</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Basic Info */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-muted-foreground">Imóvel</Label>
@@ -1501,13 +1582,54 @@ export function Inspections() {
                   )}
                 </div>
 
-                {}
+                {/* Notes */}
                 {inspectionDetail.notes && (
                   <div>
                     <Label className="text-muted-foreground">Observações</Label>
                     <p className="mt-1 p-3 bg-muted rounded-lg">{inspectionDetail.notes}</p>
                   </div>
                 )}
+
+                {/* General Photos */}
+                {inspectionDetail.photos && (() => {
+                  try {
+                    const photos = typeof inspectionDetail.photos === 'string'
+                      ? JSON.parse(inspectionDetail.photos)
+                      : inspectionDetail.photos;
+                    if (Array.isArray(photos) && photos.length > 0) {
+                      return (
+                        <div>
+                          <Label className="text-muted-foreground mb-2 flex items-center gap-1">
+                            <Image className="w-4 h-4" />
+                            Fotos Gerais ({photos.length})
+                          </Label>
+                          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                            {photos.map((photo: string, index: number) => (
+                              <div key={index} className="relative group">
+                                <img
+                                  src={photo.startsWith('http') ? photo : `${import.meta.env.VITE_API_URL || ''}/uploads/${photo}`}
+                                  alt={`Foto ${index + 1}`}
+                                  className="w-full h-32 object-cover rounded-lg border border-border cursor-pointer hover:opacity-90 transition-opacity"
+                                  onClick={() => {
+                                    const url = photo.startsWith('http') ? photo : `${import.meta.env.VITE_API_URL || ''}/uploads/${photo}`;
+                                    window.open(url, '_blank');
+                                  }}
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement;
+                                    target.style.display = 'none';
+                                  }}
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  } catch {
+                    return null;
+                  }
+                })()}
 
                 {}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -1549,23 +1671,54 @@ export function Inspections() {
                   </div>
                 </div>
 
-                {}
+                {/* Inspection Items with Photos */}
                 {inspectionDetail.items && inspectionDetail.items.length > 0 && (
                   <div>
                     <Label className="text-muted-foreground mb-2 block">Itens da Vistoria ({inspectionDetail.items.length})</Label>
-                    <div className="space-y-2">
+                    <div className="space-y-4">
                       {inspectionDetail.items.map((item: InspectionItem, index: number) => (
-                        <div key={index} className="p-3 border rounded-lg flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">{item.room} - {item.item}</p>
-                            {item.description && <p className="text-sm text-muted-foreground">{item.description}</p>}
+                        <div key={index} className="p-4 border rounded-lg space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="font-medium">{item.room} - {item.item}</p>
+                              {item.description && <p className="text-sm text-muted-foreground mt-1">{item.description}</p>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {getConditionBadge(item.condition)}
+                              {item.responsible && (
+                                <Badge variant="outline">{item.responsible}</Badge>
+                              )}
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {getConditionBadge(item.condition)}
-                            {item.responsible && (
-                              <Badge variant="outline">{item.responsible}</Badge>
-                            )}
-                          </div>
+
+                          {/* Photos Display */}
+                          {item.photos && item.photos.length > 0 && (
+                            <div className="pt-3 border-t">
+                              <Label className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                                <Image className="w-3 h-3" />
+                                Fotos ({item.photos.length})
+                              </Label>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                {item.photos.map((photo: string, photoIndex: number) => (
+                                  <div key={photoIndex} className="relative group">
+                                    <img
+                                      src={photo.startsWith('http') ? photo : `${import.meta.env.VITE_API_URL || ''}/uploads/${photo}`}
+                                      alt={`Foto ${photoIndex + 1} - ${item.item}`}
+                                      className="w-full h-24 object-cover rounded-lg border border-border cursor-pointer hover:opacity-90 transition-opacity"
+                                      onClick={() => {
+                                        const url = photo.startsWith('http') ? photo : `${import.meta.env.VITE_API_URL || ''}/uploads/${photo}`;
+                                        window.open(url, '_blank');
+                                      }}
+                                      onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                      }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
