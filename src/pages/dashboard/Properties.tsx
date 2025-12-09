@@ -1151,8 +1151,8 @@ export function Properties() {
                             {property.address}
                           </p>
                           <p className="text-xs text-gray-600 truncate">Estado: {property.stateNumber || '-'}</p>
-                          <p className="text-xs text-gray-600 truncate" title={property.owner?.name || property.owner?.email || 'Sem imóvel'}>
-                            Imóvel: {property.owner?.name || property.owner?.email || 'Sem imóvel'}
+                          <p className="text-xs text-gray-600 truncate" title={property.owner?.name || property.owner?.email || 'Sem proprietário'}>
+                            Proprietário: {property.owner?.name || property.owner?.email || 'Sem proprietário'}
                           </p>
                           <p className="text-xs text-gray-600 truncate" title={property.broker?.name || property.broker?.email || 'Sem corretor'}>
                             Corretor: {property.broker?.name || property.broker?.email || 'Sem corretor'}
@@ -1315,7 +1315,7 @@ export function Properties() {
               {}
               {user?.role !== 'INDEPENDENT_OWNER' ? (
                 <div>
-                  <Label htmlFor="ownerId">Imóvel</Label>
+                  <Label htmlFor="ownerId">Proprietário</Label>
                   <select
                     id="ownerId"
                     name="ownerId"
@@ -1340,7 +1340,7 @@ export function Properties() {
                 </div>
               ) : (
                 <div>
-                  <Label>Imóvel</Label>
+                  <Label>Proprietário</Label>
                   <div className="border rounded-md px-3 py-2 w-full bg-muted text-muted-foreground">
                     {user?.name || user?.email} (Você)
                   </div>
@@ -1494,14 +1494,14 @@ export function Properties() {
               {}
               {user?.role === 'INDEPENDENT_OWNER' ? (
                 <div>
-                  <Label>Imóvel</Label>
+                  <Label>Proprietário</Label>
                   <div className="border rounded-md px-3 py-2 w-full bg-muted text-muted-foreground">
                     {user?.name || user?.email} (Você)
                   </div>
                 </div>
               ) : user?.role === 'AGENCY_MANAGER' && !selectedProperty?.brokerId ? (
                 <div>
-                  <Label htmlFor="edit-ownerId">Imóvel</Label>
+                  <Label htmlFor="edit-ownerId">Proprietário</Label>
                   <select
                     id="edit-ownerId"
                     name="ownerId"
@@ -1672,7 +1672,7 @@ export function Properties() {
                   <div><b>Bairro:</b> {propertyDetail.neighborhood || '-'}</div>
                   <div><b>Cidade:</b> {propertyDetail.city || '-'}</div>
                   <div><b>Estado:</b> {propertyDetail.stateNumber || '-'}</div>
-                  <div><b>Imóvel:</b> {propertyDetail.owner?.name || propertyDetail.owner?.email || '-'}</div>
+                  <div><b>Proprietário:</b> {propertyDetail.owner?.name || propertyDetail.owner?.email || '-'}</div>
                   <div><b>Corretor:</b> {propertyDetail.broker?.name || propertyDetail.broker?.email || '-'}</div>
                   <div><b>Locatário:</b> {propertyDetail.tenant?.name || propertyDetail.tenant?.email || propertyDetail.tenantName || '-'}</div>
                   <div><b>Próx. vencimento:</b> {propertyDetail.nextDueDate ? new Date(propertyDetail.nextDueDate).toLocaleDateString('pt-BR') : '-'}</div>
@@ -2028,7 +2028,7 @@ export function Properties() {
                 <div className="bg-muted/40 p-3 rounded-md">
                   <p className="text-sm font-semibold">{propertyToAssign.name || propertyToAssign.address}</p>
                   <p className="text-xs text-muted-foreground">
-                    Imóvel: {propertyToAssign.owner?.name || propertyToAssign.owner?.email || 'Sem imóvel'}
+                    Proprietário: {propertyToAssign.owner?.name || propertyToAssign.owner?.email || 'Sem proprietário'}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Corretor atual: {propertyToAssign.broker?.name || propertyToAssign.broker?.email || 'Sem corretor'}
@@ -2104,7 +2104,7 @@ export function Properties() {
                 <div className="bg-muted/40 p-3 rounded-md">
                   <p className="text-sm font-semibold">{propertyToAssignTenant.name || propertyToAssignTenant.address}</p>
                   <p className="text-xs text-muted-foreground">
-                    Imóvel: {propertyToAssignTenant.owner?.name || propertyToAssignTenant.owner?.email || 'Sem imóvel'}
+                    Proprietário: {propertyToAssignTenant.owner?.name || propertyToAssignTenant.owner?.email || 'Sem proprietário'}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Corretor: {propertyToAssignTenant.broker?.name || propertyToAssignTenant.broker?.email || 'Sem corretor'}

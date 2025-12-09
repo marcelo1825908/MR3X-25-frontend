@@ -232,13 +232,38 @@ export function Tenants() {
   const handleProceedToRegistration = () => {
     if (!analysisResult) return
 
+    // Extract phone and birthDate from basicData
+    const phone = analysisResult.basicData?.phone || ''
+    let birthDate = ''
+    if (analysisResult.basicData?.birthDate) {
+      let rawDate = String(analysisResult.basicData.birthDate).trim()
+
+      // If it contains 'T' (ISO format like 1996-05-24T00:00:00), extract just the date part
+      if (rawDate.includes('T')) {
+        rawDate = rawDate.split('T')[0]
+      }
+
+      // Check if already in yyyy-MM-dd format - use directly to avoid timezone issues
+      if (/^\d{4}-\d{2}-\d{2}$/.test(rawDate)) {
+        birthDate = rawDate
+      } else if (/^\d{2}\/\d{2}\/\d{4}$/.test(rawDate)) {
+        // DD/MM/YYYY format (Brazilian)
+        const [day, month, year] = rawDate.split('/')
+        birthDate = `${year}-${month}-${day}`
+      } else if (/^\d{2}-\d{2}-\d{4}$/.test(rawDate)) {
+        // DD-MM-YYYY format
+        const [day, month, year] = rawDate.split('-')
+        birthDate = `${year}-${month}-${day}`
+      }
+    }
+
     setNewTenant({
       document: analysisResult.document || '',
       name: analysisResult.name || '',
-      phone: '',
+      phone: phone,
       email: '',
       password: '',
-      birthDate: '',
+      birthDate: birthDate,
       cep: '',
       address: '',
       neighborhood: '',
