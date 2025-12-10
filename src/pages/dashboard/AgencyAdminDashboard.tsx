@@ -59,22 +59,23 @@ function KPICard({
 
   return (
     <Card>
-      <CardContent className="p-6">
-        <div className="flex items-center justify-between mb-4">
-          <div className={`p-3 rounded-lg ${colorClasses[color]}`}>
-            <Icon className="w-6 h-6" />
+      <CardContent className="p-3 sm:p-6">
+        <div className="flex items-center justify-between mb-2 sm:mb-4">
+          <div className={`p-2 sm:p-3 rounded-lg ${colorClasses[color]}`}>
+            <Icon className="w-4 h-4 sm:w-6 sm:h-6" />
           </div>
           {trend && (
-            <div className={`flex items-center gap-1 text-sm ${
+            <div className={`flex items-center gap-1 text-xs sm:text-sm ${
               trend === 'up' ? 'text-green-500' : trend === 'down' ? 'text-red-500' : 'text-muted-foreground'
             }`}>
-              {trend === 'up' ? <TrendingUp className="w-4 h-4" /> : trend === 'down' ? <TrendingDown className="w-4 h-4" /> : null}
-              {trendLabel}
+              {trend === 'up' ? <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4" /> : trend === 'down' ? <TrendingDown className="w-3 h-3 sm:w-4 sm:h-4" /> : null}
+              <span className="hidden sm:inline">{trendLabel}</span>
+              <span className="sm:hidden">{trendLabel?.replace('ocupação', 'ocup.').replace('Sem atrasos', 'OK')}</span>
             </div>
           )}
         </div>
-        <h3 className="text-sm text-muted-foreground mb-1">{title}</h3>
-        <p className="text-2xl font-bold">{value}</p>
+        <h3 className="text-xs sm:text-sm text-muted-foreground mb-1">{title}</h3>
+        <p className="text-lg sm:text-2xl font-bold truncate">{value}</p>
       </CardContent>
     </Card>
   );
@@ -184,7 +185,7 @@ export function AgencyAdminDashboard() {
       </div>
 
       {}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         <KPICard
           title="Total de Imóveis"
           value={totalProperties}
@@ -214,7 +215,7 @@ export function AgencyAdminDashboard() {
       </div>
 
       {}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         <KPICard
           title="Valor Recebido"
           value={formatCurrency(receivedValue)}
@@ -254,7 +255,7 @@ export function AgencyAdminDashboard() {
           <CardContent>
             <div className="w-full">
               {revenueData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={320}>
+                <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
                     <Pie
                       data={revenueData}
@@ -262,7 +263,7 @@ export function AgencyAdminDashboard() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={100}
+                      outerRadius={70}
                       label={({ name, value }) => `${name}: ${formatCurrency(value)}`}
                     >
                       {revenueData.map((entry, index) => (
@@ -274,7 +275,7 @@ export function AgencyAdminDashboard() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-[320px] text-muted-foreground">
+                <div className="flex items-center justify-center h-[220px] text-muted-foreground">
                   <p>Nenhum dado de receita disponível</p>
                 </div>
               )}
@@ -291,7 +292,7 @@ export function AgencyAdminDashboard() {
           <CardContent>
             <div className="w-full">
               {propertyStatusData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={320}>
+                <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
                     <Pie
                       data={propertyStatusData}
@@ -299,7 +300,7 @@ export function AgencyAdminDashboard() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={100}
+                      outerRadius={70}
                       label={({ name, value }) => `${name}: ${value}`}
                     >
                       {propertyStatusData.map((entry, index) => (
@@ -311,7 +312,7 @@ export function AgencyAdminDashboard() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-[320px] text-muted-foreground">
+                <div className="flex items-center justify-center h-[220px] text-muted-foreground">
                   <p>Nenhum imóvel cadastrado</p>
                 </div>
               )}
@@ -331,7 +332,7 @@ export function AgencyAdminDashboard() {
           <CardContent>
             <div className="w-full">
               {contractStatusData.length > 0 ? (
-                <ResponsiveContainer width="100%" height={320}>
+                <ResponsiveContainer width="100%" height={220}>
                   <PieChart>
                     <Pie
                       data={contractStatusData}
@@ -339,7 +340,7 @@ export function AgencyAdminDashboard() {
                       nameKey="name"
                       cx="50%"
                       cy="50%"
-                      outerRadius={100}
+                      outerRadius={70}
                       label={({ name, value }) => `${name}: ${value}`}
                     >
                       {contractStatusData.map((entry, index) => (
@@ -351,7 +352,7 @@ export function AgencyAdminDashboard() {
                   </PieChart>
                 </ResponsiveContainer>
               ) : (
-                <div className="flex items-center justify-center h-[320px] text-muted-foreground">
+                <div className="flex items-center justify-center h-[220px] text-muted-foreground">
                   <p>Nenhum contrato cadastrado</p>
                 </div>
               )}
@@ -367,8 +368,8 @@ export function AgencyAdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="w-full">
-              <ResponsiveContainer width="100%" height={320}>
-                <AreaChart data={paymentTrendData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={paymentTrendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="month" fontSize={12} />
                   <YAxis fontSize={12} tickFormatter={(value) => formatCurrency(value)} />
@@ -392,8 +393,8 @@ export function AgencyAdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="w-full">
-              <ResponsiveContainer width="100%" height={320}>
-                <BarChart data={dueDatesChartData} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={dueDatesChartData} margin={{ top: 10, right: 10, left: 0, bottom: 50 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis
                     dataKey="name"
