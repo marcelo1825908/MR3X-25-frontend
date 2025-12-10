@@ -1525,9 +1525,21 @@ export function Contracts() {
                     <SelectContent>
                       {properties.filter(p => !p.isFrozen).map((property) => {
                         const propId = property.id?.toString() || String(property.id);
+                        // Check if property already has an active contract
+                        const hasActiveContract = contracts?.some((c: any) => {
+                          const contractPropId = c.propertyId?.toString() || c.property?.id?.toString();
+                          const status = c.status?.toUpperCase();
+                          return contractPropId === propId && !['REVOGADO', 'ENCERRADO'].includes(status);
+                        });
                         return (
-                          <SelectItem key={propId} value={propId}>
+                          <SelectItem
+                            key={propId}
+                            value={propId}
+                            disabled={hasActiveContract}
+                            className={hasActiveContract ? 'text-muted-foreground' : ''}
+                          >
                             {property.name || property.address}
+                            {hasActiveContract && ' (Já possui contrato)'}
                           </SelectItem>
                         );
                       })}
