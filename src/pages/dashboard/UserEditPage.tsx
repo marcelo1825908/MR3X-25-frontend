@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Checkbox } from '../../components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { toast } from 'sonner';
 import { usersAPI } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
@@ -194,32 +195,32 @@ export function UserEditPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {}
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+        <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="flex items-center gap-2 w-fit">
           <ArrowLeft className="w-4 h-4" />
           Voltar
         </Button>
         <div>
-          <h1 className="text-2xl font-bold">Editar Usuário</h1>
-          <p className="text-muted-foreground">Atualizar informações do usuário</p>
+          <h1 className="text-xl sm:text-2xl font-bold">Editar Usuário</h1>
+          <p className="text-sm text-muted-foreground">Atualizar informações do usuário</p>
         </div>
       </div>
 
       {}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+        <CardHeader className="pb-3 sm:pb-6">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
             <User className="w-5 h-5" />
             Informações do Usuário
           </CardTitle>
-          <CardDescription>Atualize os dados do usuário abaixo. Alguns campos podem estar bloqueados por razões de segurança.</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">Atualize os dados do usuário abaixo. Alguns campos podem estar bloqueados por razões de segurança.</CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             {}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-4 sm:gap-6">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome Completo *</Label>
                 <Input
@@ -271,35 +272,34 @@ export function UserEditPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="role">Função *</Label>
-                <select
-                  id="role"
-                  value={formData.role}
-                  onChange={(e) => handleInputChange('role', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
-                >
-                  <option value="">Selecione a função</option>
-                  {availableRoles.map((role) => (
-                    <option key={role.value} value={role.value}>
-                      {role.label}
-                    </option>
-                  ))}
-                </select>
+                <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a função" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableRoles.map((role) => (
+                      <SelectItem key={role.value} value={role.value}>
+                        {role.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <select
-                  id="status"
-                  value={formData.status}
-                  onChange={(e) => handleInputChange('status', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
-                >
-                  {STATUS_OPTIONS.map((status) => (
-                    <option key={status.value} value={status.value}>
-                      {status.label}
-                    </option>
-                  ))}
-                </select>
+                <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_OPTIONS.map((status) => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -335,8 +335,8 @@ export function UserEditPage() {
             </div>
 
             {}
-            <div className="space-y-4">
-              <Label className="text-base font-medium">Preferências de Notificação</Label>
+            <div className="space-y-3 sm:space-y-4">
+              <Label className="text-sm sm:text-base font-medium">Preferências de Notificação</Label>
               <div className="space-y-3">
                 <div className="flex items-center space-x-2">
                   <Checkbox
@@ -344,7 +344,7 @@ export function UserEditPage() {
                     checked={formData.notificationPreferences?.email || false}
                     onCheckedChange={(checked) => handleNotificationChange('email', checked as boolean)}
                   />
-                  <Label htmlFor="email-notifications">Notificações por email</Label>
+                  <Label htmlFor="email-notifications" className="text-sm">Notificações por email</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
@@ -352,7 +352,7 @@ export function UserEditPage() {
                     checked={formData.notificationPreferences?.whatsapp || false}
                     onCheckedChange={(checked) => handleNotificationChange('whatsapp', checked as boolean)}
                   />
-                  <Label htmlFor="whatsapp-notifications">Notificações por WhatsApp</Label>
+                  <Label htmlFor="whatsapp-notifications" className="text-sm">Notificações por WhatsApp</Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
@@ -360,17 +360,17 @@ export function UserEditPage() {
                     checked={formData.notificationPreferences?.push || false}
                     onCheckedChange={(checked) => handleNotificationChange('push', checked as boolean)}
                   />
-                  <Label htmlFor="push-notifications">Notificações push</Label>
+                  <Label htmlFor="push-notifications" className="text-sm">Notificações push</Label>
                 </div>
               </div>
             </div>
 
             {}
-            <div className="flex justify-end gap-3 pt-6 border-t">
-              <Button type="button" variant="outline" onClick={() => navigate(-1)} disabled={saving}>
+            <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:gap-3 pt-4 sm:pt-6 border-t">
+              <Button type="button" variant="outline" onClick={() => navigate(-1)} disabled={saving} className="w-full sm:w-auto">
                 Cancelar
               </Button>
-              <Button type="submit" disabled={saving} className="flex items-center gap-2">
+              <Button type="submit" disabled={saving} className="flex items-center justify-center gap-2 w-full sm:w-auto">
                 <Save className="w-4 h-4" />
                 {saving ? 'Salvando...' : 'Salvar Alterações'}
               </Button>
