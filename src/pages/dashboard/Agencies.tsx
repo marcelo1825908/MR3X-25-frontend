@@ -11,7 +11,6 @@ import {
   MapPin,
   Phone,
   Mail,
-  RefreshCw,
   User,
 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
@@ -239,15 +238,6 @@ export function Agencies() {
             <h1 className="text-2xl font-bold text-foreground">Agencias</h1>
             <p className="text-muted-foreground">Visualize e gerencie proprietarios independentes que trabalham diretamente com MR3X</p>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => queryClient.invalidateQueries({ queryKey: ['independent-owners'] })}
-            className="flex items-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Atualizar
-          </Button>
         </div>
 
         {isLoading ? (
