@@ -146,7 +146,7 @@ export default function IntegrationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Centro Técnico</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
@@ -154,7 +154,7 @@ export default function IntegrationsPage() {
           </p>
         </div>
         {canManageIntegrations && (
-          <Button onClick={() => setShowApiKeyModal(true)}>
+          <Button onClick={() => setShowApiKeyModal(true)} className="w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" />
             Nova API Key
           </Button>
@@ -162,21 +162,21 @@ export default function IntegrationsPage() {
       </div>
 
       <Tabs defaultValue="integrations" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="integrations">Integrações</TabsTrigger>
-          <TabsTrigger value="api-keys">API Keys</TabsTrigger>
-          <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
+        <TabsList className="flex w-full overflow-x-auto no-scrollbar">
+          <TabsTrigger value="integrations" className="flex-shrink-0">Integrações</TabsTrigger>
+          <TabsTrigger value="api-keys" className="flex-shrink-0">API Keys</TabsTrigger>
+          <TabsTrigger value="webhooks" className="flex-shrink-0">Webhooks</TabsTrigger>
         </TabsList>
 
         <TabsContent value="integrations" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {integrations.map((integration) => (
               <Card key={integration.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
+                <CardHeader className="pb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                      <CardTitle className="text-lg">{integration.name}</CardTitle>
-                      <CardDescription>{integration.description}</CardDescription>
+                      <CardTitle className="text-base sm:text-lg">{integration.name}</CardTitle>
+                      <CardDescription className="text-sm">{integration.description}</CardDescription>
                     </div>
                     {getStatusBadge(integration.status)}
                   </div>
@@ -196,16 +196,16 @@ export default function IntegrationsPage() {
                       <Label className="text-xs text-muted-foreground">Configuração</Label>
                       <div className="text-sm mt-1 space-y-1">
                         {Object.entries(integration.config).map(([key, value]) => (
-                          <div key={key} className="flex justify-between">
+                          <div key={key} className="flex justify-between gap-2">
                             <span className="text-muted-foreground">{key}:</span>
-                            <span className="font-mono text-xs">{String(value)}</span>
+                            <span className="font-mono text-xs truncate">{String(value)}</span>
                           </div>
                         ))}
                       </div>
                     </div>
                   )}
 
-                  <div className="flex gap-2 pt-2">
+                  <div className="flex flex-col sm:flex-row gap-2 pt-2">
                     {integration.status === 'disconnected' && (
                       <Button size="sm" className="flex-1">
                         Conectar
@@ -217,7 +217,7 @@ export default function IntegrationsPage() {
                         Configurar
                       </Button>
                     )}
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" className="sm:w-auto">
                       <ExternalLink className="w-4 h-4" />
                     </Button>
                   </div>
@@ -236,13 +236,10 @@ export default function IntegrationsPage() {
             <CardContent>
               <div className="space-y-4">
                 {apiKeys.map((key) => (
-                  <div key={key.id} className="flex items-center justify-between p-4 border rounded-lg">
-                    <div className="flex-1">
+                  <div key={key.id} className="p-4 border rounded-lg space-y-3">
+                    <div className="flex items-start justify-between gap-2">
                       <div className="font-semibold">{key.name}</div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <code className="text-sm bg-muted px-2 py-1 rounded">
-                          {showApiKey[key.id] ? key.key : '•'.repeat(key.key.length)}
-                        </code>
+                      <div className="flex gap-1 sm:gap-2 flex-shrink-0">
                         <Button
                           variant="ghost"
                           size="sm"
@@ -254,19 +251,21 @@ export default function IntegrationsPage() {
                             <Eye className="w-4 h-4" />
                           )}
                         </Button>
-                      </div>
-                      <div className="text-xs text-muted-foreground mt-2">
-                        Criada em {key.createdAt.toLocaleDateString('pt-BR')} -
-                        Último uso: {key.lastUsed.toLocaleDateString('pt-BR')}
+                        <Button variant="outline" size="sm">
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm">
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </Button>
+                    <div className="overflow-x-auto">
+                      <code className="text-xs sm:text-sm bg-muted px-2 py-1 rounded inline-block max-w-full">
+                        {showApiKey[key.id] ? key.key : '•'.repeat(Math.min(key.key.length, 24))}
+                      </code>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      Criada em {key.createdAt.toLocaleDateString('pt-BR')} - Último uso: {key.lastUsed.toLocaleDateString('pt-BR')}
                     </div>
                   </div>
                 ))}

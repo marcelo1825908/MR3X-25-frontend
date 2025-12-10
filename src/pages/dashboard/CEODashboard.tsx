@@ -323,10 +323,16 @@ export function CEODashboard() {
           <CardContent>
             {topAgenciesData.length > 0 ? (
               <ChartContainer height={280}>
-                <BarChart data={topAgenciesData} layout="vertical">
+                <BarChart data={topAgenciesData} layout="vertical" margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis type="number" />
-                  <YAxis dataKey="name" type="category" width={100} tick={{ fontSize: 11 }} />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={80}
+                    tick={{ fontSize: 10 }}
+                    tickFormatter={(value) => value.length > 12 ? `${value.substring(0, 12)}...` : value}
+                  />
                   <Tooltip />
                   <Legend />
                   <Bar dataKey="imoveis" name="Imóveis" fill={COLORS.primary} radius={[0, 4, 4, 0]} />

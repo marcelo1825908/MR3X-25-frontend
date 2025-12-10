@@ -538,8 +538,8 @@ function PaymentConfigurationTab({ canUpdateSettings }: { canUpdateSettings: boo
   return (
     <Card>
       <CardHeader className="pb-4">
-        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-          <CreditCard className="w-5 h-5 flex-shrink-0" />
+        <CardTitle className="flex items-start gap-2 text-2xl">
+          <CreditCard className="w-5 h-7 flex-shrink-0" />
           <span>Configuração de Divisão de Pagamentos</span>
         </CardTitle>
         <CardDescription className="text-sm">
