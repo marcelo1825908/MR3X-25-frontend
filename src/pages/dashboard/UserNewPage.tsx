@@ -6,6 +6,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Checkbox } from '../../components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { DocumentInput } from '../../components/ui/document-input';
 import { toast } from 'sonner';
 import { validateDocument } from '../../lib/validation';
@@ -228,36 +229,34 @@ export function UserNewPage() {
 
               <div className="space-y-2">
                 <Label htmlFor="role">Função *</Label>
-                <select
-                  id="role"
-                  value={formData.role}
-                  onChange={(e) => handleInputChange('role', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
-                  required
-                >
-                  <option value="">Selecione a função</option>
-                  {availableRoles.map((role) => (
-                    <option key={role.value} value={role.value}>
-                      {role.label}
-                    </option>
-                  ))}
-                </select>
+                <Select value={formData.role} onValueChange={(value) => handleInputChange('role', value)}>
+                  <SelectTrigger className="[&>span]:text-left [&>span]:truncate">
+                    <SelectValue placeholder="Selecione a função" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableRoles.map((role) => (
+                      <SelectItem key={role.value} value={role.value}>
+                        {role.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="status">Status</Label>
-                <select
-                  id="status"
-                  value={formData.status}
-                  onChange={(e) => handleInputChange('status', e.target.value)}
-                  className="w-full px-3 py-2 border rounded-md"
-                >
-                  {STATUS_OPTIONS.map((status) => (
-                    <option key={status.value} value={status.value}>
-                      {status.label}
-                    </option>
-                  ))}
-                </select>
+                <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {STATUS_OPTIONS.map((status) => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <div className="space-y-2">
@@ -287,30 +286,30 @@ export function UserNewPage() {
             <div className="space-y-4">
               <Label className="text-base font-medium">Preferências de Notificação</Label>
               <div className="space-y-3">
-                <div className="flex items-center space-x-2">
+                <label htmlFor="email-notifications" className="flex items-center gap-2 cursor-pointer">
                   <Checkbox
                     id="email-notifications"
                     checked={formData.notificationPreferences.email}
                     onCheckedChange={(checked) => handleNotificationChange('email', checked as boolean)}
                   />
-                  <Label htmlFor="email-notifications">Notificações por email</Label>
-                </div>
-                <div className="flex items-center space-x-2">
+                  <span className="text-sm">Notificações por email</span>
+                </label>
+                <label htmlFor="whatsapp-notifications" className="flex items-center gap-2 cursor-pointer">
                   <Checkbox
                     id="whatsapp-notifications"
                     checked={formData.notificationPreferences.whatsapp}
                     onCheckedChange={(checked) => handleNotificationChange('whatsapp', checked as boolean)}
                   />
-                  <Label htmlFor="whatsapp-notifications">Notificações por WhatsApp</Label>
-                </div>
-                <div className="flex items-center space-x-2">
+                  <span className="text-sm">Notificações por WhatsApp</span>
+                </label>
+                <label htmlFor="push-notifications" className="flex items-center gap-2 cursor-pointer">
                   <Checkbox
                     id="push-notifications"
                     checked={formData.notificationPreferences.push}
                     onCheckedChange={(checked) => handleNotificationChange('push', checked as boolean)}
                   />
-                  <Label htmlFor="push-notifications">Notificações push</Label>
-                </div>
+                  <span className="text-sm">Notificações push</span>
+                </label>
               </div>
             </div>
 

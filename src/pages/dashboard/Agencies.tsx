@@ -18,20 +18,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { CEPInput } from '@/components/ui/cep-input'
 import { isValidCEPFormat } from '@/lib/validation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -154,6 +145,7 @@ export function Agencies() {
         document: selectedOwner.document,
         phone: selectedOwner.phone,
         address: selectedOwner.address,
+        neighborhood: selectedOwner.neighborhood,
         city: selectedOwner.city,
         state: selectedOwner.state,
         cep: selectedOwner.cep || undefined,
@@ -434,28 +426,19 @@ export function Agencies() {
                   </div>
                   <div>
                     <Label htmlFor="edit-status">Status</Label>
-                    <select
-                      id="edit-status"
-                      className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                    <Select
                       value={selectedOwner.status || 'ACTIVE'}
-                      onChange={(e) => setSelectedOwner({ ...selectedOwner, status: e.target.value })}
+                      onValueChange={(value) => setSelectedOwner({ ...selectedOwner, status: value })}
                     >
-                      <option value="ACTIVE">Ativo</option>
-                      <option value="SUSPENDED">Suspenso</option>
-                      <option value="PENDING">Pendente</option>
-                    </select>
-                  </div>
-                  <div className="md:col-span-2">
-                    <Label htmlFor="edit-address">Endereco</Label>
-                    <Input id="edit-address" value={selectedOwner.address || ''} onChange={(e) => setSelectedOwner({ ...selectedOwner, address: e.target.value })} />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-city">Cidade</Label>
-                    <Input id="edit-city" value={selectedOwner.city || ''} onChange={(e) => setSelectedOwner({ ...selectedOwner, city: e.target.value })} />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-state">Estado</Label>
-                    <Input id="edit-state" value={selectedOwner.state || ''} onChange={(e) => setSelectedOwner({ ...selectedOwner, state: e.target.value })} />
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ACTIVE">Ativo</SelectItem>
+                        <SelectItem value="SUSPENDED">Suspenso</SelectItem>
+                        <SelectItem value="PENDING">Pendente</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
                     <CEPInput
@@ -464,9 +447,10 @@ export function Agencies() {
                       onCEPData={(data) => {
                         setSelectedOwner({
                           ...selectedOwner,
-                          address: data.street || selectedOwner.address,
-                          city: data.city || selectedOwner.city,
-                          state: data.state || selectedOwner.state,
+                          address: data.logradouro || selectedOwner.address,
+                          neighborhood: data.bairro || selectedOwner.neighborhood,
+                          city: data.cidade || selectedOwner.city,
+                          state: data.estado || selectedOwner.state,
                         })
                       }}
                       label="CEP"
@@ -475,17 +459,36 @@ export function Agencies() {
                   </div>
                   <div>
                     <Label htmlFor="edit-plan">Plano</Label>
-                    <select
-                      id="edit-plan"
-                      className="w-full px-3 py-2 border border-input rounded-md bg-background"
+                    <Select
                       value={selectedOwner.plan || 'FREE'}
-                      onChange={(e) => setSelectedOwner({ ...selectedOwner, plan: e.target.value })}
+                      onValueChange={(value) => setSelectedOwner({ ...selectedOwner, plan: value })}
                     >
-                      <option value="FREE">Gratuito</option>
-                      <option value="ESSENTIAL">Essencial</option>
-                      <option value="PROFESSIONAL">Profissional</option>
-                      <option value="ENTERPRISE">Empresarial</option>
-                    </select>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o plano" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="FREE">Gratuito</SelectItem>
+                        <SelectItem value="ESSENTIAL">Essencial</SelectItem>
+                        <SelectItem value="PROFESSIONAL">Profissional</SelectItem>
+                        <SelectItem value="ENTERPRISE">Empresarial</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label htmlFor="edit-address">Endereco</Label>
+                    <Input id="edit-address" value={selectedOwner.address || ''} onChange={(e) => setSelectedOwner({ ...selectedOwner, address: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-neighborhood">Bairro</Label>
+                    <Input id="edit-neighborhood" value={selectedOwner.neighborhood || ''} onChange={(e) => setSelectedOwner({ ...selectedOwner, neighborhood: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-city">Cidade</Label>
+                    <Input id="edit-city" value={selectedOwner.city || ''} onChange={(e) => setSelectedOwner({ ...selectedOwner, city: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-state">Estado</Label>
+                    <Input id="edit-state" value={selectedOwner.state || ''} onChange={(e) => setSelectedOwner({ ...selectedOwner, state: e.target.value })} />
                   </div>
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
@@ -500,27 +503,33 @@ export function Agencies() {
         </Dialog>
 
         {}
-        <AlertDialog open={!!ownerToDelete} onOpenChange={() => setOwnerToDelete(null)}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Confirmar Exclusao</AlertDialogTitle>
-              <AlertDialogDescription>
+        <Dialog open={!!ownerToDelete} onOpenChange={() => setOwnerToDelete(null)}>
+          <DialogContent className="w-[calc(100%-2rem)] sm:max-w-lg rounded-xl">
+            <DialogHeader>
+              <DialogTitle>Confirmar Exclusao</DialogTitle>
+              <DialogDescription>
                 Tem certeza que deseja excluir o proprietario independente "{ownerToDelete?.name}"?
                 Esta acao nao pode ser desfeita e todos os dados relacionados serao perdidos.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-row gap-2 mt-4">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setOwnerToDelete(null)}
+              >
+                Cancelar
+              </Button>
+              <Button
                 onClick={handleDeleteOwner}
                 disabled={deleting}
-                className="bg-red-600 hover:bg-red-700"
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
               >
                 {deleting ? 'Excluindo...' : 'Excluir'}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     </TooltipProvider>
   )

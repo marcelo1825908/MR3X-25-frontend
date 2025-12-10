@@ -445,10 +445,10 @@ export function AgencyAdmin() {
                       onCEPData={(data) => {
                         setSelectedAgency({
                           ...selectedAgency,
-                          address: data.street || selectedAgency.address,
-                          neighborhood: data.neighborhood || selectedAgency.neighborhood,
-                          city: data.city || selectedAgency.city,
-                          state: data.state || selectedAgency.state,
+                          address: data.logradouro || selectedAgency.address,
+                          neighborhood: data.bairro || selectedAgency.neighborhood,
+                          city: data.cidade || selectedAgency.city,
+                          state: data.estado || selectedAgency.state,
                         })
                       }}
                       label="CEP"
