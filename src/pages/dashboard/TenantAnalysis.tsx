@@ -1050,13 +1050,6 @@ export function TenantAnalysis() {
                   <SelectItem value="FAILED">Falha</SelectItem>
                 </SelectContent>
               </Select>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => queryClient.invalidateQueries({ queryKey: ['tenant-analysis-history'] })}
-              >
-                <RefreshCw className="w-4 h-4" />
-              </Button>
             </div>
           </div>
         </CardHeader>
