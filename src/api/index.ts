@@ -10,6 +10,11 @@ export const dashboardAPI = {
     const response = await apiClient.get('/dashboard/due-dates');
     return response.data;
   },
+
+  getPlatformRevenue: async () => {
+    const response = await apiClient.get('/dashboard/platform-revenue');
+    return response.data;
+  },
 };
 
 export const propertiesAPI = {

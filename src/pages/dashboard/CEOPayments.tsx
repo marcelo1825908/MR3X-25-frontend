@@ -6,12 +6,11 @@ import {
   Calendar,
   Building2,
   TrendingUp,
-  AlertCircle,
-  CheckCircle,
-  Clock,
   Search,
   User,
   Building,
+  FileText,
+  Users,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
@@ -19,18 +18,74 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { dashboardAPI } from '../../api';
+
+interface Agency {
+  id: string;
+  name: string;
+  cnpj: string;
+  email: string;
+  plan: string;
+  subscriptionStatus: string;
+  totalSpent: number;
+  lastPaymentAt: string | null;
+  lastPaymentAmount: number;
+  nextBillingDate: string | null;
+  createdAt: string;
+  stats: {
+    properties: number;
+    contracts: number;
+    users: number;
+  };
+}
+
+interface IndependentOwner {
+  id: string;
+  name: string | null;
+  email: string;
+  document: string | null;
+  plan: string;
+  createdAt: string;
+}
+
+interface PlatformRevenueData {
+  summary: {
+    totalAgencies: number;
+    totalIndependentOwners: number;
+    totalAgencyRevenue: number;
+    monthlyAgencyMicrotransactions: number;
+    monthlyOwnerMicrotransactions: number;
+    totalMonthlyRevenue: number;
+  };
+  planDistribution: {
+    agencies: Record<string, number>;
+    independentOwners: Record<string, number>;
+  };
+  agencies: Agency[];
+  independentOwners: IndependentOwner[];
+  recentPayments: Array<{
+    id: string;
+    type: 'agency';
+    name: string;
+    email: string;
+    plan: string;
+    amount: number;
+    date: string;
+    totalSpent: number;
+  }>;
+}
 
 export function CEOPayments() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter, setTypeFilter] = useState('all');
+  const [planFilter, setPlanFilter] = useState('all');
+  const [activeTab, setActiveTab] = useState('agencies');
 
-  // Fetch CEO dashboard data which includes payments
-  const { data: dashboard, isLoading } = useQuery({
-    queryKey: ['ceo-dashboard'],
-    queryFn: () => dashboardAPI.getDashboard(),
+  // Fetch platform revenue data
+  const { data: platformRevenue, isLoading } = useQuery({
+    queryKey: ['platform-revenue'],
+    queryFn: () => dashboardAPI.getPlatformRevenue(),
     enabled: user?.role === 'CEO',
   });
 
@@ -53,31 +108,60 @@ export function CEOPayments() {
     );
   }
 
-  const pendingPayments = dashboard?.pendingPayments || [];
-  const recentPayments = dashboard?.recentPayments || [];
+  const data = platformRevenue as PlatformRevenueData;
 
-  // Filter payments based on search and filters
-  const filterPayments = (payments: any[]) => {
-    return payments.filter((payment: any) => {
-      const searchMatch = searchTerm === '' ||
-        payment.property?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.property?.address?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.tenant?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.agency?.name?.toLowerCase().includes(searchTerm.toLowerCase());
+  // Filter agencies based on search and plan
+  const filteredAgencies = (data?.agencies || []).filter((agency) => {
+    const searchMatch =
+      searchTerm === '' ||
+      agency.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      agency.cnpj?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      agency.email?.toLowerCase().includes(searchTerm.toLowerCase());
 
-      const typeMatch = typeFilter === 'all' || payment.type === typeFilter;
+    const planMatch = planFilter === 'all' || agency.plan === planFilter;
 
-      return searchMatch && typeMatch;
-    });
+    return searchMatch && planMatch;
+  });
+
+  // Filter independent owners based on search and plan
+  const filteredOwners = (data?.independentOwners || []).filter((owner) => {
+    const searchMatch =
+      searchTerm === '' ||
+      owner.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      owner.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      owner.document?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const planMatch = planFilter === 'all' || owner.plan === planFilter;
+
+    return searchMatch && planMatch;
+  });
+
+  const getPlanColor = (plan: string) => {
+    switch (plan) {
+      case 'PREMIUM':
+        return 'bg-purple-100 text-purple-800';
+      case 'PROFISSIONAL':
+        return 'bg-blue-100 text-blue-800';
+      case 'ESSENCIAL':
+        return 'bg-green-100 text-green-800';
+      case 'FREE':
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
   };
 
-  const filteredPendingPayments = filterPayments(pendingPayments);
-  const filteredRecentPayments = filterPayments(recentPayments);
-
-  // Calculate totals
-  // Pending payments use monthlyRent (from contracts), recent payments use amount
-  const totalPending = pendingPayments.reduce((sum: number, p: any) => sum + (Number(p.monthlyRent) || 0), 0);
-  const totalReceived = recentPayments.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+  const getSubscriptionStatusColor = (status: string) => {
+    switch (status) {
+      case 'ACTIVE':
+        return 'bg-green-100 text-green-800';
+      case 'CANCELED':
+        return 'bg-red-100 text-red-800';
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -86,10 +170,10 @@ export function CEOPayments() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
             <DollarSign className="w-7 h-7 text-primary" />
-            Pagamentos da Plataforma
+            Receita da Plataforma
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Acompanhe os pagamentos de todas as agências e proprietários independentes
+            Acompanhe os pagamentos de Agências e Proprietários Independentes
           </p>
         </div>
       </div>
@@ -99,36 +183,38 @@ export function CEOPayments() {
         <Card>
           <CardContent className="p-3 sm:p-4">
             <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 bg-blue-500/10 text-blue-500 rounded-lg">
+                <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+            </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Total Agências</p>
+            <p className="text-sm sm:text-lg font-bold">{data?.summary?.totalAgencies || 0}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-green-500/10 text-green-500 rounded-lg">
+                <User className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+            </div>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Proprietários Independentes</p>
+            <p className="text-sm sm:text-lg font-bold">{data?.summary?.totalIndependentOwners || 0}</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-3 sm:p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 bg-purple-500/10 text-purple-500 rounded-lg">
                 <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground">Total Recebido</p>
-            <p className="text-sm sm:text-lg font-bold text-green-600">{formatCurrency(totalReceived)}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-red-500/10 text-red-500 rounded-lg">
-                <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-              </div>
-            </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground">Total Pendente</p>
-            <p className="text-sm sm:text-lg font-bold text-red-600">{formatCurrency(totalPending)}</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-3 sm:p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-blue-500/10 text-blue-500 rounded-lg">
-                <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-              </div>
-            </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground">Pagamentos Recentes</p>
-            <p className="text-sm sm:text-lg font-bold">{recentPayments.length}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Receita Total (Agências)</p>
+            <p className="text-sm sm:text-lg font-bold text-purple-600">
+              {formatCurrency(data?.summary?.totalAgencyRevenue || 0)}
+            </p>
           </CardContent>
         </Card>
 
@@ -136,11 +222,52 @@ export function CEOPayments() {
           <CardContent className="p-3 sm:p-4">
             <div className="flex items-center gap-2 mb-2">
               <div className="p-2 bg-orange-500/10 text-orange-500 rounded-lg">
-                <Clock className="w-4 h-4 sm:w-5 sm:h-5" />
+                <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </div>
-            <p className="text-[10px] sm:text-xs text-muted-foreground">Pagamentos Atrasados</p>
-            <p className="text-sm sm:text-lg font-bold text-orange-600">{pendingPayments.length}</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Microtransações (Mês)</p>
+            <p className="text-sm sm:text-lg font-bold text-orange-600">
+              {formatCurrency(data?.summary?.totalMonthlyRevenue || 0)}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Plan Distribution */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Distribuição de Planos - Agências</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(data?.planDistribution?.agencies || {}).map(([plan, count]) => (
+                <Badge key={plan} className={getPlanColor(plan)}>
+                  {plan}: {count}
+                </Badge>
+              ))}
+              {Object.keys(data?.planDistribution?.agencies || {}).length === 0 && (
+                <p className="text-sm text-muted-foreground">Nenhuma agência cadastrada</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Distribuição de Planos - Prop. Independentes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(data?.planDistribution?.independentOwners || {}).map(([plan, count]) => (
+                <Badge key={plan} className={getPlanColor(plan)}>
+                  {plan}: {count}
+                </Badge>
+              ))}
+              {Object.keys(data?.planDistribution?.independentOwners || {}).length === 0 && (
+                <p className="text-sm text-muted-foreground">Nenhum proprietário independente cadastrado</p>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -150,12 +277,14 @@ export function CEOPayments() {
         <CardContent className="p-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
-              <Label htmlFor="search" className="text-xs text-muted-foreground mb-1 block">Buscar</Label>
+              <Label htmlFor="search" className="text-xs text-muted-foreground mb-1 block">
+                Buscar
+              </Label>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
                   id="search"
-                  placeholder="Buscar por imóvel, inquilino ou agência..."
+                  placeholder="Buscar por nome, CNPJ, CPF ou email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10"
@@ -163,30 +292,19 @@ export function CEOPayments() {
               </div>
             </div>
             <div className="w-full sm:w-48">
-              <Label htmlFor="status" className="text-xs text-muted-foreground mb-1 block">Status</Label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <Label htmlFor="plan" className="text-xs text-muted-foreground mb-1 block">
+                Plano
+              </Label>
+              <Select value={planFilter} onValueChange={setPlanFilter}>
                 <SelectTrigger>
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="pending">Pendentes</SelectItem>
-                  <SelectItem value="received">Recebidos</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="w-full sm:w-48">
-              <Label htmlFor="type" className="text-xs text-muted-foreground mb-1 block">Tipo</Label>
-              <Select value={typeFilter} onValueChange={setTypeFilter}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  <SelectItem value="ALUGUEL">Aluguel</SelectItem>
-                  <SelectItem value="CONDOMINIO">Condomínio</SelectItem>
-                  <SelectItem value="IPTU">IPTU</SelectItem>
-                  <SelectItem value="OUTROS">Outros</SelectItem>
+                  <SelectItem value="FREE">FREE</SelectItem>
+                  <SelectItem value="ESSENCIAL">ESSENCIAL</SelectItem>
+                  <SelectItem value="PROFISSIONAL">PROFISSIONAL</SelectItem>
+                  <SelectItem value="PREMIUM">PREMIUM</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -194,135 +312,176 @@ export function CEOPayments() {
         </CardContent>
       </Card>
 
-      {/* Pending Payments */}
-      {(statusFilter === 'all' || statusFilter === 'pending') && filteredPendingPayments.length > 0 && (
-        <Card>
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <AlertCircle className="w-5 h-5 text-red-500" />
-                  Pagamentos Pendentes
-                </CardTitle>
-                <CardDescription className="mt-1">Contratos com pagamentos em atraso</CardDescription>
-              </div>
-              <Badge variant="destructive" className="w-fit">
-                {filteredPendingPayments.length} pendentes
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {filteredPendingPayments.map((payment: any, index: number) => (
-                <div
-                  key={payment.contractId || index}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-red-50 border border-red-100 rounded-lg gap-3"
-                >
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <p className="font-medium truncate">{payment.property?.name || payment.property?.address || '-'}</p>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <User className="w-3 h-3 shrink-0" />
-                      <span className="truncate">{payment.tenant?.name || '-'}</span>
-                    </div>
-                    {payment.agency?.name && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                        <Building className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{payment.agency.name}</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2">
-                    <p className="font-semibold text-red-600">
-                      {formatCurrency(Number(payment.monthlyRent || 0))}
-                    </p>
-                    {payment.daysOverdue && (
-                      <Badge variant="destructive" className="text-xs">
-                        {payment.daysOverdue} dias em atraso
-                      </Badge>
-                    )}
-                  </div>
+      {/* Tabs for Agencies and Independent Owners */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="agencies" className="flex items-center gap-2">
+            <Building2 className="w-4 h-4" />
+            Agências ({filteredAgencies.length})
+          </TabsTrigger>
+          <TabsTrigger value="owners" className="flex items-center gap-2">
+            <User className="w-4 h-4" />
+            Prop. Independentes ({filteredOwners.length})
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Agencies Tab */}
+        <TabsContent value="agencies">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="w-5 h-5" />
+                Agências
+              </CardTitle>
+              <CardDescription>Lista de agências e seus pagamentos à plataforma</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {filteredAgencies.length === 0 ? (
+                <div className="text-center py-8">
+                  <Building2 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Nenhuma agência encontrada</p>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+              ) : (
+                <div className="space-y-3">
+                  {filteredAgencies.map((agency) => (
+                    <div
+                      key={agency.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-muted/50 border rounded-lg gap-3"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Building className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <p className="font-medium truncate">{agency.name}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                          <span className="truncate">{agency.email}</span>
+                          <span className="truncate">CNPJ: {agency.cnpj}</span>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge className={getPlanColor(agency.plan)}>{agency.plan}</Badge>
+                          <Badge className={getSubscriptionStatusColor(agency.subscriptionStatus)}>
+                            {agency.subscriptionStatus}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                          <span>{agency.stats.properties} imóveis</span>
+                          <span>{agency.stats.contracts} contratos</span>
+                          <span>{agency.stats.users} usuários</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <p className="text-sm text-muted-foreground">Total Gasto</p>
+                        <p className="font-semibold text-lg text-primary">
+                          {formatCurrency(agency.totalSpent)}
+                        </p>
+                        {agency.lastPaymentAt && (
+                          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <Calendar className="w-3 h-3" />
+                            <span>Último: {formatDate(agency.lastPaymentAt)}</span>
+                          </div>
+                        )}
+                        {agency.lastPaymentAmount > 0 && (
+                          <p className="text-xs text-green-600">
+                            +{formatCurrency(agency.lastPaymentAmount)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Independent Owners Tab */}
+        <TabsContent value="owners">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                Proprietários Independentes
+              </CardTitle>
+              <CardDescription>Lista de proprietários independentes e seus planos</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {filteredOwners.length === 0 ? (
+                <div className="text-center py-8">
+                  <User className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground">Nenhum proprietário independente encontrado</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {filteredOwners.map((owner) => (
+                    <div
+                      key={owner.id}
+                      className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-muted/50 border rounded-lg gap-3"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <User className="w-4 h-4 text-muted-foreground shrink-0" />
+                          <p className="font-medium truncate">{owner.name || 'Sem nome'}</p>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                          <span className="truncate">{owner.email}</span>
+                          {owner.document && <span className="truncate">CPF/CNPJ: {owner.document}</span>}
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          <Badge className={getPlanColor(owner.plan)}>{owner.plan}</Badge>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                          <Calendar className="w-3 h-3" />
+                          <span>Cadastrado: {formatDate(owner.createdAt)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Recent Payments */}
-      {(statusFilter === 'all' || statusFilter === 'received') && filteredRecentPayments.length > 0 && (
+      {(data?.recentPayments?.length || 0) > 0 && (
         <Card>
           <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  Pagamentos Recentes
-                </CardTitle>
-                <CardDescription className="mt-1">Últimos pagamentos recebidos na plataforma</CardDescription>
-              </div>
-              <Badge className="bg-green-100 text-green-700 w-fit">
-                {filteredRecentPayments.length} recebidos
-              </Badge>
-            </div>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-green-500" />
+              Últimos Pagamentos
+            </CardTitle>
+            <CardDescription>Pagamentos recentes de agências à plataforma</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {filteredRecentPayments.map((payment: any, index: number) => (
+              {data?.recentPayments?.map((payment) => (
                 <div
-                  key={payment.id || index}
+                  key={payment.id}
                   className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-green-50 border border-green-100 rounded-lg gap-3"
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <Building2 className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <p className="font-medium truncate">{payment.property?.name || payment.property?.address || '-'}</p>
+                      <Building className="w-4 h-4 text-muted-foreground shrink-0" />
+                      <p className="font-medium truncate">{payment.name}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                      <span className="truncate">{payment.email}</span>
                       <div className="flex items-center gap-1">
-                        <User className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{payment.tenant?.name || '-'}</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3 shrink-0" />
+                        <Calendar className="w-3 h-3" />
                         <span>{payment.date ? formatDate(payment.date) : '-'}</span>
                       </div>
                     </div>
-                    {payment.agency?.name && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-                        <Building className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{payment.agency.name}</span>
-                      </div>
-                    )}
                   </div>
-                  <div className="flex flex-row sm:flex-col items-center sm:items-end justify-between sm:justify-start gap-2">
-                    <p className="font-semibold text-green-600">
-                      {formatCurrency(Number(payment.amount || 0))}
-                    </p>
-                    <Badge variant="outline" className="text-xs capitalize">
-                      {payment.type || '-'}
-                    </Badge>
+                  <div className="flex flex-col items-end gap-1">
+                    <p className="font-semibold text-green-600">{formatCurrency(payment.amount)}</p>
+                    <Badge className={getPlanColor(payment.plan)}>{payment.plan}</Badge>
                   </div>
                 </div>
               ))}
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Empty State */}
-      {filteredPendingPayments.length === 0 && filteredRecentPayments.length === 0 && (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <DollarSign className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Nenhum pagamento encontrado</h3>
-            <p className="text-muted-foreground">
-              {searchTerm || typeFilter !== 'all'
-                ? 'Tente ajustar os filtros de busca'
-                : 'Ainda não há pagamentos registrados na plataforma'}
-            </p>
           </CardContent>
         </Card>
       )}
