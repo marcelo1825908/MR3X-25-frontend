@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
+import { QRCodeSVG } from 'qrcode.react';
+import Barcode from 'react-barcode';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -1065,13 +1067,37 @@ export default function ExtrajudicialNotifications() {
           {selectedNotification && (
             <div className="space-y-6">
               <div className="flex justify-between items-start">
-                <div>
-                  <div className="text-sm text-muted-foreground">Numero</div>
-                  <div className="font-mono font-bold">{selectedNotification.notificationNumber}</div>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-4 text-sm">
+                    <span><strong>N:</strong> {selectedNotification.notificationNumber}</span>
+                    <span><strong>Protocolo:</strong> {selectedNotification.protocolNumber}</span>
+                    <span><strong>Data:</strong> {formatDate(selectedNotification.createdAt)}</span>
+                  </div>
                 </div>
                 <div className="flex gap-2">
                   {getStatusBadge(selectedNotification.status)}
                   {getPriorityBadge(selectedNotification.priority)}
+                </div>
+              </div>
+
+              {/* QR Code and Barcode */}
+              <div className="flex items-center justify-center gap-6 p-4 bg-gray-50 border rounded-lg">
+                <div className="flex flex-col items-center">
+                  <QRCodeSVG
+                    value={`https://mr3x.com.br/verify/notification/${selectedNotification.notificationToken}`}
+                    size={80}
+                    level="H"
+                  />
+                </div>
+                <div className="flex flex-col items-center">
+                  <Barcode
+                    value={selectedNotification.notificationToken || selectedNotification.notificationNumber}
+                    format="CODE128"
+                    width={2}
+                    height={40}
+                    displayValue={true}
+                    fontSize={12}
+                  />
                 </div>
               </div>
 
