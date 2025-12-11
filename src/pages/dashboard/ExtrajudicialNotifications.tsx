@@ -342,20 +342,30 @@ export default function ExtrajudicialNotifications() {
     try {
       setSaving(true);
 
-      // Get geolocation
+      // Get geolocation (optional - continues without it if unavailable or blocked)
       let geoLat = signData.geoLat;
       let geoLng = signData.geoLng;
       if (signData.geoConsent && navigator.geolocation) {
-        await new Promise<void>((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              geoLat = position.coords.latitude;
-              geoLng = position.coords.longitude;
-              resolve();
-            },
-            reject,
-          );
-        });
+        try {
+          await new Promise<void>((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(
+              (position) => {
+                geoLat = position.coords.latitude;
+                geoLng = position.coords.longitude;
+                resolve();
+              },
+              (error) => {
+                // Log the error but don't reject - allow signing to continue without geolocation
+                console.warn('Geolocation unavailable:', error.message);
+                resolve();
+              },
+              { timeout: 10000 }
+            );
+          });
+        } catch (geoError) {
+          // Geolocation failed but we continue without it
+          console.warn('Geolocation error:', geoError);
+        }
       }
 
       const signature = signatureRef.current.toDataURL('image/png');
