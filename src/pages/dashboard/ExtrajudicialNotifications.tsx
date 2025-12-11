@@ -14,7 +14,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { extrajudicialNotificationsAPI, propertiesAPI, usersAPI } from '@/api';
 import { useAuth } from '@/contexts/AuthContext';
 import SignatureCanvas from 'react-signature-canvas';
@@ -29,7 +28,6 @@ import {
   CheckCircle,
   Gavel,
   Loader2,
-  History,
   PenTool,
   AlertCircle,
   DollarSign,
@@ -151,7 +149,6 @@ export default function ExtrajudicialNotifications() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showSignModal, setShowSignModal] = useState(false);
   const [showJudicialModal, setShowJudicialModal] = useState(false);
-  const [showAuditModal, setShowAuditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [notificationToDelete, setNotificationToDelete] = useState<string | null>(null);
   const [showPdfPreviewModal, setShowPdfPreviewModal] = useState(false);
@@ -159,10 +156,8 @@ export default function ExtrajudicialNotifications() {
   const [pdfLoading, setPdfLoading] = useState(false);
 
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   const [properties, setProperties] = useState<any[]>([]);
-  const [users, setUsers] = useState<any[]>([]);
   const [tenants, setTenants] = useState<any[]>([]);
   const [owners, setOwners] = useState<any[]>([]);
   const [saving, setSaving] = useState(false);
@@ -249,7 +244,6 @@ export default function ExtrajudicialNotifications() {
         setNotifications(notificationsRes.data || []);
         setStatistics(statsRes);
         setProperties(propsRes || []);
-        setUsers(usersRes.items || []);
         setTenants(tenantsRes || []);
 
         // Filter owners from users (PROPRIETARIO, INDEPENDENT_OWNER roles)
@@ -469,32 +463,6 @@ export default function ExtrajudicialNotifications() {
     if (pdfPreviewUrl) {
       window.URL.revokeObjectURL(pdfPreviewUrl);
       setPdfPreviewUrl(null);
-    }
-  };
-
-  const handleViewAudit = async (notification: Notification) => {
-    try {
-      const logs = await extrajudicialNotificationsAPI.getAuditLog(notification.id);
-      setAuditLogs(logs);
-      setSelectedNotification(notification);
-      setShowAuditModal(true);
-    } catch (error) {
-      console.error('Error loading audit log:', error);
-      toast.error('Erro ao carregar historico de auditoria');
-    }
-  };
-
-  const handleVerifyHash = async (id: string) => {
-    try {
-      const result = await extrajudicialNotificationsAPI.verifyHash(id);
-      if (result.valid) {
-        toast.success(result.message || 'Documento verificado com sucesso!');
-      } else {
-        toast.error(result.message || 'Falha na verificacao do documento');
-      }
-    } catch (error) {
-      console.error('Error verifying hash:', error);
-      toast.error('Erro ao verificar integridade do documento');
     }
   };
 
@@ -1423,7 +1391,7 @@ export default function ExtrajudicialNotifications() {
               variant="outline"
               onClick={() => {
                 if (selectedNotification) {
-                  handleDownloadPdf(selectedNotification.id, selectedNotification.status);
+                  handleDownloadPdf(selectedNotification.id, selectedNotification.status === 'RASCUNHO' ? 'provisional' : 'final');
                 }
               }}
             >
@@ -1599,49 +1567,6 @@ export default function ExtrajudicialNotifications() {
               Encaminhar
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Audit Log Modal */}
-      <Dialog open={showAuditModal} onOpenChange={setShowAuditModal}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <History className="h-5 w-5" />
-              Historico de Auditoria
-            </DialogTitle>
-          </DialogHeader>
-
-          <ScrollArea className="max-h-[400px]">
-            {auditLogs.length === 0 ? (
-              <p className="text-center text-muted-foreground p-4">
-                Nenhum registro de auditoria
-              </p>
-            ) : (
-              <div className="space-y-3">
-                {auditLogs.map((log, index) => (
-                  <div key={index} className="border rounded-lg p-3">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <Badge variant="outline">{log.action}</Badge>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {formatDateTime(log.performedAt)}
-                        </p>
-                      </div>
-                      <div className="text-right text-xs text-muted-foreground">
-                        {log.clientIP && <div>IP: {log.clientIP}</div>}
-                      </div>
-                    </div>
-                    {log.details && (
-                      <pre className="text-xs bg-muted p-2 rounded mt-2 overflow-x-auto">
-                        {JSON.stringify(log.details, null, 2)}
-                      </pre>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </ScrollArea>
         </DialogContent>
       </Dialog>
 
