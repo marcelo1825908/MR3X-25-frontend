@@ -152,6 +152,9 @@ export default function ExtrajudicialNotifications() {
   const [showAuditModal, setShowAuditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [notificationToDelete, setNotificationToDelete] = useState<string | null>(null);
+  const [showPdfPreviewModal, setShowPdfPreviewModal] = useState(false);
+  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -403,6 +406,36 @@ export default function ExtrajudicialNotifications() {
     }
   };
 
+  const handleViewPdf = async (notification: Notification) => {
+    setPdfLoading(true);
+    setSelectedNotification(notification);
+    setShowPdfPreviewModal(true);
+
+    try {
+      const type = notification.status === 'RASCUNHO' ? 'provisional' : 'final';
+      const blob = type === 'provisional'
+        ? await extrajudicialNotificationsAPI.downloadProvisionalPdf(notification.id)
+        : await extrajudicialNotificationsAPI.downloadFinalPdf(notification.id);
+
+      const url = window.URL.createObjectURL(blob);
+      setPdfPreviewUrl(url);
+    } catch (error) {
+      console.error('Error viewing PDF:', error);
+      toast.error('Erro ao visualizar PDF');
+      setShowPdfPreviewModal(false);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
+
+  const handleClosePdfPreview = () => {
+    setShowPdfPreviewModal(false);
+    if (pdfPreviewUrl) {
+      window.URL.revokeObjectURL(pdfPreviewUrl);
+      setPdfPreviewUrl(null);
+    }
+  };
+
   const handleViewAudit = async (notification: Notification) => {
     try {
       const logs = await extrajudicialNotificationsAPI.getAuditLog(notification.id);
@@ -632,11 +665,8 @@ export default function ExtrajudicialNotifications() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => {
-                            setSelectedNotification(n);
-                            setShowDetailsModal(true);
-                          }}
-                          title="Ver detalhes"
+                          onClick={() => handleViewPdf(n)}
+                          title="Ver PDF"
                         >
                           <Eye className="h-4 w-4" />
                         </Button>
@@ -1230,6 +1260,52 @@ export default function ExtrajudicialNotifications() {
               </div>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* PDF Preview Modal */}
+      <Dialog open={showPdfPreviewModal} onOpenChange={handleClosePdfPreview}>
+        <DialogContent className="max-w-5xl max-h-[95vh] p-0">
+          <DialogHeader className="p-4 pb-2">
+            <DialogTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5" />
+              Visualizar PDF - {selectedNotification?.notificationToken}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden" style={{ height: 'calc(95vh - 120px)' }}>
+            {pdfLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <span className="ml-3 text-muted-foreground">Carregando PDF...</span>
+              </div>
+            ) : pdfPreviewUrl ? (
+              <iframe
+                src={pdfPreviewUrl}
+                className="w-full h-full border-0"
+                title="PDF Preview"
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full text-muted-foreground">
+                Erro ao carregar PDF
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end gap-2 p-4 pt-2 border-t">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (selectedNotification) {
+                  handleDownloadPdf(selectedNotification.id, selectedNotification.status);
+                }
+              }}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Baixar PDF
+            </Button>
+            <Button variant="outline" onClick={handleClosePdfPreview}>
+              Fechar
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 
