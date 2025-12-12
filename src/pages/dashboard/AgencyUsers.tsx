@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { usersAPI } from '@/api'
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -85,7 +85,17 @@ export function AgencyUsers() {
   const [userDetail, setUserDetail] = useState<any>(null)
   const [loadingDetails, setLoadingDetails] = useState(false)
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
+  const [searchTerm, setSearchTerm] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
+
+  const handleSearch = useCallback(() => {
+    setSearchQuery(searchTerm.trim())
+  }, [searchTerm])
+
+  const handleClearSearch = useCallback(() => {
+    setSearchTerm('')
+    setSearchQuery('')
+  }, [])
 
   // Fetch users created by this AGENCY_ADMIN or in the same agency
   const { data: myUsers, isLoading } = useQuery({
@@ -199,14 +209,37 @@ export function AgencyUsers() {
         </div>
 
         {/* Search Box */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome, email, telefone, documento ou tipo..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex w-full sm:max-w-lg gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleSearch()
+                  }
+                }}
+                placeholder="Pesquisar por nome, email, telefone, documento ou tipo..."
+                className="pl-10"
+              />
+            </div>
+            <Button onClick={handleSearch} className="self-stretch">
+              Buscar
+            </Button>
+            {(searchTerm || searchQuery) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleClearSearch}
+                className="self-stretch"
+              >
+                Limpar
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Users List */}

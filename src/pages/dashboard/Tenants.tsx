@@ -223,9 +223,6 @@ export function Tenants() {
   })
 
   const canCreateTenant = tenantLimits?.allowed !== false
-  const tenantUsageText = tenantLimits && tenantLimits.limit < 9999
-    ? `${tenantLimits.current}/${tenantLimits.limit} usuários`
-    : null
 
   // Permission check after all hooks
   if (!canViewUsers) {
@@ -494,6 +491,14 @@ export function Tenants() {
 
   const handleCreateTenant = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    // Check plan limits before creating
+    if (!canCreateTenant) {
+      setUpgradeErrorMessage(tenantLimits?.message || 'Você atingiu o limite de usuários do seu plano.')
+      setShowUpgradeModal(true)
+      return
+    }
+
     setCreating(true)
     try {
       const docResult = validateDocument(newTenant.document)
@@ -681,20 +686,9 @@ export function Tenants() {
 
             {showCreateTenantButton && (
               <div className="flex items-center gap-2">
-                {tenantUsageText && (
-                  <span className="text-sm text-muted-foreground hidden sm:inline">
-                    {tenantUsageText}
-                  </span>
-                )}
                 <Button
-                  className="bg-orange-600 hover:bg-orange-700 text-white flex-1 sm:flex-none disabled:opacity-50"
-                  disabled={!canCreateTenant}
+                  className="bg-orange-600 hover:bg-orange-700 text-white flex-1 sm:flex-none"
                   onClick={() => {
-                    if (!canCreateTenant) {
-                      setUpgradeErrorMessage(tenantLimits?.message || 'Você atingiu o limite de usuários do seu plano.')
-                      setShowUpgradeModal(true)
-                      return
-                    }
                     closeAllModals()
                     setEmailError('')
                     setShowAnalysisSearchModal(true)
@@ -964,17 +958,11 @@ export function Tenants() {
             </p>
             {showCreateTenantButton && (
               <Button
-                disabled={!canCreateTenant}
                 onClick={() => {
-                  if (!canCreateTenant) {
-                    setUpgradeErrorMessage(tenantLimits?.message || 'Você atingiu o limite de usuários do seu plano.')
-                    setShowUpgradeModal(true)
-                    return
-                  }
                   setEmailError('')
                   setShowAnalysisSearchModal(true)
                 }}
-                className="bg-orange-600 hover:bg-orange-700 text-white disabled:opacity-50"
+                className="bg-orange-600 hover:bg-orange-700 text-white"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 Cadastrar Inquilino
@@ -1837,46 +1825,100 @@ export function Tenants() {
 
         {/* Upgrade Plan Modal */}
         <Dialog open={showUpgradeModal} onOpenChange={setShowUpgradeModal}>
-          <DialogContent className="sm:max-w-md">
+          <DialogContent className="max-w-md">
             <DialogHeader>
-              <div className="mx-auto w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mb-4">
-                <Crown className="w-6 h-6 text-orange-600" />
-              </div>
-              <DialogTitle className="text-center">Limite do Plano Atingido</DialogTitle>
-              <DialogDescription className="text-center">
-                {upgradeErrorMessage}
-              </DialogDescription>
+              <DialogTitle className="flex items-center gap-2 text-amber-600">
+                <AlertTriangle className="w-6 h-6" />
+                Limite do Plano Atingido
+              </DialogTitle>
             </DialogHeader>
-            <div className="flex items-start gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg mt-4">
-              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-amber-800">
-                <p className="font-medium mb-1">Por que isso acontece?</p>
-                <p>Cada plano tem um limite de usuários que podem ser cadastrados. Para continuar cadastrando, você precisa fazer upgrade do seu plano.</p>
+            <div className="space-y-4">
+              <div className="flex items-center justify-center py-4">
+                <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
+                  <Crown className="w-8 h-8 text-amber-600" />
+                </div>
               </div>
+
+              <div className="text-center space-y-2">
+                <p className="text-lg font-semibold text-gray-900">
+                  Você atingiu o limite do plano
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {upgradeErrorMessage || 'Você atingiu o limite de 2 usuário(s) do seu plano Gratuito. Faça upgrade para adicionar mais usuários.'}
+                </p>
+              </div>
+
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
+                <p className="text-sm font-medium text-amber-800">
+                  Com o plano gratuito você pode:
+                </p>
+                <ul className="text-sm text-amber-700 space-y-1">
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    Cadastrar 1 imóvel
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    Cadastrar 1 usuário
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                    Criar 1 contrato
+                  </li>
+                </ul>
+              </div>
+
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+                <p className="text-sm font-medium text-green-800">
+                  Faça upgrade para desbloquear:
+                </p>
+                <ul className="text-sm text-green-700 space-y-1">
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    Imóveis ilimitados
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    Usuários ilimitados
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    Contratos ilimitados
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    Relatórios avançados
+                  </li>
+                </ul>
+              </div>
+
+              <p className="text-center text-sm text-muted-foreground">
+                Deseja fazer upgrade do seu plano agora?
+              </p>
             </div>
-            <div className="flex flex-col gap-2 mt-6">
-              <Button
-                onClick={() => {
-                  setShowUpgradeModal(false)
-                  if (user?.role === 'CEO' || user?.role === 'ADMIN') {
-                    navigate('/dashboard/plans')
-                  } else if (user?.role === 'AGENCY_ADMIN') {
-                    navigate('/dashboard/agency-config')
-                  } else {
-                    navigate('/dashboard/settings')
-                  }
-                }}
-                className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-              >
-                <Crown className="w-4 h-4 mr-2" />
-                Ver Planos Disponíveis
-              </Button>
+
+            <div className="flex justify-end gap-2 mt-4">
               <Button
                 variant="outline"
                 onClick={() => setShowUpgradeModal(false)}
-                className="w-full"
               >
-                Fechar
+                Cancelar
+              </Button>
+              <Button
+                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white"
+                onClick={() => {
+                  setShowUpgradeModal(false)
+                  if (user?.role === 'AGENCY_ADMIN' || user?.role === 'AGENCY_MANAGER') {
+                    navigate('/dashboard/agency-plan-config')
+                  } else if (user?.role === 'INDEPENDENT_OWNER') {
+                    navigate('/dashboard/owner-plan-config')
+                  } else {
+                    navigate('/dashboard/plans')
+                  }
+                }}
+              >
+                <Crown className="w-4 h-4 mr-2" />
+                Fazer Upgrade
               </Button>
             </div>
           </DialogContent>

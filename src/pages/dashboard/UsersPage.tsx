@@ -170,7 +170,7 @@ export function UsersPage() {
         )}
       </div>
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex w-full sm:max-w-lg gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -183,7 +183,7 @@ export function UsersPage() {
                   handleSearch();
                 }
               }}
-              placeholder="Pesquisar por nome, email ou CPF/CNPJ"
+              placeholder="Pesquisar por nome, email ou documento"
               className="pl-10"
             />
           </div>
@@ -203,7 +203,7 @@ export function UsersPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
         <Select value={role || 'all'} onValueChange={(v) => setRole(v === 'all' ? '' : v)}>
           <SelectTrigger>
             <SelectValue placeholder="Função" />

@@ -46,7 +46,8 @@ interface PlanChangePreview {
   isUpgrade: boolean;
 }
 
-const getPlanNameInPortuguese = (name: string) => {
+const getPlanNameInPortuguese = (name?: string | null) => {
+  if (!name) return 'Desconhecido';
   switch (name.toLowerCase()) {
     case 'free':
       return 'Gratuito';
@@ -61,7 +62,8 @@ const getPlanNameInPortuguese = (name: string) => {
   }
 };
 
-const getPlanIcon = (name: string) => {
+const getPlanIcon = (name?: string | null) => {
+  if (!name) return Package;
   switch (name.toLowerCase()) {
     case 'free':
       return Package;
