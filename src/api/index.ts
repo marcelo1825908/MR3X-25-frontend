@@ -328,7 +328,7 @@ export const profileAPI = {
 };
 
 export const usersAPI = {
-  listUsers: async (params: { search?: string; role?: string; status?: string; plan?: string; page?: number; pageSize?: number; excludeCurrentUser?: boolean } = {}) => {
+  listUsers: async (params: { search?: string; role?: string; status?: string; plan?: string; page?: number; pageSize?: number; excludeCurrentUser?: boolean; excludeFrozen?: boolean } = {}) => {
     const { page = 1, pageSize = 10, excludeCurrentUser = true, ...otherParams } = params;
     const skip = (page - 1) * pageSize;
     const take = pageSize;

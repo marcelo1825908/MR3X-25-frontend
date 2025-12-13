@@ -26,6 +26,7 @@ import {
   Crown
 } from 'lucide-react'
 import { DocumentInput } from '@/components/ui/document-input'
+import { FrozenUserBadge } from '@/components/ui/FrozenBadge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { CEPInput } from '@/components/ui/cep-input'
 import { RGInput } from '@/components/ui/rg-input'
@@ -755,6 +756,7 @@ export function Tenants() {
                       <th className="text-left p-4 font-semibold">Telefone</th>
                       <th className="text-left p-4 font-semibold">Email</th>
                       <th className="text-left p-4 font-semibold">Endereco</th>
+                      <th className="text-left p-4 font-semibold">Status</th>
                       <th className="text-left p-4 font-semibold">Acoes</th>
                     </tr>
                   </thead>
@@ -787,6 +789,15 @@ export function Tenants() {
                           </div>
                         </td>
                         <td className="p-4">
+                          {tenant.isFrozen ? (
+                            <Badge className="bg-amber-500 text-white">Congelado</Badge>
+                          ) : tenant.status === 'INACTIVE' || tenant.status === 'SUSPENDED' ? (
+                            <Badge className="bg-red-500 text-white">Suspenso</Badge>
+                          ) : (
+                            <Badge className="bg-green-500 text-white">Ativo</Badge>
+                          )}
+                        </td>
+                        <td className="p-4">
                           <div className="flex gap-2">
                             <Button
                               size="sm"
@@ -796,7 +807,7 @@ export function Tenants() {
                             >
                               Detalhes
                             </Button>
-                            {canUpdateUsers && (
+                            {canUpdateUsers && !tenant.isFrozen && (
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -805,6 +816,16 @@ export function Tenants() {
                                 className="text-orange-600 border-orange-600 hover:bg-orange-50"
                               >
                                 {loadingEdit ? 'Carregando...' : 'Editar'}
+                              </Button>
+                            )}
+                            {canUpdateUsers && tenant.isFrozen && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled
+                                className="text-muted-foreground border-muted"
+                              >
+                                Editar (congelado)
                               </Button>
                             )}
                             {canDeleteUsers && (
@@ -836,7 +857,16 @@ export function Tenants() {
                         )}
                         <p className="text-sm text-muted-foreground truncate">{tenant.email || '-'}</p>
                       </div>
-                      <Badge className="bg-green-500 text-white text-xs flex-shrink-0">Ativo</Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge className="bg-green-500 text-white text-xs flex-shrink-0">Inquilino</Badge>
+                        {tenant.isFrozen ? (
+                          <Badge className="bg-amber-500 text-white text-xs">Congelado</Badge>
+                        ) : tenant.status === 'INACTIVE' || tenant.status === 'SUSPENDED' ? (
+                          <Badge className="bg-red-500 text-white text-xs">Suspenso</Badge>
+                        ) : (
+                          <Badge className="bg-green-500 text-white text-xs">Ativo</Badge>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex gap-2">
@@ -848,7 +878,7 @@ export function Tenants() {
                       >
                         Detalhes
                       </Button>
-                      {canUpdateUsers && (
+                      {canUpdateUsers && !tenant.isFrozen && (
                         <Button
                           size="sm"
                           variant="outline"
@@ -856,6 +886,16 @@ export function Tenants() {
                           className="text-orange-600 border-orange-600 hover:bg-orange-50 flex-1"
                         >
                           Editar
+                        </Button>
+                      )}
+                      {canUpdateUsers && tenant.isFrozen && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled
+                          className="text-muted-foreground border-muted flex-1"
+                        >
+                          Editar (congelado)
                         </Button>
                       )}
                       {canDeleteUsers && (
@@ -914,7 +954,15 @@ export function Tenants() {
                             )}
                           </div>
                           <div className="flex items-center justify-between mt-2 gap-2 flex-shrink-0">
-                            <div className="min-w-0 flex-shrink"><Badge className="bg-green-500 text-white">Ativo</Badge></div>
+                            <div className="min-w-0 flex-shrink flex items-center gap-2">
+                              {tenant.isFrozen ? (
+                                <Badge className="bg-amber-500 text-white">Congelado</Badge>
+                              ) : tenant.status === 'INACTIVE' || tenant.status === 'SUSPENDED' ? (
+                                <Badge className="bg-red-500 text-white">Suspenso</Badge>
+                              ) : (
+                                <Badge className="bg-green-500 text-white">Ativo</Badge>
+                              )}
+                            </div>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button size="icon" variant="outline" className="flex-shrink-0">
@@ -926,20 +974,40 @@ export function Tenants() {
                                   <Eye className="w-4 h-4 mr-2" />
                                   Visualizar
                                 </DropdownMenuItem>
-                                {canUpdateUsers && (
+                                {canUpdateUsers && !tenant.isFrozen && (
                                   <DropdownMenuItem onClick={() => handleEditTenant(tenant)}>
                                     <Edit className="w-4 h-4 mr-2" />
                                     Editar inquilino
                                   </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem onClick={() => handleViewContracts(tenant)}>
-                                  <FileText className="w-4 h-4 mr-2" />
-                                  Ver contratos
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleWhatsAppNotification(tenant)}>
-                                  <MessageSquare className="w-4 h-4 mr-2" />
-                                  Notificar por WhatsApp
-                                </DropdownMenuItem>
+                                {canUpdateUsers && tenant.isFrozen && (
+                                  <DropdownMenuItem disabled className="text-muted-foreground">
+                                    <Edit className="w-4 h-4 mr-2" />
+                                    Editar inquilino (congelado)
+                                  </DropdownMenuItem>
+                                )}
+                                {!tenant.isFrozen ? (
+                                  <DropdownMenuItem onClick={() => handleViewContracts(tenant)}>
+                                    <FileText className="w-4 h-4 mr-2" />
+                                    Ver contratos
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem disabled className="text-muted-foreground">
+                                    <FileText className="w-4 h-4 mr-2" />
+                                    Ver contratos (congelado)
+                                  </DropdownMenuItem>
+                                )}
+                                {!tenant.isFrozen ? (
+                                  <DropdownMenuItem onClick={() => handleWhatsAppNotification(tenant)}>
+                                    <MessageSquare className="w-4 h-4 mr-2" />
+                                    Notificar por WhatsApp
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem disabled className="text-muted-foreground">
+                                    <MessageSquare className="w-4 h-4 mr-2" />
+                                    Notificar por WhatsApp (congelado)
+                                  </DropdownMenuItem>
+                                )}
                                 {canDeleteUsers && (
                                   <DropdownMenuItem onClick={() => handleDeleteTenant(tenant)} className="text-red-600 focus:text-red-700">
                                     <Trash2 className="w-4 h-4 mr-2" />

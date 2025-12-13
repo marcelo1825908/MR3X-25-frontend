@@ -25,6 +25,7 @@ import {
   Users
 } from 'lucide-react'
 import { DocumentInput } from '@/components/ui/document-input'
+import { FrozenUserBadge } from '@/components/ui/FrozenBadge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { CEPInput } from '@/components/ui/cep-input'
 import { Input } from '@/components/ui/input'
@@ -502,6 +503,7 @@ export function Brokers() {
                       <th className="text-left p-4 font-semibold">Telefone</th>
                       <th className="text-left p-4 font-semibold">Email</th>
                       <th className="text-left p-4 font-semibold">Endereco</th>
+                      <th className="text-left p-4 font-semibold">Status</th>
                       <th className="text-left p-4 font-semibold">Acoes</th>
                     </tr>
                   </thead>
@@ -529,13 +531,27 @@ export function Brokers() {
                           </div>
                         </td>
                         <td className="p-4">
+                          {broker.isFrozen ? (
+                            <Badge className="bg-amber-500 text-white">Congelado</Badge>
+                          ) : broker.status === 'INACTIVE' || broker.status === 'SUSPENDED' ? (
+                            <Badge className="bg-red-500 text-white">Suspenso</Badge>
+                          ) : (
+                            <Badge className="bg-green-500 text-white">Ativo</Badge>
+                          )}
+                        </td>
+                        <td className="p-4">
                           <div className="flex gap-2">
                             <Button size="sm" variant="outline" onClick={() => handleViewBroker(broker)} disabled={loadingDetails} className="text-orange-600 border-orange-600 hover:bg-orange-50">
                               Detalhes
                             </Button>
-                            {canUpdateUsers && (
+                            {canUpdateUsers && !broker.isFrozen && (
                               <Button size="sm" variant="outline" onClick={() => handleEditBroker(broker)} disabled={loadingDetails} className="text-orange-600 border-orange-600 hover:bg-orange-50">
                                 Editar
+                              </Button>
+                            )}
+                            {canUpdateUsers && broker.isFrozen && (
+                              <Button size="sm" variant="outline" disabled className="text-muted-foreground border-muted">
+                                Editar (congelado)
                               </Button>
                             )}
                             {canDeleteUsers && (
@@ -559,15 +575,29 @@ export function Brokers() {
                         <h3 className="font-semibold text-lg truncate">{broker.name || 'Sem nome'}</h3>
                         <p className="text-sm text-muted-foreground truncate">{broker.email || '-'}</p>
                       </div>
-                      <Badge className="bg-blue-500 text-white text-xs flex-shrink-0">Corretor</Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge className="bg-blue-500 text-white text-xs flex-shrink-0">Corretor</Badge>
+                        {broker.isFrozen ? (
+                          <Badge className="bg-amber-500 text-white text-xs">Congelado</Badge>
+                        ) : broker.status === 'INACTIVE' || broker.status === 'SUSPENDED' ? (
+                          <Badge className="bg-red-500 text-white text-xs">Suspenso</Badge>
+                        ) : (
+                          <Badge className="bg-green-500 text-white text-xs">Ativo</Badge>
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => handleViewBroker(broker)} className="text-orange-600 border-orange-600 hover:bg-orange-50 flex-1">
                         Detalhes
                       </Button>
-                      {canUpdateUsers && (
+                      {canUpdateUsers && !broker.isFrozen && (
                         <Button size="sm" variant="outline" onClick={() => handleEditBroker(broker)} className="text-orange-600 border-orange-600 hover:bg-orange-50 flex-1">
                           Editar
+                        </Button>
+                      )}
+                      {canUpdateUsers && broker.isFrozen && (
+                        <Button size="sm" variant="outline" disabled className="text-muted-foreground border-muted flex-1">
+                          Editar (congelado)
                         </Button>
                       )}
                       {canDeleteUsers && (
@@ -590,7 +620,16 @@ export function Brokers() {
                         <Building2 className="w-6 h-6 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{broker.name || 'Sem nome'}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold truncate">{broker.name || 'Sem nome'}</h3>
+                          {broker.isFrozen ? (
+                            <Badge className="bg-amber-500 text-white text-xs">Congelado</Badge>
+                          ) : broker.status === 'INACTIVE' || broker.status === 'SUSPENDED' ? (
+                            <Badge className="bg-red-500 text-white text-xs">Suspenso</Badge>
+                          ) : (
+                            <Badge className="bg-green-500 text-white text-xs">Ativo</Badge>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground truncate">{broker.email}</p>
                       </div>
                       <DropdownMenu>
@@ -604,10 +643,16 @@ export function Brokers() {
                             <Eye className="w-4 h-4 mr-2" />
                             Visualizar
                           </DropdownMenuItem>
-                          {canUpdateUsers && (
+                          {canUpdateUsers && !broker.isFrozen && (
                             <DropdownMenuItem onClick={() => handleEditBroker(broker)}>
                               <Edit className="w-4 h-4 mr-2" />
                               Editar
+                            </DropdownMenuItem>
+                          )}
+                          {canUpdateUsers && broker.isFrozen && (
+                            <DropdownMenuItem disabled className="text-muted-foreground">
+                              <Edit className="w-4 h-4 mr-2" />
+                              Editar (congelado)
                             </DropdownMenuItem>
                           )}
                           {canDeleteUsers && (

@@ -310,7 +310,7 @@ export function UsersPage() {
                     <Eye className="w-4 h-4 mr-2" /> Detalhes
                   </Link>
                 </Button>
-                {canEditUsers && (
+                {canEditUsers && !u.isFrozen && (
                   <Button asChild variant="outline" size="sm" className="w-full">
                     <Link to={`/dashboard/users/${u.id}/edit`}>
                       <Edit className="w-4 h-4 mr-2" /> Editar
@@ -318,7 +318,7 @@ export function UsersPage() {
                   </Button>
                 )}
               </div>
-              {canDeleteUsers && (
+              {canDeleteUsers && !u.isFrozen && (
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -414,14 +414,14 @@ export function UsersPage() {
                             <Eye className="w-4 h-4" />
                           </Link>
                         </Button>
-                        {canEditUsers && (
+                        {canEditUsers && !u.isFrozen && (
                           <Button asChild variant="ghost" size="sm">
                             <Link to={`/dashboard/users/${u.id}/edit`}>
                               <Edit className="w-4 h-4" />
                             </Link>
                           </Button>
                         )}
-                        {canDeleteUsers &&
+                        {canDeleteUsers && !u.isFrozen &&
                           (u.status === 'ACTIVE' ? (
                             <Button
                               variant="ghost"

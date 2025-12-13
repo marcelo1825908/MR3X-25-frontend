@@ -1915,8 +1915,14 @@ export function Contracts() {
                       {tenants.map((tenant) => {
                         const tenantId = tenant.id?.toString() || String(tenant.id);
                         return (
-                          <SelectItem key={tenantId} value={tenantId}>
+                          <SelectItem
+                            key={tenantId}
+                            value={tenantId}
+                            disabled={tenant.isFrozen}
+                            className={tenant.isFrozen ? 'opacity-50' : ''}
+                          >
                             {tenant.name || tenant.email || 'Sem nome'}
+                            {tenant.isFrozen && <span className="ml-2 text-xs text-red-500">(Congelado)</span>}
                           </SelectItem>
                         );
                       })}
@@ -2377,8 +2383,14 @@ export function Contracts() {
                       {tenants.map((tenant) => {
                         const tenantId = tenant.id?.toString() || String(tenant.id);
                         return (
-                          <SelectItem key={tenantId} value={tenantId}>
+                          <SelectItem
+                            key={tenantId}
+                            value={tenantId}
+                            disabled={tenant.isFrozen}
+                            className={tenant.isFrozen ? 'opacity-50' : ''}
+                          >
                             {tenant.name || tenant.email || 'Sem nome'}
+                            {tenant.isFrozen && <span className="ml-2 text-xs text-red-500">(Congelado)</span>}
                           </SelectItem>
                         );
                       })}

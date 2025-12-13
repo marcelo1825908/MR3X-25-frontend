@@ -1172,8 +1172,11 @@ export function Properties() {
                         </div>
                         <div className="flex items-center justify-between mt-2 gap-2 flex-shrink-0">
                           <div className="min-w-0 flex-shrink flex items-center gap-2">
-                            {getStatusBadge(property.status)}
-                            {property.isFrozen && <FrozenBadge reason={property.frozenReason} />}
+                            {property.isFrozen ? (
+                              <FrozenBadge reason={property.frozenReason} />
+                            ) : (
+                              getStatusBadge(property.status)
+                            )}
                           </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
@@ -1198,26 +1201,52 @@ export function Properties() {
                                   Editar imóvel (congelado)
                                 </DropdownMenuItem>
                               )}
-                              {['AGENCY_MANAGER', 'AGENCY_ADMIN'].includes(user?.role || '') && (
+                              {['AGENCY_MANAGER', 'AGENCY_ADMIN'].includes(user?.role || '') && !property.isFrozen && (
                                 <DropdownMenuItem onClick={() => handleOpenAssignModal(property)}>
                                   <UserPlus className="w-4 h-4 mr-2" />
                                   Atribuir corretor
                                 </DropdownMenuItem>
                               )}
-                              {canUpdateProperties && (
+                              {['AGENCY_MANAGER', 'AGENCY_ADMIN'].includes(user?.role || '') && property.isFrozen && (
+                                <DropdownMenuItem disabled className="text-muted-foreground">
+                                  <UserPlus className="w-4 h-4 mr-2" />
+                                  Atribuir corretor (congelado)
+                                </DropdownMenuItem>
+                              )}
+                              {canUpdateProperties && !property.isFrozen && (
                                 <DropdownMenuItem onClick={() => handleOpenAssignTenantModal(property)}>
                                   <UserPlus className="w-4 h-4 mr-2" />
                                   Atribuir inquilino
                                 </DropdownMenuItem>
                               )}
-                              <DropdownMenuItem onClick={() => handleViewDocuments(property)}>
-                                <FileText className="w-4 h-4 mr-2" />
-                                Ver documentos
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={() => handleWhatsAppNotification(property)}>
-                                <MessageSquare className="w-4 h-4 mr-2" />
-                                Notificar por WhatsApp
-                              </DropdownMenuItem>
+                              {canUpdateProperties && property.isFrozen && (
+                                <DropdownMenuItem disabled className="text-muted-foreground">
+                                  <UserPlus className="w-4 h-4 mr-2" />
+                                  Atribuir inquilino (congelado)
+                                </DropdownMenuItem>
+                              )}
+                              {!property.isFrozen ? (
+                                <DropdownMenuItem onClick={() => handleViewDocuments(property)}>
+                                  <FileText className="w-4 h-4 mr-2" />
+                                  Ver documentos
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem disabled className="text-muted-foreground">
+                                  <FileText className="w-4 h-4 mr-2" />
+                                  Ver documentos (congelado)
+                                </DropdownMenuItem>
+                              )}
+                              {!property.isFrozen ? (
+                                <DropdownMenuItem onClick={() => handleWhatsAppNotification(property)}>
+                                  <MessageSquare className="w-4 h-4 mr-2" />
+                                  Notificar por WhatsApp
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem disabled className="text-muted-foreground">
+                                  <MessageSquare className="w-4 h-4 mr-2" />
+                                  Notificar por WhatsApp (congelado)
+                                </DropdownMenuItem>
+                              )}
                               {!property.isFrozen ? (
                                 <>
                                   <DropdownMenuItem onClick={() => handleIssueInvoice(property)}>
@@ -1324,8 +1353,14 @@ export function Properties() {
                     </SelectTrigger>
                     <SelectContent>
                       {owners.map((owner: any) => (
-                        <SelectItem key={owner.id} value={String(owner.id)}>
+                        <SelectItem
+                          key={owner.id}
+                          value={String(owner.id)}
+                          disabled={owner.isFrozen}
+                          className={owner.isFrozen ? 'opacity-50' : ''}
+                        >
                           {owner.name || owner.email}
+                          {owner.isFrozen && <span className="ml-2 text-xs text-red-500">(Congelado)</span>}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1510,8 +1545,14 @@ export function Properties() {
                     </SelectTrigger>
                     <SelectContent>
                       {owners.map((owner: any) => (
-                        <SelectItem key={owner.id} value={String(owner.id)}>
+                        <SelectItem
+                          key={owner.id}
+                          value={String(owner.id)}
+                          disabled={owner.isFrozen}
+                          className={owner.isFrozen ? 'opacity-50' : ''}
+                        >
                           {owner.name || owner.email}
+                          {owner.isFrozen && <span className="ml-2 text-xs text-red-500">(Congelado)</span>}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -1683,8 +1724,11 @@ export function Properties() {
                     <div><b>Taxa da Agência (Específica):</b> {propertyDetail.agencyFee}%</div>
                   )}
                   <div className="flex items-center gap-2">
-                    <b>Status:</b> {getStatusBadge(propertyDetail.status)}
-                    {propertyDetail.isFrozen && <FrozenBadge reason={propertyDetail.frozenReason} />}
+                    <b>Status:</b> {propertyDetail.isFrozen ? (
+                      <FrozenBadge reason={propertyDetail.frozenReason} />
+                    ) : (
+                      getStatusBadge(propertyDetail.status)
+                    )}
                   </div>
                   {propertyDetail.isFrozen && (
                     <div className="mt-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">

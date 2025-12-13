@@ -292,8 +292,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setAuth(response.user, response.accessToken, response.refreshToken);
       toast.success('Login realizado com sucesso!');
     } catch (error: any) {
-      const message = error?.response?.data?.message || error.message || 'Erro ao fazer login';
-      toast.error(message);
+      let message = error?.response?.data?.message || error.message || 'Erro ao fazer login';
+
+      // Check if user is frozen and show specific error message
+      if (message.startsWith('FROZEN_USER:')) {
+        message = message.replace('FROZEN_USER:', '');
+        toast.error(message, {
+          duration: 8000,
+          description: 'Entre em contato com o administrador da sua agência para resolver esta situação.',
+        });
+      } else {
+        toast.error(message);
+      }
       throw error;
     } finally {
       setLoading(false);

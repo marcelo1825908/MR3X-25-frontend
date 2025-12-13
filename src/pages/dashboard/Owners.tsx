@@ -24,6 +24,7 @@ import {
   Search
 } from 'lucide-react'
 import { DocumentInput } from '@/components/ui/document-input'
+import { FrozenUserBadge } from '@/components/ui/FrozenBadge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { CEPInput } from '@/components/ui/cep-input'
 import { RGInput } from '@/components/ui/rg-input'
@@ -515,6 +516,7 @@ export function Owners() {
                       <th className="text-left p-4 font-semibold">Telefone</th>
                       <th className="text-left p-4 font-semibold">Email</th>
                       <th className="text-left p-4 font-semibold">Endereco</th>
+                      <th className="text-left p-4 font-semibold">Status</th>
                       <th className="text-left p-4 font-semibold">Acoes</th>
                     </tr>
                   </thead>
@@ -548,13 +550,27 @@ export function Owners() {
                           </div>
                         </td>
                         <td className="p-4">
+                          {owner.isFrozen ? (
+                            <Badge className="bg-amber-500 text-white">Congelado</Badge>
+                          ) : owner.status === 'INACTIVE' || owner.status === 'SUSPENDED' ? (
+                            <Badge className="bg-red-500 text-white">Suspenso</Badge>
+                          ) : (
+                            <Badge className="bg-green-500 text-white">Ativo</Badge>
+                          )}
+                        </td>
+                        <td className="p-4">
                           <div className="flex gap-2">
                             <Button size="sm" variant="outline" onClick={() => handleViewOwner(owner)} disabled={loadingDetails} className="text-orange-600 border-orange-600 hover:bg-orange-50">
                               Detalhes
                             </Button>
-                            {canUpdateUsers && (
+                            {canUpdateUsers && !owner.isFrozen && (
                               <Button size="sm" variant="outline" onClick={() => handleEditOwner(owner)} disabled={loadingDetails} className="text-orange-600 border-orange-600 hover:bg-orange-50">
                                 Editar
+                              </Button>
+                            )}
+                            {canUpdateUsers && owner.isFrozen && (
+                              <Button size="sm" variant="outline" disabled className="text-muted-foreground border-muted">
+                                Editar (congelado)
                               </Button>
                             )}
                             {canDeleteUsers && (
@@ -582,15 +598,29 @@ export function Owners() {
                         <p className="text-sm text-muted-foreground truncate">{owner.document || '-'}</p>
                         <p className="text-sm text-muted-foreground truncate">{owner.email || '-'}</p>
                       </div>
-                      <Badge className="bg-purple-500 text-white text-xs flex-shrink-0">Proprietário</Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge className="bg-purple-500 text-white text-xs flex-shrink-0">Proprietário</Badge>
+                        {owner.isFrozen ? (
+                          <Badge className="bg-amber-500 text-white text-xs">Congelado</Badge>
+                        ) : owner.status === 'INACTIVE' || owner.status === 'SUSPENDED' ? (
+                          <Badge className="bg-red-500 text-white text-xs">Suspenso</Badge>
+                        ) : (
+                          <Badge className="bg-green-500 text-white text-xs">Ativo</Badge>
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => handleViewOwner(owner)} className="text-orange-600 border-orange-600 hover:bg-orange-50 flex-1">
                         Detalhes
                       </Button>
-                      {canUpdateUsers && (
+                      {canUpdateUsers && !owner.isFrozen && (
                         <Button size="sm" variant="outline" onClick={() => handleEditOwner(owner)} className="text-orange-600 border-orange-600 hover:bg-orange-50 flex-1">
                           Editar
+                        </Button>
+                      )}
+                      {canUpdateUsers && owner.isFrozen && (
+                        <Button size="sm" variant="outline" disabled className="text-muted-foreground border-muted flex-1">
+                          Editar (congelado)
                         </Button>
                       )}
                       {canDeleteUsers && (
@@ -613,7 +643,16 @@ export function Owners() {
                         <Home className="w-6 h-6 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{owner.name || 'Sem nome'}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold truncate">{owner.name || 'Sem nome'}</h3>
+                          {owner.isFrozen ? (
+                            <Badge className="bg-amber-500 text-white text-xs">Congelado</Badge>
+                          ) : owner.status === 'INACTIVE' || owner.status === 'SUSPENDED' ? (
+                            <Badge className="bg-red-500 text-white text-xs">Suspenso</Badge>
+                          ) : (
+                            <Badge className="bg-green-500 text-white text-xs">Ativo</Badge>
+                          )}
+                        </div>
                         {owner.token && (
                           <p className="text-[10px] text-muted-foreground font-mono">{owner.token}</p>
                         )}
@@ -630,10 +669,16 @@ export function Owners() {
                             <Eye className="w-4 h-4 mr-2" />
                             Visualizar
                           </DropdownMenuItem>
-                          {canUpdateUsers && (
+                          {canUpdateUsers && !owner.isFrozen && (
                             <DropdownMenuItem onClick={() => handleEditOwner(owner)}>
                               <Edit className="w-4 h-4 mr-2" />
                               Editar
+                            </DropdownMenuItem>
+                          )}
+                          {canUpdateUsers && owner.isFrozen && (
+                            <DropdownMenuItem disabled className="text-muted-foreground">
+                              <Edit className="w-4 h-4 mr-2" />
+                              Editar (congelado)
                             </DropdownMenuItem>
                           )}
                           {canDeleteUsers && (

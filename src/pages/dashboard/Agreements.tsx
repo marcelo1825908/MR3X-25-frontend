@@ -1277,8 +1277,14 @@ export function Agreements() {
                     <SelectContent>
                       <SelectItem value="none">Nenhum</SelectItem>
                       {tenants.map((tenant: any) => (
-                        <SelectItem key={tenant.id} value={tenant.id?.toString()}>
+                        <SelectItem
+                          key={tenant.id}
+                          value={tenant.id?.toString()}
+                          disabled={tenant.isFrozen}
+                          className={tenant.isFrozen ? 'opacity-50' : ''}
+                        >
                           {tenant.name || tenant.email}
+                          {tenant.isFrozen && <span className="ml-2 text-xs text-red-500">(Congelado)</span>}
                         </SelectItem>
                       ))}
                     </SelectContent>

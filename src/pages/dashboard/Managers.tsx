@@ -24,6 +24,7 @@ import {
   Users
 } from 'lucide-react'
 import { DocumentInput } from '@/components/ui/document-input'
+import { FrozenUserBadge } from '@/components/ui/FrozenBadge'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { CEPInput } from '@/components/ui/cep-input'
 import { Input } from '@/components/ui/input'
@@ -516,6 +517,7 @@ export function Managers() {
                       <th className="text-left p-4 font-semibold">Telefone</th>
                       <th className="text-left p-4 font-semibold">Email</th>
                       <th className="text-left p-4 font-semibold">Endereco</th>
+                      <th className="text-left p-4 font-semibold">Status</th>
                       <th className="text-left p-4 font-semibold">Acoes</th>
                     </tr>
                   </thead>
@@ -543,13 +545,27 @@ export function Managers() {
                           </div>
                         </td>
                         <td className="p-4">
+                          {manager.isFrozen ? (
+                            <Badge className="bg-amber-500 text-white">Congelado</Badge>
+                          ) : manager.status === 'INACTIVE' || manager.status === 'SUSPENDED' ? (
+                            <Badge className="bg-red-500 text-white">Suspenso</Badge>
+                          ) : (
+                            <Badge className="bg-green-500 text-white">Ativo</Badge>
+                          )}
+                        </td>
+                        <td className="p-4">
                           <div className="flex gap-2">
                             <Button size="sm" variant="outline" onClick={() => handleViewManager(manager)} disabled={loadingDetails} className="text-orange-600 border-orange-600 hover:bg-orange-50">
                               Detalhes
                             </Button>
-                            {canUpdateUsers && (
+                            {canUpdateUsers && !manager.isFrozen && (
                               <Button size="sm" variant="outline" onClick={() => handleEditManager(manager)} disabled={loadingDetails} className="text-orange-600 border-orange-600 hover:bg-orange-50">
                                 Editar
+                              </Button>
+                            )}
+                            {canUpdateUsers && manager.isFrozen && (
+                              <Button size="sm" variant="outline" disabled className="text-muted-foreground border-muted">
+                                Editar (congelado)
                               </Button>
                             )}
                             {canDeleteUsers && (
@@ -573,15 +589,29 @@ export function Managers() {
                         <h3 className="font-semibold text-lg truncate">{manager.name || 'Sem nome'}</h3>
                         <p className="text-sm text-muted-foreground truncate">{manager.email || '-'}</p>
                       </div>
-                      <Badge className="bg-indigo-500 text-white text-xs flex-shrink-0">Gerente</Badge>
+                      <div className="flex flex-col items-end gap-1">
+                        <Badge className="bg-indigo-500 text-white text-xs flex-shrink-0">Gerente</Badge>
+                        {manager.isFrozen ? (
+                          <Badge className="bg-amber-500 text-white text-xs">Congelado</Badge>
+                        ) : manager.status === 'INACTIVE' || manager.status === 'SUSPENDED' ? (
+                          <Badge className="bg-red-500 text-white text-xs">Suspenso</Badge>
+                        ) : (
+                          <Badge className="bg-green-500 text-white text-xs">Ativo</Badge>
+                        )}
+                      </div>
                     </div>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" onClick={() => handleViewManager(manager)} className="text-orange-600 border-orange-600 hover:bg-orange-50 flex-1">
                         Detalhes
                       </Button>
-                      {canUpdateUsers && (
+                      {canUpdateUsers && !manager.isFrozen && (
                         <Button size="sm" variant="outline" onClick={() => handleEditManager(manager)} className="text-orange-600 border-orange-600 hover:bg-orange-50 flex-1">
                           Editar
+                        </Button>
+                      )}
+                      {canUpdateUsers && manager.isFrozen && (
+                        <Button size="sm" variant="outline" disabled className="text-muted-foreground border-muted flex-1">
+                          Editar (congelado)
                         </Button>
                       )}
                       {canDeleteUsers && (
@@ -604,7 +634,16 @@ export function Managers() {
                         <UserCheck className="w-6 h-6 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold truncate">{manager.name || 'Sem nome'}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold truncate">{manager.name || 'Sem nome'}</h3>
+                          {manager.isFrozen ? (
+                            <Badge className="bg-amber-500 text-white text-xs">Congelado</Badge>
+                          ) : manager.status === 'INACTIVE' || manager.status === 'SUSPENDED' ? (
+                            <Badge className="bg-red-500 text-white text-xs">Suspenso</Badge>
+                          ) : (
+                            <Badge className="bg-green-500 text-white text-xs">Ativo</Badge>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground truncate">{manager.email}</p>
                       </div>
                       <DropdownMenu>
@@ -618,10 +657,16 @@ export function Managers() {
                             <Eye className="w-4 h-4 mr-2" />
                             Visualizar
                           </DropdownMenuItem>
-                          {canUpdateUsers && (
+                          {canUpdateUsers && !manager.isFrozen && (
                             <DropdownMenuItem onClick={() => handleEditManager(manager)}>
                               <Edit className="w-4 h-4 mr-2" />
                               Editar
+                            </DropdownMenuItem>
+                          )}
+                          {canUpdateUsers && manager.isFrozen && (
+                            <DropdownMenuItem disabled className="text-muted-foreground">
+                              <Edit className="w-4 h-4 mr-2" />
+                              Editar (congelado)
                             </DropdownMenuItem>
                           )}
                           {canDeleteUsers && (
