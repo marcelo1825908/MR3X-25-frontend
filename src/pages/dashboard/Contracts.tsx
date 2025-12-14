@@ -986,23 +986,29 @@ export function Contracts() {
       IP_IMOBILIARIA: contractData.agencySignatureIP || '[IP registrado na assinatura]',
 
       // Anexos
-      ANEXO_VISTORIA_INICIAL: '[Anexo Digital]',
-      ANEXO_VISTORIA_FINAL: '[Anexo Digital]',
-      ANEXO_GARANTIA: '[Anexo Digital]',
-      ANEXOS_DOCUMENTOS: '[Anexos Digitais]',
+      ANEXO_VISTORIA_INICIAL: 'Anexo I - Laudo de Vistoria Inicial',
+      ANEXO_VISTORIA_FINAL: 'Anexo II - Laudo de Vistoria Final',
+      ANEXO_GARANTIA: 'Anexo III - Comprovante de Garantia',
+      ANEXOS_DOCUMENTOS: 'Anexos Digitais do Contrato',
 
       // Contract Type 2 - Property Administration specific variables
-      IMOVEL_AREA_CONSTRUIDA: contractProperty?.builtArea || contractProperty?.areaM2 || 'N/A',
-      IMOVEL_AREA_TOTAL: contractProperty?.totalArea || contractProperty?.areaM2 || 'N/A',
+      IMOVEL_AREA_CONSTRUIDA: contractProperty?.builtArea ? `${parseFloat(contractProperty.builtArea).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m²` : 'N/A',
+      IMOVEL_AREA_TOTAL: contractProperty?.totalArea ? `${parseFloat(contractProperty.totalArea).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m²` : 'N/A',
+      IMOVEL_AREA: contractProperty?.builtArea ? `${parseFloat(contractProperty.builtArea).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m²` : (contractProperty?.totalArea ? `${parseFloat(contractProperty.totalArea).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m²` : 'N/A'),
+      IMOVEL_BAIRRO: contractProperty?.neighborhood || '',
       IMOVEL_MOVEIS: contractProperty?.furnitureList || 'Conforme vistoria',
       AUTORIZA_ASSINATURA_LOCACAO: 'SIM',
       VALOR_LIMITE_MANUTENCAO: '500,00',
       VALOR_TAXA_INTERMEDIACAO: contractData.monthlyRent ? parseFloat(contractData.monthlyRent).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0,00',
       TAXA_INTERMEDIACAO_PORCENTAGEM: '100',
+      PERCENTUAL_INTERMEDIACAO: '100',
       VALOR_2VIA: '15,00',
       VALOR_LAUDO_EXTRA: '150,00',
       PLANO_GARANTIA_ALUGUEL: 'NÃO',
+      PLANO_GARANTIA: 'NÃO',
       VALOR_EMERGENCIA: '500,00',
+      VALOR_LIMITE_SERVICOS: '300,00',
+      MODELO_AUTORIZACAO: 'Sistema digital da imobiliária',
 
     };
 
@@ -1350,23 +1356,29 @@ export function Contracts() {
       IP_IMOBILIARIA: '[Será registrado na assinatura]',
 
       // Anexos
-      ANEXO_VISTORIA_INICIAL: '[Anexo Digital]',
-      ANEXO_VISTORIA_FINAL: '[Anexo Digital]',
-      ANEXO_GARANTIA: '[Anexo Digital]',
-      ANEXOS_DOCUMENTOS: '[Anexos Digitais]',
+      ANEXO_VISTORIA_INICIAL: 'Anexo I - Laudo de Vistoria Inicial',
+      ANEXO_VISTORIA_FINAL: 'Anexo II - Laudo de Vistoria Final',
+      ANEXO_GARANTIA: 'Anexo III - Comprovante de Garantia',
+      ANEXOS_DOCUMENTOS: 'Anexos Digitais do Contrato',
 
       // Contract Type 2 - Property Administration specific variables
-      IMOVEL_AREA_CONSTRUIDA: selectedProperty?.builtArea || selectedProperty?.areaM2 || 'N/A',
-      IMOVEL_AREA_TOTAL: selectedProperty?.totalArea || selectedProperty?.areaM2 || 'N/A',
+      IMOVEL_AREA_CONSTRUIDA: selectedProperty?.builtArea ? `${parseFloat(selectedProperty.builtArea).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m²` : 'N/A',
+      IMOVEL_AREA_TOTAL: selectedProperty?.totalArea ? `${parseFloat(selectedProperty.totalArea).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m²` : 'N/A',
+      IMOVEL_AREA: selectedProperty?.builtArea ? `${parseFloat(selectedProperty.builtArea).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m²` : (selectedProperty?.totalArea ? `${parseFloat(selectedProperty.totalArea).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} m²` : 'N/A'),
+      IMOVEL_BAIRRO: selectedProperty?.neighborhood || '',
       IMOVEL_MOVEIS: selectedProperty?.furnitureList || 'Conforme vistoria',
       AUTORIZA_ASSINATURA_LOCACAO: 'SIM',
       VALOR_LIMITE_MANUTENCAO: '500,00',
       VALOR_TAXA_INTERMEDIACAO: newContract.monthlyRent ? parseFloat(newContract.monthlyRent).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : '0,00',
       TAXA_INTERMEDIACAO_PORCENTAGEM: '100',
+      PERCENTUAL_INTERMEDIACAO: '100',
       VALOR_2VIA: '15,00',
       VALOR_LAUDO_EXTRA: '150,00',
       PLANO_GARANTIA_ALUGUEL: 'NÃO',
+      PLANO_GARANTIA: 'NÃO',
       VALOR_EMERGENCIA: '500,00',
+      VALOR_LIMITE_SERVICOS: '300,00',
+      MODELO_AUTORIZACAO: 'Sistema digital da imobiliária',
 
     };
 
@@ -2448,10 +2460,42 @@ export function Contracts() {
                 <div className="prose prose-sm max-w-none bg-white p-4 sm:p-6 border rounded-lg">
                   <div className="text-sm leading-relaxed" style={{ wordBreak: 'normal', overflowWrap: 'normal', hyphens: 'none' }}>
                     {previewContent.split('\n').map((line, index) => {
-                      const isBold = line.startsWith('**') || line.includes('CLÁUSULA') || line.includes('CONTRATO');
+                      // Check if line is a separator (dashes)
+                      const isSeparator = line.trim().match(/^[─═\-]{20,}$/);
+                      if (isSeparator) {
+                        return (
+                          <div key={index} className="my-4">
+                            <hr className="border-t border-gray-400 w-full" />
+                          </div>
+                        );
+                      }
+
+                      // Check if line is a contract title (e.g., "CONTRATO 2 – ...")
+                      const isContractTitle = line.startsWith('CONTRATO') && line.includes('–');
+                      if (isContractTitle) {
+                        return (
+                          <p key={index} className="font-bold my-4" style={{ wordBreak: 'normal', overflowWrap: 'normal', whiteSpace: 'normal', fontSize: '17px' }}>
+                            {line}
+                          </p>
+                        );
+                      }
+
+                      // Check if line is a section title (wrapped in **)
+                      const isSectionTitle = line.startsWith('**') && line.endsWith('**');
+                      const isBold = isSectionTitle || line.includes('CLÁUSULA');
+                      const cleanLine = line.replace(/\*\*/g, '');
+
+                      if (isSectionTitle) {
+                        return (
+                          <p key={index} className="font-bold my-3 text-base" style={{ wordBreak: 'normal', overflowWrap: 'normal', whiteSpace: 'normal', fontSize: '15px' }}>
+                            {cleanLine}
+                          </p>
+                        );
+                      }
+
                       return (
                         <p key={index} className={isBold ? 'font-bold my-2' : 'my-1'} style={{ wordBreak: 'normal', overflowWrap: 'normal', whiteSpace: 'normal' }}>
-                          {line.replace(/\*\*/g, '')}
+                          {cleanLine}
                         </p>
                       );
                     })}

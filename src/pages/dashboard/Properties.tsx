@@ -89,6 +89,15 @@ export function Properties() {
     dueDay: '',
     ownerId: '',
     agencyFee: '',
+    // Additional property details for contracts
+    registrationNumber: '',
+    builtArea: '',
+    totalArea: '',
+    description: '',
+    furnitureList: '',
+    condominiumName: '',
+    condominiumFee: '',
+    iptuValue: '',
   });
 
   const [editForm, setEditForm] = useState({
@@ -102,6 +111,15 @@ export function Properties() {
     dueDay: '',
     ownerId: '',
     agencyFee: '',
+    // Additional property details for contracts
+    registrationNumber: '',
+    builtArea: '',
+    totalArea: '',
+    description: '',
+    furnitureList: '',
+    condominiumName: '',
+    condominiumFee: '',
+    iptuValue: '',
   });
   const [searchTerm, setSearchTerm] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -403,7 +421,8 @@ export function Properties() {
       queryClient.invalidateQueries({ queryKey: ['due-dates'] });
       closeAllModals();
       setNewProperty({
-        name: '', address: '', city: '', state: '', neighborhood: '', cep: '', monthlyRent: '', dueDay: '', ownerId: '', agencyFee: ''
+        name: '', address: '', city: '', state: '', neighborhood: '', cep: '', monthlyRent: '', dueDay: '', ownerId: '', agencyFee: '',
+        registrationNumber: '', builtArea: '', totalArea: '', description: '', furnitureList: '', condominiumName: '', condominiumFee: '', iptuValue: ''
       });
       setSelectedImages([]);
       toast.success('Imóvel criado com sucesso');
@@ -521,6 +540,15 @@ export function Properties() {
         stateNumber: newProperty.state,
         ownerId: ownerIdToUse,
         agencyFee: parsePercentageInput(newProperty.agencyFee),
+        // Additional property details for contracts
+        registrationNumber: newProperty.registrationNumber || undefined,
+        builtArea: newProperty.builtArea ? Number(newProperty.builtArea.replace(/\D/g, '')) / 100 : undefined,
+        totalArea: newProperty.totalArea ? Number(newProperty.totalArea.replace(/\D/g, '')) / 100 : undefined,
+        description: newProperty.description || undefined,
+        furnitureList: newProperty.furnitureList || undefined,
+        condominiumName: newProperty.condominiumName || undefined,
+        condominiumFee: newProperty.condominiumFee ? Number(newProperty.condominiumFee.replace(/\D/g, '')) / 100 : undefined,
+        iptuValue: newProperty.iptuValue ? Number(newProperty.iptuValue.replace(/\D/g, '')) / 100 : undefined,
       };
       await createPropertyMutation.mutateAsync(propertyToSend);
     } catch (error) {
@@ -561,6 +589,15 @@ export function Properties() {
         stateNumber: editForm.state,
         ownerId: ownerIdToUse,
         agencyFee: parsePercentageInput(editForm.agencyFee),
+        // Additional property details for contracts
+        registrationNumber: editForm.registrationNumber || undefined,
+        builtArea: editForm.builtArea ? Number(editForm.builtArea.replace(/\D/g, '')) / 100 : undefined,
+        totalArea: editForm.totalArea ? Number(editForm.totalArea.replace(/\D/g, '')) / 100 : undefined,
+        description: editForm.description || undefined,
+        furnitureList: editForm.furnitureList || undefined,
+        condominiumName: editForm.condominiumName || undefined,
+        condominiumFee: editForm.condominiumFee ? Number(editForm.condominiumFee.replace(/\D/g, '')) / 100 : undefined,
+        iptuValue: editForm.iptuValue ? Number(editForm.iptuValue.replace(/\D/g, '')) / 100 : undefined,
       };
 
       await updatePropertyMutation.mutateAsync({ id: selectedProperty.id, data: propertyToSend });
@@ -593,6 +630,14 @@ export function Properties() {
         dueDay: '',
         ownerId: '',
         agencyFee: '',
+        registrationNumber: '',
+        builtArea: '',
+        totalArea: '',
+        description: '',
+        furnitureList: '',
+        condominiumName: '',
+        condominiumFee: '',
+        iptuValue: '',
       });
     } catch (error) {
       console.error('Error updating property:', error);
@@ -624,6 +669,14 @@ export function Properties() {
       dueDay: property.dueDay ? String(property.dueDay) : '',
       ownerId: property.ownerId ? String(property.ownerId) : property.owner?.id ? String(property.owner.id) : '',
       agencyFee: property.agencyFee ? String(property.agencyFee) : '',
+      registrationNumber: property.registrationNumber || '',
+      builtArea: property.builtArea ? String(property.builtArea) : '',
+      totalArea: property.totalArea ? String(property.totalArea) : '',
+      description: property.description || '',
+      furnitureList: property.furnitureList || '',
+      condominiumName: property.condominiumName || '',
+      condominiumFee: property.condominiumFee ? String(property.condominiumFee) : '',
+      iptuValue: property.iptuValue ? String(property.iptuValue) : '',
     });
     loadTenants();
     await loadOwners();
@@ -1476,6 +1529,107 @@ export function Properties() {
                 )}
               </div>
 
+              {/* Additional Property Details for Contracts */}
+              <div className="border-t pt-4 mt-4">
+                <h4 className="text-sm font-medium mb-3">Detalhes Adicionais (para contratos)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="registrationNumber">Matrícula / Registro</Label>
+                    <Input
+                      id="registrationNumber"
+                      name="registrationNumber"
+                      value={newProperty.registrationNumber}
+                      onChange={handleInputChange}
+                      placeholder="Ex: 12345"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="condominiumName">Nome do Condomínio</Label>
+                    <Input
+                      id="condominiumName"
+                      name="condominiumName"
+                      value={newProperty.condominiumName}
+                      onChange={handleInputChange}
+                      placeholder="Ex: Condomínio Residencial Sol"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="builtArea">Área Construída (m²)</Label>
+                    <Input
+                      id="builtArea"
+                      name="builtArea"
+                      value={newProperty.builtArea}
+                      onChange={e => {
+                        const formatted = formatCurrencyInput(e.target.value);
+                        setNewProperty(prev => ({ ...prev, builtArea: formatted }));
+                      }}
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="totalArea">Área Total (m²)</Label>
+                    <Input
+                      id="totalArea"
+                      name="totalArea"
+                      value={newProperty.totalArea}
+                      onChange={e => {
+                        const formatted = formatCurrencyInput(e.target.value);
+                        setNewProperty(prev => ({ ...prev, totalArea: formatted }));
+                      }}
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="condominiumFee">Taxa de Condomínio (R$)</Label>
+                    <Input
+                      id="condominiumFee"
+                      name="condominiumFee"
+                      value={newProperty.condominiumFee}
+                      onChange={e => {
+                        const formatted = formatCurrencyInput(e.target.value);
+                        setNewProperty(prev => ({ ...prev, condominiumFee: formatted }));
+                      }}
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="iptuValue">IPTU (R$)</Label>
+                    <Input
+                      id="iptuValue"
+                      name="iptuValue"
+                      value={newProperty.iptuValue}
+                      onChange={e => {
+                        const formatted = formatCurrencyInput(e.target.value);
+                        setNewProperty(prev => ({ ...prev, iptuValue: formatted }));
+                      }}
+                      placeholder="0,00"
+                    />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Label htmlFor="description">Descrição do Imóvel</Label>
+                  <textarea
+                    id="description"
+                    name="description"
+                    value={newProperty.description}
+                    onChange={(e) => setNewProperty(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Descreva as características do imóvel..."
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+                <div className="mt-4">
+                  <Label htmlFor="furnitureList">Mobílias / Itens Inclusos</Label>
+                  <textarea
+                    id="furnitureList"
+                    name="furnitureList"
+                    value={newProperty.furnitureList}
+                    onChange={(e) => setNewProperty(prev => ({ ...prev, furnitureList: e.target.value }))}
+                    placeholder="Liste os móveis e itens inclusos no imóvel..."
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+              </div>
+
               {}
               <ImageUpload
                 onImagesChange={setSelectedImages}
@@ -1659,6 +1813,107 @@ export function Properties() {
                     />
                   </div>
                 )}
+              </div>
+
+              {/* Additional Property Details for Contracts */}
+              <div className="border-t pt-4 mt-4">
+                <h4 className="text-sm font-medium mb-3">Detalhes Adicionais (para contratos)</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-registrationNumber">Matrícula / Registro</Label>
+                    <Input
+                      id="edit-registrationNumber"
+                      name="registrationNumber"
+                      value={editForm.registrationNumber}
+                      onChange={handleEditInputChange}
+                      placeholder="Ex: 12345"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-condominiumName">Nome do Condomínio</Label>
+                    <Input
+                      id="edit-condominiumName"
+                      name="condominiumName"
+                      value={editForm.condominiumName}
+                      onChange={handleEditInputChange}
+                      placeholder="Ex: Condomínio Residencial Sol"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-builtArea">Área Construída (m²)</Label>
+                    <Input
+                      id="edit-builtArea"
+                      name="builtArea"
+                      value={editForm.builtArea}
+                      onChange={e => {
+                        const formatted = formatCurrencyInput(e.target.value);
+                        setEditForm(prev => ({ ...prev, builtArea: formatted }));
+                      }}
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-totalArea">Área Total (m²)</Label>
+                    <Input
+                      id="edit-totalArea"
+                      name="totalArea"
+                      value={editForm.totalArea}
+                      onChange={e => {
+                        const formatted = formatCurrencyInput(e.target.value);
+                        setEditForm(prev => ({ ...prev, totalArea: formatted }));
+                      }}
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-condominiumFee">Taxa de Condomínio (R$)</Label>
+                    <Input
+                      id="edit-condominiumFee"
+                      name="condominiumFee"
+                      value={editForm.condominiumFee}
+                      onChange={e => {
+                        const formatted = formatCurrencyInput(e.target.value);
+                        setEditForm(prev => ({ ...prev, condominiumFee: formatted }));
+                      }}
+                      placeholder="0,00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-iptuValue">IPTU (R$)</Label>
+                    <Input
+                      id="edit-iptuValue"
+                      name="iptuValue"
+                      value={editForm.iptuValue}
+                      onChange={e => {
+                        const formatted = formatCurrencyInput(e.target.value);
+                        setEditForm(prev => ({ ...prev, iptuValue: formatted }));
+                      }}
+                      placeholder="0,00"
+                    />
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <Label htmlFor="edit-description">Descrição do Imóvel</Label>
+                  <textarea
+                    id="edit-description"
+                    name="description"
+                    value={editForm.description}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Descreva as características do imóvel..."
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
+                <div className="mt-4">
+                  <Label htmlFor="edit-furnitureList">Mobílias / Itens Inclusos</Label>
+                  <textarea
+                    id="edit-furnitureList"
+                    name="furnitureList"
+                    value={editForm.furnitureList}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, furnitureList: e.target.value }))}
+                    placeholder="Liste os móveis e itens inclusos no imóvel..."
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                </div>
               </div>
 
               {}
