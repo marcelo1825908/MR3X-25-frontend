@@ -929,6 +929,11 @@ export const inspectionsAPI = {
     return response.data;
   },
 
+  sendInspection: async (id: string) => {
+    const response = await apiClient.patch(`/inspections/${id}/send`);
+    return response.data;
+  },
+
   getStatistics: async () => {
     const response = await apiClient.get('/inspections/statistics');
     return response.data;

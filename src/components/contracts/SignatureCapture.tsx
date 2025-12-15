@@ -66,8 +66,14 @@ export function SignatureCapture({
       setIsEmpty(isCanvasEmpty);
 
       if (!isCanvasEmpty) {
-        const dataUrl = signatureRef.current.getTrimmedCanvas().toDataURL('image/png');
-        onSignatureChange(dataUrl);
+        try {
+          const dataUrl = signatureRef.current.getTrimmedCanvas().toDataURL('image/png');
+          onSignatureChange(dataUrl);
+        } catch {
+          const canvas = signatureRef.current.getCanvas();
+          const dataUrl = canvas.toDataURL('image/png');
+          onSignatureChange(dataUrl);
+        }
       } else {
         onSignatureChange(null);
       }
@@ -78,8 +84,14 @@ export function SignatureCapture({
     if (fullscreenSignatureRef.current) {
       const isCanvasEmpty = fullscreenSignatureRef.current.isEmpty();
       if (!isCanvasEmpty) {
-        const dataUrl = fullscreenSignatureRef.current.getTrimmedCanvas().toDataURL('image/png');
-        
+        let dataUrl: string;
+        try {
+          dataUrl = fullscreenSignatureRef.current.getTrimmedCanvas().toDataURL('image/png');
+        } catch {
+          const canvas = fullscreenSignatureRef.current.getCanvas();
+          dataUrl = canvas.toDataURL('image/png');
+        }
+
         if (signatureRef.current) {
           signatureRef.current.fromDataURL(dataUrl);
         }

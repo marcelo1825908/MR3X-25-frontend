@@ -340,6 +340,7 @@ export function DashboardLayout() {
         '/dashboard',
         '/dashboard/tenant-contract',
         '/dashboard/tenant-payments',
+        '/dashboard/inspections',
         '/dashboard/extrajudicial-notifications',
         '/dashboard/chat',
         '/dashboard/notifications',
