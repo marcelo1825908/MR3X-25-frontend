@@ -73,6 +73,11 @@ export default function PlansPage() {
     userLimit: '',
     features: '',
     description: '',
+    // Free usage limits
+    freeInspections: '',
+    freeSearches: '',
+    freeSettlements: '',
+    freeApiCalls: '',
   })
 
   const { data: plans = [], isLoading: plansLoading } = useQuery({
@@ -107,6 +112,11 @@ export default function PlansPage() {
       userLimit: String(plan.userLimit),
       features: Array.isArray(plan.features) ? plan.features.join(', ') : plan.features || '',
       description: plan.description || '',
+      // Free usage limits (-1 means unlimited)
+      freeInspections: String(plan.freeInspections ?? 0),
+      freeSearches: String(plan.freeSearches ?? 0),
+      freeSettlements: String(plan.freeSettlements ?? 0),
+      freeApiCalls: String(plan.freeApiCalls ?? 0),
     })
     setShowEditModal(true)
   }
@@ -181,6 +191,11 @@ export default function PlansPage() {
         userLimit: parseInt(planForm.userLimit),
         features: featuresArray,
         description: planForm.description,
+        // Free usage limits
+        freeInspections: parseInt(planForm.freeInspections),
+        freeSearches: parseInt(planForm.freeSearches),
+        freeSettlements: parseInt(planForm.freeSettlements),
+        freeApiCalls: parseInt(planForm.freeApiCalls),
       }
     })
   }
@@ -335,6 +350,37 @@ export default function PlansPage() {
                 </div>
               </div>
 
+              {/* Free Usage Limits Display */}
+              <div className="space-y-2 border-t pt-2">
+                <h4 className="text-sm font-semibold">Limites Gratuitos/mês:</h4>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Vistorias:</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {plan.freeInspections === -1 ? '∞' : (plan.freeInspections ?? 0)}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Análises:</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {plan.freeSearches === -1 ? '∞' : (plan.freeSearches ?? 0)}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Acordos:</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {plan.freeSettlements === -1 ? '∞' : (plan.freeSettlements ?? 0)}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">API:</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {plan.freeApiCalls === -1 ? '∞' : (plan.freeApiCalls ?? 0)}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
               <div className="pt-2 border-t flex-1">
                 <h4 className="text-sm font-semibold mb-2">Recursos:</h4>
                 <ul className="space-y-1">
@@ -415,6 +461,64 @@ export default function PlansPage() {
                 />
               </div>
             </div>
+
+            {/* Free Usage Limits Section */}
+            <div className="border-t pt-4 mt-4">
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <Package className="w-4 h-4" />
+                Limites de Uso Gratuito
+              </h4>
+              <p className="text-sm text-muted-foreground mb-4">
+                Defina quantos recursos são gratuitos por período de cobrança. Use -1 para ilimitado. Cobranças são aplicadas após exceder estes limites.
+              </p>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="edit-free-inspections">Vistorias Gratuitas</Label>
+                  <Input
+                    id="edit-free-inspections"
+                    type="number"
+                    value={planForm.freeInspections}
+                    onChange={(e) => setPlanForm(prev => ({ ...prev, freeInspections: e.target.value }))}
+                    placeholder="-1 para ilimitado"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">-1 = ilimitado</p>
+                </div>
+                <div>
+                  <Label htmlFor="edit-free-searches">Análises Gratuitas</Label>
+                  <Input
+                    id="edit-free-searches"
+                    type="number"
+                    value={planForm.freeSearches}
+                    onChange={(e) => setPlanForm(prev => ({ ...prev, freeSearches: e.target.value }))}
+                    placeholder="-1 para ilimitado"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">-1 = ilimitado</p>
+                </div>
+                <div>
+                  <Label htmlFor="edit-free-settlements">Acordos Gratuitos</Label>
+                  <Input
+                    id="edit-free-settlements"
+                    type="number"
+                    value={planForm.freeSettlements}
+                    onChange={(e) => setPlanForm(prev => ({ ...prev, freeSettlements: e.target.value }))}
+                    placeholder="-1 para ilimitado"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">-1 = ilimitado</p>
+                </div>
+                <div>
+                  <Label htmlFor="edit-free-api-calls">Chamadas API Gratuitas</Label>
+                  <Input
+                    id="edit-free-api-calls"
+                    type="number"
+                    value={planForm.freeApiCalls}
+                    onChange={(e) => setPlanForm(prev => ({ ...prev, freeApiCalls: e.target.value }))}
+                    placeholder="-1 para ilimitado"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">-1 = ilimitado</p>
+                </div>
+              </div>
+            </div>
+
             <div>
               <Label htmlFor="edit-plan-features">Recursos (separados por vírgula)</Label>
               <Textarea

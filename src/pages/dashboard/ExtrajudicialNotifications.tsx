@@ -21,10 +21,10 @@ import {
   Plus,
   Search,
   Download,
+  Printer,
   Eye,
   Trash2,
   Send,
-  FileText,
   CheckCircle,
   Gavel,
   Loader2,
@@ -43,22 +43,33 @@ interface Notification {
   type: string;
   status: string;
   priority: string;
+  principalAmount?: string | null;
+  fineAmount?: string | null;
+  interestAmount?: string | null;
+  correctionAmount?: string | null;
+  lawyerFees?: string | null;
   creditorId: string;
   creditorName: string;
   creditorDocument: string;
+  creditorAddress?: string;
   creditorEmail?: string;
+  creditorPhone?: string;
   debtorId: string;
   debtorName: string;
   debtorDocument: string;
   debtorEmail?: string;
+  debtorAddress?: string;
+  debtorPhone?: string;
   title: string;
   subject: string;
   description: string;
   legalBasis: string;
   demandedAction: string;
-  totalAmount: string;
+  totalAmount: string | number;
   deadlineDate: string;
   deadlineDays: number;
+  gracePeriodDays?: number | null;
+  consequencesText?: string | null;
   property?: {
     id: string;
     address: string;
@@ -165,9 +176,6 @@ export default function ExtrajudicialNotifications() {
   const [showJudicialModal, setShowJudicialModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [notificationToDelete, setNotificationToDelete] = useState<string | null>(null);
-  const [showPdfPreviewModal, setShowPdfPreviewModal] = useState(false);
-  const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
-  const [pdfLoading, setPdfLoading] = useState(false);
 
   const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
 
@@ -432,6 +440,27 @@ export default function ExtrajudicialNotifications() {
     }
   };
 
+  const handlePrintPdf = async (id: string, type: 'provisional' | 'final') => {
+    try {
+      const blob = type === 'provisional'
+        ? await extrajudicialNotificationsAPI.downloadProvisionalPdf(id)
+        : await extrajudicialNotificationsAPI.downloadFinalPdf(id);
+
+      const url = window.URL.createObjectURL(blob);
+      const printWindow = window.open(url);
+
+      if (printWindow) {
+        printWindow.onload = () => {
+          printWindow.focus();
+          printWindow.print();
+        };
+      }
+    } catch (error) {
+      console.error('Error printing PDF:', error);
+      toast.error('Erro ao gerar PDF para impressao');
+    }
+  };
+
   const handleDownloadPdf = async (id: string, type: 'provisional' | 'final') => {
     try {
       const blob = type === 'provisional'
@@ -451,34 +480,9 @@ export default function ExtrajudicialNotifications() {
     }
   };
 
-  const handleViewPdf = async (notification: Notification) => {
-    setPdfLoading(true);
+  const handleViewNotification = (notification: Notification) => {
     setSelectedNotification(notification);
-    setShowPdfPreviewModal(true);
-
-    try {
-      const type = notification.status === 'RASCUNHO' ? 'provisional' : 'final';
-      const blob = type === 'provisional'
-        ? await extrajudicialNotificationsAPI.downloadProvisionalPdf(notification.id)
-        : await extrajudicialNotificationsAPI.downloadFinalPdf(notification.id);
-
-      const url = window.URL.createObjectURL(blob);
-      setPdfPreviewUrl(url);
-    } catch (error) {
-      console.error('Error viewing PDF:', error);
-      toast.error('Erro ao visualizar PDF');
-      setShowPdfPreviewModal(false);
-    } finally {
-      setPdfLoading(false);
-    }
-  };
-
-  const handleClosePdfPreview = () => {
-    setShowPdfPreviewModal(false);
-    if (pdfPreviewUrl) {
-      window.URL.revokeObjectURL(pdfPreviewUrl);
-      setPdfPreviewUrl(null);
-    }
+    setShowDetailsModal(true);
   };
 
   const resetForm = () => {
@@ -678,7 +682,7 @@ export default function ExtrajudicialNotifications() {
                         </div>
                       </div>
                       <div className="flex items-center justify-end gap-1 border-t pt-2">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleViewPdf(n)}>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleViewNotification(n)}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         {n.status === 'RASCUNHO' && (
@@ -776,8 +780,8 @@ export default function ExtrajudicialNotifications() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              onClick={() => handleViewPdf(n)}
-                              title="Ver PDF"
+                              onClick={() => handleViewNotification(n)}
+                              title="Ver Detalhes"
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
@@ -1215,198 +1219,314 @@ export default function ExtrajudicialNotifications() {
       </Dialog>
 
       <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
-        <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto p-3 sm:p-6">
-          <DialogHeader>
+        <DialogContent className="w-[95vw] max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+          <DialogHeader className="flex flex-row items-center justify-between p-3 sm:p-4 border-b sticky top-0 bg-background z-10">
             <DialogTitle className="text-base sm:text-lg">Detalhes da Notificacao</DialogTitle>
+            {selectedNotification && (
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() =>
+                    handlePrintPdf(
+                      selectedNotification.id,
+                      selectedNotification.status === 'RASCUNHO' ? 'provisional' : 'final',
+                    )
+                  }
+                  title="Imprimir PDF"
+                >
+                  <Printer className="w-5 h-5" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() =>
+                    handleDownloadPdf(
+                      selectedNotification.id,
+                      selectedNotification.status === 'RASCUNHO' ? 'provisional' : 'final',
+                    )
+                  }
+                  title="Baixar PDF"
+                >
+                  <Download className="w-5 h-5" />
+                </Button>
+              </div>
+            )}
           </DialogHeader>
 
           {selectedNotification && (
-            <div className="space-y-4 sm:space-y-6">
-              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-                <div className="space-y-1">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs sm:text-sm">
+            <div className="p-3 sm:p-6 space-y-4 sm:space-y-6 bg-white relative">
+              {/* Watermark for draft */}
+              {selectedNotification.status === 'RASCUNHO' && (
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                  <span className="text-6xl sm:text-8xl font-bold text-gray-200 rotate-[-30deg] select-none">
+                    AGUARDANDO ASSINATURAS
+                  </span>
+                </div>
+              )}
+
+              <div className="relative z-10">
+                {/* Header Info Bar */}
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 bg-gray-50 border rounded-lg mb-4 text-xs sm:text-sm">
+                  <span className="font-mono font-bold">Token: {selectedNotification.notificationToken}</span>
+                  <div className="flex gap-2 sm:gap-4 mt-1 sm:mt-0">
                     <span><strong>N:</strong> {selectedNotification.notificationNumber}</span>
                     <span><strong>Protocolo:</strong> {selectedNotification.protocolNumber}</span>
-                    <span><strong>Data:</strong> {formatDate(selectedNotification.createdAt)}</span>
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  {getStatusBadge(selectedNotification.status)}
-                  {getPriorityBadge(selectedNotification.priority)}
-                </div>
-              </div>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 p-3 sm:p-4 bg-gray-50 border rounded-lg">
-                <div className="flex flex-col items-center">
-                  <QRCodeSVG
-                    value={`https://mr3x.com.br/verify/notification/${selectedNotification.notificationToken}`}
-                    size={60}
-                    level="H"
-                    className="sm:w-20 sm:h-20"
-                  />
+                {/* QR Code and Barcode */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 p-4 bg-gray-50 border rounded-lg mb-4">
+                  <div className="flex flex-col items-center">
+                    <QRCodeSVG
+                      value={`https://mr3x.com.br/verify/notification/${selectedNotification.notificationToken}`}
+                      size={80}
+                      level="H"
+                    />
+                  </div>
+                  <div className="flex flex-col items-center overflow-x-auto max-w-full">
+                    <Barcode
+                      value={selectedNotification.notificationToken || selectedNotification.notificationNumber}
+                      format="CODE128"
+                      width={2}
+                      height={50}
+                      displayValue={true}
+                      fontSize={12}
+                    />
+                  </div>
                 </div>
-                <div className="flex flex-col items-center overflow-x-auto max-w-full">
-                  <Barcode
-                    value={selectedNotification.notificationToken || selectedNotification.notificationNumber}
-                    format="CODE128"
-                    width={1.5}
-                    height={30}
-                    displayValue={true}
-                    fontSize={10}
-                  />
-                </div>
-              </div>
 
-              <Separator />
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-                <div className="space-y-1 sm:space-y-2">
-                  <h4 className="font-semibold text-sm sm:text-base">Notificante (Credor)</h4>
-                  <p className="font-medium text-sm">{selectedNotification.creditorName}</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">{selectedNotification.creditorDocument}</p>
-                  {selectedNotification.creditorEmail && (
-                    <p className="text-xs sm:text-sm">{selectedNotification.creditorEmail}</p>
-                  )}
-                </div>
-                <div className="space-y-1 sm:space-y-2">
-                  <h4 className="font-semibold text-sm sm:text-base">Notificado (Devedor)</h4>
-                  <p className="font-medium text-sm">{selectedNotification.debtorName}</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">{selectedNotification.debtorDocument}</p>
-                  {selectedNotification.debtorEmail && (
-                    <p className="text-xs sm:text-sm">{selectedNotification.debtorEmail}</p>
-                  )}
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="space-y-3 sm:space-y-4">
-                <div>
-                  <h4 className="font-semibold text-sm sm:text-base">{selectedNotification.title}</h4>
-                  <p className="text-muted-foreground text-xs sm:text-sm">{selectedNotification.subject}</p>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-xs sm:text-sm">Descricao</h4>
-                  <p className="text-xs sm:text-sm">{selectedNotification.description}</p>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-xs sm:text-sm">Fundamentacao Legal</h4>
-                  <p className="text-xs sm:text-sm italic">{selectedNotification.legalBasis}</p>
-                </div>
-                <div>
-                  <h4 className="font-semibold text-xs sm:text-sm">Acao Requerida</h4>
-                  <p className="text-xs sm:text-sm">{selectedNotification.demandedAction}</p>
-                </div>
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-2 gap-4 sm:gap-6">
-                <div className="space-y-1 sm:space-y-2">
-                  <h4 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
-                    <DollarSign className="h-4 w-4" />
-                    Valor Total
-                  </h4>
-                  <p className="text-lg sm:text-2xl font-bold text-green-600">
-                    {formatCurrency(selectedNotification.totalAmount)}
+                {/* Main Title */}
+                <div className="text-center border-b-2 border-gray-800 pb-4 mb-6">
+                  <h1 className="text-xl sm:text-2xl font-bold mb-1">NOTIFICACAO EXTRAJUDICIAL</h1>
+                  <p className="text-sm sm:text-base text-gray-600 font-semibold uppercase">
+                    {typeOptions.find(t => t.value === selectedNotification.type)?.label || selectedNotification.type}
                   </p>
+                  <div className="mt-2">
+                    {getPriorityBadge(selectedNotification.priority)}
+                  </div>
                 </div>
-                <div className="space-y-1 sm:space-y-2">
-                  <h4 className="font-semibold flex items-center gap-2 text-sm sm:text-base">
-                    <Calendar className="h-4 w-4" />
-                    Prazo
-                  </h4>
-                  <p className="text-base sm:text-xl font-bold">
-                    {formatDate(selectedNotification.deadlineDate)}
-                  </p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">
-                    ({selectedNotification.deadlineDays} dias)
-                  </p>
+
+                {/* Parties Section */}
+                <div className="mb-6">
+                  <h2 className="text-sm sm:text-base font-bold border-b border-gray-300 pb-1 mb-3">PARTES</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="border rounded-lg p-3">
+                      <h3 className="font-bold text-sm mb-2 text-gray-700">NOTIFICANTE (Credor)</h3>
+                      <p className="text-sm"><span className="font-semibold">Nome:</span> {selectedNotification.creditorName}</p>
+                      <p className="text-sm"><span className="font-semibold">CPF/CNPJ:</span> {selectedNotification.creditorDocument}</p>
+                      {selectedNotification.creditorAddress && (
+                        <p className="text-sm"><span className="font-semibold">Endereco:</span> {selectedNotification.creditorAddress}</p>
+                      )}
+                      {selectedNotification.creditorEmail && (
+                        <p className="text-sm"><span className="font-semibold">E-mail:</span> {selectedNotification.creditorEmail}</p>
+                      )}
+                      {selectedNotification.creditorPhone && (
+                        <p className="text-sm"><span className="font-semibold">Telefone:</span> {selectedNotification.creditorPhone}</p>
+                      )}
+                    </div>
+                    <div className="border rounded-lg p-3">
+                      <h3 className="font-bold text-sm mb-2 text-gray-700">NOTIFICADO (Devedor)</h3>
+                      <p className="text-sm"><span className="font-semibold">Nome:</span> {selectedNotification.debtorName}</p>
+                      <p className="text-sm"><span className="font-semibold">CPF/CNPJ:</span> {selectedNotification.debtorDocument}</p>
+                      {selectedNotification.debtorAddress && (
+                        <p className="text-sm"><span className="font-semibold">Endereco:</span> {selectedNotification.debtorAddress}</p>
+                      )}
+                      {selectedNotification.debtorEmail && (
+                        <p className="text-sm"><span className="font-semibold">E-mail:</span> {selectedNotification.debtorEmail}</p>
+                      )}
+                      {selectedNotification.debtorPhone && (
+                        <p className="text-sm"><span className="font-semibold">Telefone:</span> {selectedNotification.debtorPhone}</p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <Separator />
+                {/* Property Section */}
+                {selectedNotification.property && (
+                  <div className="mb-6">
+                    <h2 className="text-sm sm:text-base font-bold border-b border-gray-300 pb-1 mb-3">IMOVEL OBJETO</h2>
+                    <div className="bg-gray-50 p-3 rounded-lg">
+                      <p className="text-sm"><span className="font-semibold">Endereco:</span> {selectedNotification.property.address}</p>
+                      <p className="text-sm"><span className="font-semibold">Cidade:</span> {selectedNotification.property.city}</p>
+                    </div>
+                  </div>
+                )}
 
-              <div className="space-y-2">
-                <h4 className="font-semibold text-sm sm:text-base">Linha do Tempo</h4>
-                <div className="space-y-1 text-xs sm:text-sm">
-                  <p>
-                    <span className="text-muted-foreground">Criada:</span>{' '}
-                    {formatDateTime(selectedNotification.createdAt)}
-                  </p>
-                  {selectedNotification.sentAt && (
-                    <p>
-                      <span className="text-muted-foreground">Enviada:</span>{' '}
-                      {formatDateTime(selectedNotification.sentAt)}
+                {/* Object of Notification */}
+                <div className="mb-6">
+                  <h2 className="text-sm sm:text-base font-bold border-b border-gray-300 pb-1 mb-3">OBJETO DA NOTIFICACAO</h2>
+                  <p className="text-sm mb-2"><strong>Titulo:</strong> {selectedNotification.title}</p>
+                  <p className="text-sm mb-3"><strong>Assunto:</strong> {selectedNotification.subject}</p>
+                  <p className="text-sm text-justify mb-4">{selectedNotification.description}</p>
+
+                  <div className="bg-gray-100 border-l-4 border-gray-500 p-3 italic">
+                    <strong>Fundamentacao Legal:</strong><br />
+                    <span className="text-sm">{selectedNotification.legalBasis}</span>
+                  </div>
+                </div>
+
+                {/* Financial Values */}
+                <div className="mb-6">
+                  <h2 className="text-sm sm:text-base font-bold border-b border-gray-300 pb-1 mb-3">VALORES DEVIDOS</h2>
+                  <table className="w-full border-collapse text-sm">
+                    <tbody>
+                      {selectedNotification.principalAmount && (
+                        <tr>
+                          <td className="border p-2">Valor Principal</td>
+                          <td className="border p-2 text-right font-mono">
+                            {formatCurrency(selectedNotification.principalAmount)}
+                          </td>
+                        </tr>
+                      )}
+                      {selectedNotification.fineAmount && (
+                        <tr>
+                          <td className="border p-2">Multa</td>
+                          <td className="border p-2 text-right font-mono">
+                            {formatCurrency(selectedNotification.fineAmount)}
+                          </td>
+                        </tr>
+                      )}
+                      {selectedNotification.interestAmount && (
+                        <tr>
+                          <td className="border p-2">Juros</td>
+                          <td className="border p-2 text-right font-mono">
+                            {formatCurrency(selectedNotification.interestAmount)}
+                          </td>
+                        </tr>
+                      )}
+                      {selectedNotification.correctionAmount && (
+                        <tr>
+                          <td className="border p-2">Correcao Monetaria</td>
+                          <td className="border p-2 text-right font-mono">
+                            {formatCurrency(selectedNotification.correctionAmount)}
+                          </td>
+                        </tr>
+                      )}
+                      {selectedNotification.lawyerFees && (
+                        <tr>
+                          <td className="border p-2">Honorarios Advocaticios</td>
+                          <td className="border p-2 text-right font-mono">
+                            {formatCurrency(selectedNotification.lawyerFees)}
+                          </td>
+                        </tr>
+                      )}
+                      <tr className="bg-gray-100 font-bold">
+                        <td className="border p-2">TOTAL DEVIDO</td>
+                        <td className="border p-2 text-right font-mono">
+                          {formatCurrency(selectedNotification.totalAmount)}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Demanded Action */}
+                <div className="bg-cyan-50 border border-cyan-200 rounded-lg p-4 mb-6">
+                  <h4 className="text-sm font-bold text-cyan-800 uppercase mb-2">ACAO REQUERIDA</h4>
+                  <p className="text-sm text-cyan-700">{selectedNotification.demandedAction}</p>
+                </div>
+
+                {/* Deadline Section */}
+                <div className="mb-6">
+                  <h2 className="text-sm sm:text-base font-bold border-b border-gray-300 pb-1 mb-3">PRAZO PARA CUMPRIMENTO</h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="border text-center p-3">
+                      <p className="text-xs text-gray-500 uppercase">Data Limite</p>
+                      <p className="text-lg font-bold">{formatDate(selectedNotification.deadlineDate)}</p>
+                    </div>
+                    <div className="border text-center p-3">
+                      <p className="text-xs text-gray-500 uppercase">Prazo</p>
+                      <p className="text-lg font-bold">{selectedNotification.deadlineDays} dias</p>
+                    </div>
+                    <div className="border text-center p-3">
+                      <p className="text-xs text-gray-500 uppercase">Carencia</p>
+                      <p className="text-lg font-bold">
+                        {selectedNotification.gracePeriodDays ? `${selectedNotification.gracePeriodDays} dias` : 'N/A'}
+                      </p>
+                    </div>
+                    <div className="border text-center p-3 col-span-2 sm:col-span-1">
+                      <p className="text-xs text-gray-500 uppercase">Status</p>
+                      <div className="mt-1">{getStatusBadge(selectedNotification.status)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Consequences Section */}
+                {selectedNotification.consequencesText && (
+                  <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                    <h4 className="text-sm font-bold text-red-800 uppercase mb-2">
+                      CONSEQUENCIAS DO NAO CUMPRIMENTO
+                    </h4>
+                    <p className="text-xs sm:text-sm text-red-800">
+                      {selectedNotification.consequencesText}
                     </p>
-                  )}
-                  {selectedNotification.viewedAt && (
-                    <p>
-                      <span className="text-muted-foreground">Visualizada:</span>{' '}
-                      {formatDateTime(selectedNotification.viewedAt)}
-                    </p>
-                  )}
-                  {selectedNotification.creditorSignedAt && (
-                    <p className="flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3 text-green-500" />
-                      <span className="text-muted-foreground">Assinada pelo Credor:</span>{' '}
-                      {formatDateTime(selectedNotification.creditorSignedAt)}
-                    </p>
-                  )}
-                  {selectedNotification.debtorSignedAt && (
-                    <p className="flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3 text-green-500" />
-                      <span className="text-muted-foreground">Assinada pelo Devedor:</span>{' '}
-                      {formatDateTime(selectedNotification.debtorSignedAt)}
-                    </p>
-                  )}
-                  {selectedNotification.responseAt && (
-                    <p>
-                      <span className="text-muted-foreground">Respondida:</span>{' '}
-                      {formatDateTime(selectedNotification.responseAt)}
-                    </p>
-                  )}
-                  {selectedNotification.resolvedAt && (
-                    <p className="flex items-center gap-1">
-                      <CheckCircle className="h-3 w-3 text-green-500" />
-                      <span className="text-muted-foreground">Resolvida:</span>{' '}
-                      {formatDateTime(selectedNotification.resolvedAt)}
-                    </p>
-                  )}
+                  </div>
+                )}
+
+                {/* Signatures Section */}
+                <div className="mb-6">
+                  <h2 className="text-sm sm:text-base font-bold border-b border-gray-300 pb-1 mb-3">ASSINATURAS</h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="text-center border-t pt-3">
+                      <div className="h-12 flex items-end justify-center mb-1">
+                        {selectedNotification.creditorSignedAt && (
+                          <CheckCircle className="h-8 w-8 text-green-500" />
+                        )}
+                      </div>
+                      <div className="border-t border-gray-800 pt-1">
+                        <p className="font-bold text-sm">{selectedNotification.creditorName}</p>
+                        <p className="text-xs text-gray-500">NOTIFICANTE - {selectedNotification.creditorDocument}</p>
+                        {selectedNotification.creditorSignedAt && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Assinado em: {formatDateTime(selectedNotification.creditorSignedAt)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="text-center border-t pt-3">
+                      <div className="h-12 flex items-end justify-center mb-1">
+                        {selectedNotification.debtorSignedAt && (
+                          <CheckCircle className="h-8 w-8 text-green-500" />
+                        )}
+                      </div>
+                      <div className="border-t border-gray-800 pt-1">
+                        <p className="font-bold text-sm">{selectedNotification.debtorName}</p>
+                        <p className="text-xs text-gray-500">NOTIFICADO - {selectedNotification.debtorDocument}</p>
+                        {selectedNotification.debtorSignedAt && (
+                          <p className="text-xs text-gray-400 mt-1">
+                            Assinado em: {formatDateTime(selectedNotification.debtorSignedAt)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Timeline */}
+                <div className="border-t pt-4">
+                  <h2 className="text-sm font-bold mb-2">Linha do Tempo</h2>
+                  <div className="space-y-1 text-xs text-gray-600">
+                    <p><span className="text-gray-400">Criada:</span> {formatDateTime(selectedNotification.createdAt)}</p>
+                    {selectedNotification.sentAt && (
+                      <p><span className="text-gray-400">Enviada:</span> {formatDateTime(selectedNotification.sentAt)}</p>
+                    )}
+                    {selectedNotification.viewedAt && (
+                      <p><span className="text-gray-400">Visualizada:</span> {formatDateTime(selectedNotification.viewedAt)}</p>
+                    )}
+                    {selectedNotification.responseAt && (
+                      <p><span className="text-gray-400">Respondida:</span> {formatDateTime(selectedNotification.responseAt)}</p>
+                    )}
+                    {selectedNotification.resolvedAt && (
+                      <p><span className="text-gray-400">Resolvida:</span> {formatDateTime(selectedNotification.resolvedAt)}</p>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
 
-      <Dialog open={showPdfPreviewModal} onOpenChange={handleClosePdfPreview}>
-        <DialogContent className="w-[95vw] max-w-5xl max-h-[95vh] p-0">
-          <DialogHeader className="p-3 sm:p-4 pb-2">
-            <DialogTitle className="flex items-center gap-2 text-sm sm:text-base">
-              <FileText className="h-4 w-4 sm:h-5 sm:w-5" />
-              <span className="truncate">PDF - {selectedNotification?.notificationToken}</span>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-hidden" style={{ height: 'calc(95vh - 120px)', minHeight: '300px' }}>
-            {pdfLoading ? (
-              <div className="flex items-center justify-center h-full">
-                <div className="animate-spin rounded-full h-8 w-8 sm:h-12 sm:w-12 border-b-2 border-primary"></div>
-                <span className="ml-3 text-muted-foreground text-sm">Carregando PDF...</span>
-              </div>
-            ) : pdfPreviewUrl ? (
-              <iframe
-                src={pdfPreviewUrl}
-                className="w-full h-full border-0"
-                title="PDF Preview"
-              />
-            ) : (
-              <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                Erro ao carregar PDF
-              </div>
-            )}
-          </div>
-          <div className="flex flex-col sm:flex-row justify-end gap-2 p-3 sm:p-4 pt-2 border-t">
+          <div className="flex justify-end gap-2 p-3 sm:p-4 border-t sticky bottom-0 bg-background">
             <Button
               variant="outline"
               onClick={() => {
@@ -1414,17 +1534,17 @@ export default function ExtrajudicialNotifications() {
                   handleDownloadPdf(selectedNotification.id, selectedNotification.status === 'RASCUNHO' ? 'provisional' : 'final');
                 }
               }}
-              className="w-full sm:w-auto"
             >
               <Download className="w-4 h-4 mr-2" />
               Baixar PDF
             </Button>
-            <Button variant="outline" onClick={handleClosePdfPreview} className="w-full sm:w-auto">
+            <Button variant="outline" onClick={() => setShowDetailsModal(false)}>
               Fechar
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
 
       <Dialog open={showSignModal} onOpenChange={setShowSignModal}>
         <DialogContent className="w-[95vw] max-w-lg p-3 sm:p-6">
