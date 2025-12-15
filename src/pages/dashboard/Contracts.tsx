@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { contractsAPI, propertiesAPI, usersAPI, contractTemplatesAPI, agenciesAPI } from '../../api';
+import { contractsAPI, propertiesAPI, usersAPI, contractTemplatesAPI, agenciesAPI, profileAPI } from '../../api';
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
@@ -63,6 +63,11 @@ const getUserTypeFromRole = (role: string): ContractUserType[] => {
     default:
       return ['INDEPENDENT_OWNER'];
   }
+};
+
+// CRECI is always stored as full string (e.g. "123456/SP") in a single field
+const formatCreci = (creci?: string | null): string => {
+  return creci || '';
 };
 
 export function Contracts() {
@@ -446,6 +451,12 @@ export function Contracts() {
     enabled: !!user?.agencyId,
   });
 
+  const { data: profileData } = useQuery({
+    queryKey: ['profile-for-contracts'],
+    queryFn: profileAPI.getProfile,
+    enabled: !!user,
+  });
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -466,13 +477,18 @@ export function Contracts() {
   }, [canCreateContracts, canUpdateContracts]);
 
   useEffect(() => {
-    if (agencyData?.creci && !newContract.creci) {
+    // Prefer agency CRECI (full string), then user profile CRECI (single field), then auth user.creci
+    const agencyCreci = agencyData ? formatCreci(agencyData.creci) : '';
+    const profileCreci = profileData?.creci || '';
+
+    const defaultCreci = agencyCreci || profileCreci || user?.creci || '';
+    if (defaultCreci && !newContract.creci) {
       setNewContract(prev => ({
         ...prev,
-        creci: agencyData.creci,
+        creci: defaultCreci,
       }));
     }
-  }, [agencyData?.creci]);
+  }, [agencyData?.creci, profileData?.creci, user?.creci]);
 
   useEffect(() => {
     const fetchIp = async () => {
@@ -561,6 +577,8 @@ export function Contracts() {
     e.preventDefault();
     setCreating(true);
     try {
+      const resolvedCreci = newContract.creci || undefined;
+
       const contractToSend = {
         ...newContract,
         startDate: new Date(newContract.startDate).toISOString().split('T')[0],
@@ -571,7 +589,7 @@ export function Contracts() {
         status: 'ATIVO',
         templateId: newContract.templateId || undefined,
         templateType: newContract.templateType || undefined,
-        creci: newContract.creci || undefined,
+        creci: resolvedCreci,
         contentSnapshot: previewContent || undefined,
       };
 
@@ -796,8 +814,9 @@ export function Contracts() {
     };
 
     const replacements: Record<string, string> = {
-      NOME_CORRETOR: agencyData?.name || user?.name || '',
-      CRECI_CORRETOR: contractData.creci || agencyData?.creci || user?.creci || '',
+      NOME_CORRETOR: contractData.agency?.name || '',
+      // Use ONLY contract snapshot data for CRECI to keep document immutable
+      CRECI_CORRETOR: contractData.creci || formatCreci(contractData.agency?.creci) || '',
 
       NOME_LOCADOR: contractOwner?.name || '',
       LOCADOR_NOME: contractOwner?.name || '',
@@ -876,8 +895,9 @@ export function Contracts() {
       IMOBILIARIA_NOME_FANTASIA: agencyData?.tradeName || agencyData?.name || contractData.agency?.tradeName || contractData.agency?.name || '',
       CNPJ_IMOBILIARIA: formatDocument(agencyData?.cnpj || contractData.agency?.cnpj) || '',
       IMOBILIARIA_CNPJ: formatDocument(agencyData?.cnpj || contractData.agency?.cnpj) || '',
-      NUMERO_CRECI: agencyData?.creci || user?.creci || contractData.creci || '',
-      IMOBILIARIA_CRECI: agencyData?.creci || user?.creci || contractData.creci || '',
+      // Use stored contract/agency CRECI, never live user CRECI
+      NUMERO_CRECI: formatCreci(contractData.agency?.creci || contractData.creci),
+      IMOBILIARIA_CRECI: formatCreci(contractData.agency?.creci || contractData.creci),
       ENDERECO_IMOBILIARIA: formatAddress(agencyData || contractData.agency) || '',
       IMOBILIARIA_ENDERECO: formatAddress(agencyData || contractData.agency) || '',
       EMAIL_IMOBILIARIA: agencyData?.email || contractData.agency?.email || '',
@@ -2527,9 +2547,23 @@ export function Contracts() {
                     </div>
                     <div>
                       <span className="font-medium">CRECI:</span>{' '}
-                      <span className={!(selectedContract?.creci || newContract.creci || agencyData?.creci || user?.creci) ? 'text-red-500 font-semibold' : ''}>
-                        {selectedContract?.creci || newContract.creci || agencyData?.creci || user?.creci || '⚠️ OBRIGATÓRIO'}
-                      </span>
+                      {(() => {
+                        const resolvedCreci = selectedContract
+                          ? (
+                            selectedContract.creci ||
+                            formatCreci(selectedContract.agency?.creci) ||
+                            agencyData?.creci ||
+                            user?.creci ||
+                            ''
+                          )
+                          : (newContract.creci || formatCreci(agencyData?.creci) || user?.creci || '');
+                        const isMissing = !resolvedCreci;
+                        return (
+                          <span className={isMissing ? 'text-red-500 font-semibold' : ''}>
+                            {resolvedCreci || '⚠️ OBRIGATÓRIO'}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <div>
                       <span className="font-medium">IP:</span>{' '}

@@ -85,9 +85,8 @@ export default function MyAccount() {
         name: profile.name || '',
         phone: profile.phone || '',
         document: profile.document || '',
-        creci: profile.creci
-          ? (profile.creciState ? `${profile.creci}/${profile.creciState}` : profile.creci)
-          : '',
+        // User table now stores full CRECI in a single field (e.g. "123456/SP")
+        creci: profile.creci || '',
         address: profile.address || '',
         cep: profile.cep || '',
         neighborhood: profile.neighborhood || '',
@@ -256,6 +255,7 @@ export default function MyAccount() {
 
   const showCreci = ['BROKER', 'AGENCY_ADMIN'].includes(user?.role || '');
   const showAgencyInfo = user?.role === 'AGENCY_ADMIN' && profile?.agency;
+  const showAddressSection = (user?.role || '') !== 'ADMIN';
 
   return (
     <div className="space-y-6">
@@ -338,7 +338,7 @@ export default function MyAccount() {
               {profile?.creci && (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Award className="h-4 w-4" />
-                  <span>CRECI: {profile.creci}{profile.creciState ? `/${profile.creciState}` : ''}</span>
+                  <span>CRECI: {profile.creci}</span>
                 </div>
               )}
               {profile?.plan && (
@@ -457,63 +457,65 @@ export default function MyAccount() {
 
                   <Separator />
 
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                      <MapPin className="h-4 w-4" />
-                      <span>Endereço</span>
+                  {showAddressSection && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                        <MapPin className="h-4 w-4" />
+                        <span>Endereço</span>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <CEPInput
+                          value={formData.cep}
+                          onChange={(value) => setFormData({ ...formData, cep: value })}
+                          onCEPData={handleCEPData}
+                          label="CEP"
+                          placeholder="00000-000"
+                          className="sm:col-span-2"
+                        />
+
+                        <div className="space-y-2">
+                          <Label htmlFor="address">Logradouro</Label>
+                          <Input
+                            id="address"
+                            value={formData.address}
+                            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                            placeholder="Rua, Avenida, etc."
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="neighborhood">Bairro</Label>
+                          <Input
+                            id="neighborhood"
+                            value={formData.neighborhood}
+                            onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
+                            placeholder="Centro"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="city">Cidade</Label>
+                          <Input
+                            id="city"
+                            value={formData.city}
+                            onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                            placeholder="São Paulo"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="state">Estado</Label>
+                          <Input
+                            id="state"
+                            value={formData.state}
+                            onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                            placeholder="SP"
+                            maxLength={2}
+                          />
+                        </div>
+                      </div>
                     </div>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <CEPInput
-                        value={formData.cep}
-                        onChange={(value) => setFormData({ ...formData, cep: value })}
-                        onCEPData={handleCEPData}
-                        label="CEP"
-                        placeholder="00000-000"
-                        className="sm:col-span-2"
-                      />
-
-                      <div className="space-y-2">
-                        <Label htmlFor="address">Logradouro</Label>
-                        <Input
-                          id="address"
-                          value={formData.address}
-                          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                          placeholder="Rua, Avenida, etc."
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="neighborhood">Bairro</Label>
-                        <Input
-                          id="neighborhood"
-                          value={formData.neighborhood}
-                          onChange={(e) => setFormData({ ...formData, neighborhood: e.target.value })}
-                          placeholder="Centro"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="city">Cidade</Label>
-                        <Input
-                          id="city"
-                          value={formData.city}
-                          onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                          placeholder="São Paulo"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="state">Estado</Label>
-                        <Input
-                          id="state"
-                          value={formData.state}
-                          onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                          placeholder="SP"
-                          maxLength={2}
-                        />
-                      </div>
-                    </div>
-                  </div>
+                  )}
 
                   {showAgencyInfo && (
                     <>

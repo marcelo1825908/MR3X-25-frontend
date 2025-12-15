@@ -13,7 +13,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
 import { extrajudicialNotificationsAPI, propertiesAPI, usersAPI } from '@/api';
 import { useAuth } from '@/contexts/AuthContext';
 import SignatureCanvas from 'react-signature-canvas';
@@ -30,8 +29,6 @@ import {
   Loader2,
   PenTool,
   AlertCircle,
-  DollarSign,
-  Calendar,
   User,
 } from 'lucide-react';
 
@@ -149,6 +146,7 @@ export default function ExtrajudicialNotifications() {
   const { user } = useAuth();
   const isInquilino = user?.role === 'INQUILINO';
   const isProprietario = user?.role === 'PROPRIETARIO';
+  const showUserRoleColumn = user?.role !== 'AGENCY_ADMIN';
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
@@ -724,7 +722,7 @@ export default function ExtrajudicialNotifications() {
                       <TableHead>Tipo</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Prioridade</TableHead>
-                      <TableHead>Seu Papel</TableHead>
+                  {showUserRoleColumn && <TableHead>Seu Papel</TableHead>}
                       <TableHead>Devedor</TableHead>
                       <TableHead>Valor Total</TableHead>
                       <TableHead>Prazo</TableHead>
@@ -742,28 +740,30 @@ export default function ExtrajudicialNotifications() {
                         </TableCell>
                         <TableCell>{getStatusBadge(n.status)}</TableCell>
                         <TableCell>{getPriorityBadge(n.priority)}</TableCell>
-                        <TableCell>
-                          {n.userRole === 'CREDITOR' && (
-                            <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
-                              Credor
-                              {n.creditorSignedAt && <CheckCircle className="h-3 w-3 ml-1 inline" />}
-                            </Badge>
-                          )}
-                          {n.userRole === 'DEBTOR' && (
-                            <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300">
-                              Devedor
-                              {n.debtorSignedAt && <CheckCircle className="h-3 w-3 ml-1 inline" />}
-                            </Badge>
-                          )}
-                          {n.userRole === 'VIEWER' && (
-                            <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-300">
-                              Visualizador
-                            </Badge>
-                          )}
-                          {!n.userRole && (
-                            <span className="text-muted-foreground text-xs">-</span>
-                          )}
-                        </TableCell>
+                        {showUserRoleColumn && (
+                          <TableCell>
+                            {n.userRole === 'CREDITOR' && (
+                              <Badge variant="outline" className="bg-blue-100 text-blue-700 border-blue-300">
+                                Credor
+                                {n.creditorSignedAt && <CheckCircle className="h-3 w-3 ml-1 inline" />}
+                              </Badge>
+                            )}
+                            {n.userRole === 'DEBTOR' && (
+                              <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300">
+                                Devedor
+                                {n.debtorSignedAt && <CheckCircle className="h-3 w-3 ml-1 inline" />}
+                              </Badge>
+                            )}
+                            {n.userRole === 'VIEWER' && (
+                              <Badge variant="outline" className="bg-gray-100 text-gray-600 border-gray-300">
+                                Visualizador
+                              </Badge>
+                            )}
+                            {!n.userRole && (
+                              <span className="text-muted-foreground text-xs">-</span>
+                            )}
+                          </TableCell>
+                        )}
                         <TableCell>
                           <div className="font-medium">{n.debtorName}</div>
                           <div className="text-xs text-muted-foreground">{n.debtorDocument}</div>

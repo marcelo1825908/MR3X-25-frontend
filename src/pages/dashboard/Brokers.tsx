@@ -45,6 +45,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
+import { BadgeCheck } from 'lucide-react'
+import { formatCRECIInput } from '@/lib/validation'
 
 export function Brokers() {
   const { hasPermission, user } = useAuth()
@@ -70,6 +72,7 @@ export function Brokers() {
     email: '',
     password: '',
     birthDate: '',
+    creci: '',
     cep: '',
     address: '',
     neighborhood: '',
@@ -84,6 +87,7 @@ export function Brokers() {
     document: '',
     password: '',
     birthDate: '',
+    creci: '',
     address: '',
     cep: '',
     neighborhood: '',
@@ -200,8 +204,18 @@ export function Brokers() {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       closeAllModals()
       setNewBroker({
-        document: '', name: '', phone: '', email: '', password: '', birthDate: '',
-        cep: '', address: '', neighborhood: '', city: '', state: ''
+        document: '',
+        name: '',
+        phone: '',
+        email: '',
+        password: '',
+        birthDate: '',
+        creci: '',
+        cep: '',
+        address: '',
+        neighborhood: '',
+        city: '',
+        state: '',
       })
       toast.success('Corretor criado com sucesso')
     },
@@ -351,6 +365,7 @@ export function Brokers() {
         document: fullBrokerDetails.document || '',
         password: fullBrokerDetails.plainPassword || '',
         birthDate: fullBrokerDetails.birthDate ? fullBrokerDetails.birthDate.split('T')[0] : '',
+        creci: fullBrokerDetails.creci || '',
         address: fullBrokerDetails.address || '',
         cep: fullBrokerDetails.cep || '',
         neighborhood: fullBrokerDetails.neighborhood || '',
@@ -711,6 +726,28 @@ export function Brokers() {
                     <Input id="name" name="name" value={newBroker.name} onChange={handleInputChange} placeholder="Nome completo" required />
                   </div>
                 </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="creci">CRECI do Corretor</Label>
+                  <div className="relative">
+                    <BadgeCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="creci"
+                      name="creci"
+                      value={newBroker.creci}
+                      onChange={(e) =>
+                        setNewBroker(prev => ({ ...prev, creci: formatCRECIInput(e.target.value) }))
+                      }
+                      placeholder="123456/SP-F"
+                      className="pl-10"
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Formato: 123456/SP ou 123456/SP-F
+                  </p>
+                </div>
+              </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
