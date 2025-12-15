@@ -27,6 +27,9 @@ import { formatCurrency, formatDate } from '../../lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
+import { DocumentInput } from '../../components/ui/document-input';
+import { CEPInput } from '../../components/ui/cep-input';
+import { RGInput } from '../../components/ui/rg-input';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Card, CardContent } from '../../components/ui/card';
@@ -102,6 +105,12 @@ export function Contracts() {
     contractDate: new Date().toISOString().split('T')[0],
     propertyCharacteristics: '',
     guaranteeType: 'CAUCAO' as 'CAUCAO' | 'FIADOR' | 'SEGURO' | 'TITULO' | 'NENHUMA',
+    guarantorName: '',
+    guarantorDocument: '',
+    guarantorRg: '',
+    guarantorCep: '',
+    guarantorAddress: '',
+    guarantorProfession: '',
   });
 
   const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -172,6 +181,19 @@ export function Contracts() {
     const random2 = Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
     return `MR3X-${templateType || 'CTR'}-${year}-${random1}-${random2}`;
   };
+
+  const handleGuarantorCEPData = useCallback((data: any) => {
+    const address = [
+      data.logradouro || data.street,
+      data.bairro || data.neighborhood,
+      data.cidade || data.city,
+      data.estado || data.state
+    ].filter(Boolean).join(', ');
+    setNewContract(prev => ({
+      ...prev,
+      guarantorAddress: address || prev.guarantorAddress,
+    }));
+  }, []);
 
   const captureBarcodeAsRotatedImage = async (): Promise<{ rotated: string; original: string; width: number; height: number } | null> => {
     try {
@@ -491,6 +513,11 @@ export function Contracts() {
     newContract.propertyCharacteristics,
     newContract.jurisdiction,
     newContract.contractDate,
+    newContract.guarantorName,
+    newContract.guarantorDocument,
+    newContract.guarantorRg,
+    newContract.guarantorAddress,
+    newContract.guarantorProfession,
     properties,
     tenants,
     agencyData
@@ -545,6 +572,7 @@ export function Contracts() {
         templateId: newContract.templateId || undefined,
         templateType: newContract.templateType || undefined,
         creci: newContract.creci || undefined,
+        contentSnapshot: previewContent || undefined,
       };
 
       const createdContract = await contractsAPI.createContract(contractToSend);
@@ -582,6 +610,12 @@ export function Contracts() {
         contractDate: new Date().toISOString().split('T')[0],
         propertyCharacteristics: '',
         guaranteeType: 'CAUCAO',
+        guarantorName: '',
+        guarantorDocument: '',
+        guarantorRg: '',
+        guarantorCep: '',
+        guarantorAddress: '',
+        guarantorProfession: '',
       });
       setPdfFile(null);
       setSelectedTemplate(null);
@@ -650,7 +684,12 @@ export function Contracts() {
       setSelectedContract(fullContract);
       setContractDetail(fullContract);
 
-      if (fullContract.templateId) {
+      if (fullContract.contentSnapshot) {
+        setPreviewContent(fullContract.contentSnapshot);
+        setPreviewToken(fullContract.contractToken || '');
+        setIsCreatePreview(false);
+        setShowPreviewModal(true);
+      } else if (fullContract.templateId) {
         let template = templates?.find((t: any) => t.id?.toString() === fullContract.templateId?.toString());
 
         if (!template) {
@@ -1292,11 +1331,11 @@ export function Contracts() {
       DIAS_AVISO_PREVIO: '30',
 
       FIADOR_DADOS: '',
-      FIADOR_NOME: (newContract as any).guarantorName || '',
-      FIADOR_CPF: formatDocument((newContract as any).guarantorDocument) || '',
-      FIADOR_RG: (newContract as any).guarantorRg || '',
-      FIADOR_ENDERECO: (newContract as any).guarantorAddress || '',
-      FIADOR_PROFISSAO: (newContract as any).guarantorProfession || '',
+      FIADOR_NOME: newContract.guarantorName || '',
+      FIADOR_CPF: formatDocument(newContract.guarantorDocument) || '',
+      FIADOR_RG: newContract.guarantorRg || '',
+      FIADOR_ENDERECO: newContract.guarantorAddress || '',
+      FIADOR_PROFISSAO: newContract.guarantorProfession || '',
       FIADOR_RESPONSABILIDADE_SOLIDARIA: 'SIM',
       IP_FIADOR: '[IP registrado na assinatura]',
       DATA_ASS_FIADOR: '________________________________',
@@ -2339,6 +2378,95 @@ export function Contracts() {
                   <p className="text-xs text-muted-foreground mt-1">Cidade onde serão resolvidas questões legais</p>
                 </div>
               </div>
+
+              {selectedTemplate?.id === 'contrato-locacao-residencial-padrao' && (
+                <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+                  <h4 className="font-semibold text-sm">FIADOR</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="guarantorName">Nome Completo</Label>
+                      <Input
+                        id="guarantorName"
+                        name="guarantorName"
+                        value={newContract.guarantorName}
+                        onChange={handleInputChange}
+                        placeholder="Nome completo do fiador"
+                      />
+                    </div>
+                    <DocumentInput
+                      value={newContract.guarantorDocument}
+                      onChange={(value) => {
+                        setNewContract(prev => ({ ...prev, guarantorDocument: value }));
+                        const cpf = value.replace(/\D/g, '');
+                        if (cpf.length >= 11) {
+                          const foundUser = tenants.find((t: any) =>
+                            t.document?.replace(/\D/g, '') === cpf
+                          );
+                          if (foundUser) {
+                            const address = [
+                              foundUser.address,
+                              foundUser.addressNumber,
+                              foundUser.complement,
+                              foundUser.neighborhood,
+                              foundUser.city,
+                              foundUser.state,
+                              foundUser.zipCode
+                            ].filter(Boolean).join(', ');
+                            setNewContract(prev => ({
+                              ...prev,
+                              guarantorAddress: address || prev.guarantorAddress,
+                              guarantorName: foundUser.name || prev.guarantorName,
+                              guarantorRg: foundUser.rg || prev.guarantorRg,
+                              guarantorProfession: foundUser.profession || prev.guarantorProfession,
+                              guarantorCep: foundUser.zipCode || foundUser.cep || prev.guarantorCep,
+                            }));
+                          }
+                        }
+                      }}
+                      label="CPF"
+                      placeholder="000.000.000-00"
+                      showValidation={true}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <RGInput
+                      value={newContract.guarantorRg}
+                      onChange={(value) => setNewContract(prev => ({ ...prev, guarantorRg: value }))}
+                      label="RG *"
+                      placeholder="00.000.000-0"
+                      showValidation={true}
+                    />
+                    <div>
+                      <Label htmlFor="guarantorProfession">Profissão</Label>
+                      <Input
+                        id="guarantorProfession"
+                        name="guarantorProfession"
+                        value={newContract.guarantorProfession}
+                        onChange={handleInputChange}
+                        placeholder="Profissão do fiador"
+                      />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <CEPInput
+                      value={newContract.guarantorCep}
+                      onChange={(v: string) => setNewContract(prev => ({ ...prev, guarantorCep: v }))}
+                      onCEPData={handleGuarantorCEPData}
+                      placeholder="00000-000"
+                    />
+                    <div>
+                      <Label htmlFor="guarantorAddress">Endereço</Label>
+                      <Input
+                        id="guarantorAddress"
+                        name="guarantorAddress"
+                        value={newContract.guarantorAddress}
+                        onChange={handleInputChange}
+                        placeholder="Endereço completo do fiador"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-between gap-2">
                 {selectedTemplate && previewContent && (

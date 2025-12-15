@@ -27,6 +27,11 @@ import {
   Lock,
   Copy,
   Search,
+  ZoomIn,
+  ZoomOut,
+  Download,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { formatDate } from '../../lib/utils';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../components/ui/dialog';
@@ -192,6 +197,9 @@ export function Inspections() {
   const [creating, setCreating] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string; allImages: { url: string; name: string }[]; currentIndex: number } | null>(null);
+  const [previewZoom, setPreviewZoom] = useState(1);
 
   if (!canViewInspections) {
     return (
@@ -593,7 +601,8 @@ export function Inspections() {
   };
 
   const getMediaUrl = (media: ServerMedia): string => {
-    const baseUrl = import.meta.env.VITE_API_URL || '';
+    const apiUrl = import.meta.env.VITE_API_URL || '';
+    const baseUrl = apiUrl.replace(/\/api\/?$/, '');
     return `${baseUrl}${media.url}`;
   };
 
@@ -603,6 +612,45 @@ export function Inspections() {
 
   const getDetailMediaGeneral = (): ServerMedia[] => {
     return detailMedia.filter(m => m.itemIndex === undefined || m.itemIndex === null);
+  };
+
+  const openImagePreview = (url: string, name: string, allImages: { url: string; name: string }[]) => {
+    const currentIndex = allImages.findIndex(img => img.url === url);
+    setPreviewImage({ url, name, allImages, currentIndex: currentIndex >= 0 ? currentIndex : 0 });
+    setPreviewZoom(1);
+  };
+
+  const closeImagePreview = () => {
+    setPreviewImage(null);
+    setPreviewZoom(1);
+  };
+
+  const navigatePreview = (direction: 'prev' | 'next') => {
+    if (!previewImage) return;
+    const { allImages, currentIndex } = previewImage;
+    let newIndex = direction === 'next' ? currentIndex + 1 : currentIndex - 1;
+    if (newIndex < 0) newIndex = allImages.length - 1;
+    if (newIndex >= allImages.length) newIndex = 0;
+    const newImage = allImages[newIndex];
+    setPreviewImage({ ...previewImage, url: newImage.url, name: newImage.name, currentIndex: newIndex });
+    setPreviewZoom(1);
+  };
+
+  const handleZoom = (direction: 'in' | 'out') => {
+    setPreviewZoom(prev => {
+      if (direction === 'in') return Math.min(prev + 0.25, 3);
+      return Math.max(prev - 0.25, 0.5);
+    });
+  };
+
+  const downloadImage = (url: string, name: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name || 'image';
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const getStatusBadge = (status: string) => {
@@ -1718,45 +1766,50 @@ export function Inspections() {
                   </div>
                 )}
 
-                {getDetailMediaGeneral().length > 0 && (
-                  <div>
-                    <Label className="text-muted-foreground mb-2 flex items-center gap-1">
-                      <Image className="w-4 h-4" />
-                      <Video className="w-4 h-4" />
-                      Mídia Geral ({getDetailMediaGeneral().length})
-                    </Label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                      {getDetailMediaGeneral().map((media) => (
-                        <div key={media.id} className="relative group">
-                          {media.type === 'IMAGE' ? (
-                            <img
-                              src={getMediaUrl(media)}
-                              alt={media.originalName}
-                              className="w-full h-32 object-cover rounded-lg border border-border cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={() => window.open(getMediaUrl(media), '_blank')}
-                              onError={(e) => {
-                                const target = e.target as HTMLImageElement;
-                                target.style.display = 'none';
-                              }}
-                            />
-                          ) : (
-                            <div
-                              className="w-full h-32 bg-muted rounded-lg border border-border flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity"
-                              onClick={() => window.open(getMediaUrl(media), '_blank')}
-                            >
-                              <Video className="w-10 h-10 text-muted-foreground" />
+                {getDetailMediaGeneral().length > 0 && (() => {
+                  const generalImages = getDetailMediaGeneral()
+                    .filter(m => m.type === 'IMAGE')
+                    .map(m => ({ url: getMediaUrl(m), name: m.originalName }));
+                  return (
+                    <div>
+                      <Label className="text-muted-foreground mb-2 flex items-center gap-1">
+                        <Image className="w-4 h-4" />
+                        <Video className="w-4 h-4" />
+                        Mídia Geral ({getDetailMediaGeneral().length})
+                      </Label>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {getDetailMediaGeneral().map((media) => (
+                          <div key={media.id} className="relative group">
+                            {media.type === 'IMAGE' ? (
+                              <img
+                                src={getMediaUrl(media)}
+                                alt={media.originalName}
+                                className="w-full h-32 object-cover rounded-lg border border-border cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => openImagePreview(getMediaUrl(media), media.originalName, generalImages)}
+                                onError={(e) => {
+                                  const target = e.target as HTMLImageElement;
+                                  target.style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div
+                                className="w-full h-32 bg-muted rounded-lg border border-border flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity"
+                                onClick={() => window.open(getMediaUrl(media), '_blank')}
+                              >
+                                <Video className="w-10 h-10 text-muted-foreground" />
+                              </div>
+                            )}
+                            <div className="absolute bottom-1 left-1">
+                              <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                                {media.type === 'IMAGE' ? 'Foto' : 'Vídeo'}
+                              </Badge>
                             </div>
-                          )}
-                          <div className="absolute bottom-1 left-1">
-                            <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                              {media.type === 'IMAGE' ? 'Foto' : 'Vídeo'}
-                            </Badge>
                           </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                })()}
 
                 {inspectionDetail.photos && getDetailMediaGeneral().length === 0 && (() => {
                   try {
@@ -1764,6 +1817,10 @@ export function Inspections() {
                       ? JSON.parse(inspectionDetail.photos)
                       : inspectionDetail.photos;
                     if (Array.isArray(photos) && photos.length > 0) {
+                      const photoUrls = photos.map((photo: string, idx: number) => ({
+                        url: photo.startsWith('http') ? photo : `${(import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '')}/uploads/${photo}`,
+                        name: `Foto ${idx + 1}`
+                      }));
                       return (
                         <div>
                           <Label className="text-muted-foreground mb-2 flex items-center gap-1">
@@ -1771,23 +1828,23 @@ export function Inspections() {
                             Fotos Gerais ({photos.length})
                           </Label>
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                            {photos.map((photo: string, index: number) => (
-                              <div key={index} className="relative group">
-                                <img
-                                  src={photo.startsWith('http') ? photo : `${import.meta.env.VITE_API_URL || ''}/uploads/${photo}`}
-                                  alt={`Foto ${index + 1}`}
-                                  className="w-full h-32 object-cover rounded-lg border border-border cursor-pointer hover:opacity-90 transition-opacity"
-                                  onClick={() => {
-                                    const url = photo.startsWith('http') ? photo : `${import.meta.env.VITE_API_URL || ''}/uploads/${photo}`;
-                                    window.open(url, '_blank');
-                                  }}
-                                  onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.style.display = 'none';
-                                  }}
-                                />
-                              </div>
-                            ))}
+                            {photos.map((photo: string, index: number) => {
+                              const url = photo.startsWith('http') ? photo : `${(import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '')}/uploads/${photo}`;
+                              return (
+                                <div key={index} className="relative group">
+                                  <img
+                                    src={url}
+                                    alt={`Foto ${index + 1}`}
+                                    className="w-full h-32 object-cover rounded-lg border border-border cursor-pointer hover:opacity-90 transition-opacity"
+                                    onClick={() => openImagePreview(url, `Foto ${index + 1}`, photoUrls)}
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement;
+                                      target.style.display = 'none';
+                                    }}
+                                  />
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       );
@@ -1856,73 +1913,84 @@ export function Inspections() {
                             </div>
                           </div>
 
-                          {getDetailMediaForItem(index).length > 0 && (
-                            <div className="pt-3 border-t">
-                              <Label className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                                <Image className="w-3 h-3" />
-                                <Video className="w-3 h-3" />
-                                Mídia ({getDetailMediaForItem(index).length})
-                              </Label>
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                                {getDetailMediaForItem(index).map((media) => (
-                                  <div key={media.id} className="relative group">
-                                    {media.type === 'IMAGE' ? (
-                                      <img
-                                        src={getMediaUrl(media)}
-                                        alt={media.originalName}
-                                        className="w-full h-24 object-cover rounded-lg border border-border cursor-pointer hover:opacity-90 transition-opacity"
-                                        onClick={() => window.open(getMediaUrl(media), '_blank')}
-                                        onError={(e) => {
-                                          const target = e.target as HTMLImageElement;
-                                          target.style.display = 'none';
-                                        }}
-                                      />
-                                    ) : (
-                                      <div
-                                        className="w-full h-24 bg-muted rounded-lg border border-border flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity"
-                                        onClick={() => window.open(getMediaUrl(media), '_blank')}
-                                      >
-                                        <Video className="w-8 h-8 text-muted-foreground" />
+                          {getDetailMediaForItem(index).length > 0 && (() => {
+                            const itemImages = getDetailMediaForItem(index)
+                              .filter(m => m.type === 'IMAGE')
+                              .map(m => ({ url: getMediaUrl(m), name: m.originalName }));
+                            return (
+                              <div className="pt-3 border-t">
+                                <Label className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                                  <Image className="w-3 h-3" />
+                                  <Video className="w-3 h-3" />
+                                  Mídia ({getDetailMediaForItem(index).length})
+                                </Label>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                  {getDetailMediaForItem(index).map((media) => (
+                                    <div key={media.id} className="relative group">
+                                      {media.type === 'IMAGE' ? (
+                                        <img
+                                          src={getMediaUrl(media)}
+                                          alt={media.originalName}
+                                          className="w-full h-24 object-cover rounded-lg border border-border cursor-pointer hover:opacity-90 transition-opacity"
+                                          onClick={() => openImagePreview(getMediaUrl(media), media.originalName, itemImages)}
+                                          onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
+                                            target.style.display = 'none';
+                                          }}
+                                        />
+                                      ) : (
+                                        <div
+                                          className="w-full h-24 bg-muted rounded-lg border border-border flex items-center justify-center cursor-pointer hover:opacity-90 transition-opacity"
+                                          onClick={() => window.open(getMediaUrl(media), '_blank')}
+                                        >
+                                          <Video className="w-8 h-8 text-muted-foreground" />
+                                        </div>
+                                      )}
+                                      <div className="absolute bottom-1 left-1">
+                                        <Badge variant="secondary" className="text-[10px] px-1 py-0">
+                                          {media.type === 'IMAGE' ? 'Foto' : 'Vídeo'}
+                                        </Badge>
                                       </div>
-                                    )}
-                                    <div className="absolute bottom-1 left-1">
-                                      <Badge variant="secondary" className="text-[10px] px-1 py-0">
-                                        {media.type === 'IMAGE' ? 'Foto' : 'Vídeo'}
-                                      </Badge>
                                     </div>
-                                  </div>
-                                ))}
+                                  ))}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            );
+                          })()}
 
-                          {item.photos && item.photos.length > 0 && getDetailMediaForItem(index).length === 0 && (
-                            <div className="pt-3 border-t">
-                              <Label className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                                <Image className="w-3 h-3" />
-                                Fotos ({item.photos.length})
-                              </Label>
-                              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
-                                {item.photos.map((photo: string, photoIndex: number) => (
-                                  <div key={photoIndex} className="relative group">
-                                    <img
-                                      src={photo.startsWith('http') ? photo : `${import.meta.env.VITE_API_URL || ''}/uploads/${photo}`}
-                                      alt={`Foto ${photoIndex + 1} - ${item.item}`}
-                                      className="w-full h-24 object-cover rounded-lg border border-border cursor-pointer hover:opacity-90 transition-opacity"
-                                      onClick={() => {
-                                        const url = photo.startsWith('http') ? photo : `${import.meta.env.VITE_API_URL || ''}/uploads/${photo}`;
-                                        window.open(url, '_blank');
-                                      }}
-                                      onError={(e) => {
-                                        const target = e.target as HTMLImageElement;
-                                        target.style.display = 'none';
-                                      }}
-                                    />
-                                  </div>
-                                ))}
+                          {item.photos && item.photos.length > 0 && getDetailMediaForItem(index).length === 0 && (() => {
+                            const itemPhotoUrls = item.photos!.map((photo: string, idx: number) => ({
+                              url: photo.startsWith('http') ? photo : `${(import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '')}/uploads/${photo}`,
+                              name: `Foto ${idx + 1} - ${item.item}`
+                            }));
+                            return (
+                              <div className="pt-3 border-t">
+                                <Label className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
+                                  <Image className="w-3 h-3" />
+                                  Fotos ({item.photos!.length})
+                                </Label>
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                  {item.photos!.map((photo: string, photoIndex: number) => {
+                                    const url = photo.startsWith('http') ? photo : `${(import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '')}/uploads/${photo}`;
+                                    return (
+                                      <div key={photoIndex} className="relative group">
+                                        <img
+                                          src={url}
+                                          alt={`Foto ${photoIndex + 1} - ${item.item}`}
+                                          className="w-full h-24 object-cover rounded-lg border border-border cursor-pointer hover:opacity-90 transition-opacity"
+                                          onClick={() => openImagePreview(url, `Foto ${photoIndex + 1} - ${item.item}`, itemPhotoUrls)}
+                                          onError={(e) => {
+                                            const target = e.target as HTMLImageElement;
+                                            target.style.display = 'none';
+                                          }}
+                                        />
+                                      </div>
+                                    );
+                                  })}
+                                </div>
                               </div>
-                            </div>
-                          )}
+                            );
+                          })()}
                         </div>
                       ))}
                     </div>
@@ -1986,6 +2054,146 @@ export function Inspections() {
               >
                 Excluir
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Image Preview Modal */}
+        <Dialog open={!!previewImage} onOpenChange={() => closeImagePreview()}>
+          <DialogContent className="max-w-[95vw] max-h-[95vh] w-auto p-0 bg-black/95 border-none">
+            <div className="relative flex flex-col h-full">
+              {/* Header */}
+              <div className="flex items-center justify-between p-3 bg-black/50 text-white">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium truncate max-w-[200px] sm:max-w-[400px]">
+                    {previewImage?.name || 'Imagem'}
+                  </span>
+                  {previewImage && previewImage.allImages.length > 1 && (
+                    <Badge variant="secondary" className="text-xs">
+                      {previewImage.currentIndex + 1} / {previewImage.allImages.length}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleZoom('out')}
+                        disabled={previewZoom <= 0.5}
+                        className="text-white hover:bg-white/20 h-8 w-8 p-0"
+                      >
+                        <ZoomOut className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Diminuir zoom</TooltipContent>
+                  </Tooltip>
+                  <span className="text-xs text-white/70 w-12 text-center">{Math.round(previewZoom * 100)}%</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleZoom('in')}
+                        disabled={previewZoom >= 3}
+                        className="text-white hover:bg-white/20 h-8 w-8 p-0"
+                      >
+                        <ZoomIn className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Aumentar zoom</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => previewImage && downloadImage(previewImage.url, previewImage.name)}
+                        className="text-white hover:bg-white/20 h-8 w-8 p-0"
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Baixar imagem</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={closeImagePreview}
+                        className="text-white hover:bg-white/20 h-8 w-8 p-0"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Fechar</TooltipContent>
+                  </Tooltip>
+                </div>
+              </div>
+
+              {/* Image Container */}
+              <div className="flex-1 flex items-center justify-center p-4 overflow-auto min-h-[300px] max-h-[80vh]">
+                {previewImage && (
+                  <img
+                    src={previewImage.url}
+                    alt={previewImage.name}
+                    className="max-w-full max-h-full object-contain transition-transform duration-200"
+                    style={{ transform: `scale(${previewZoom})` }}
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200"><rect fill="%23333" width="200" height="200"/><text fill="%23999" x="50%" y="50%" text-anchor="middle" dy=".3em">Erro ao carregar</text></svg>';
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* Navigation Arrows */}
+              {previewImage && previewImage.allImages.length > 1 && (
+                <>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => navigatePreview('prev')}
+                    className="absolute left-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-10 w-10 rounded-full bg-black/30"
+                  >
+                    <ChevronLeft className="w-6 h-6" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => navigatePreview('next')}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-10 w-10 rounded-full bg-black/30"
+                  >
+                    <ChevronRight className="w-6 h-6" />
+                  </Button>
+                </>
+              )}
+
+              {/* Thumbnail Strip */}
+              {previewImage && previewImage.allImages.length > 1 && (
+                <div className="flex gap-2 p-3 bg-black/50 overflow-x-auto justify-center">
+                  {previewImage.allImages.map((img, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => {
+                        setPreviewImage({ ...previewImage, url: img.url, name: img.name, currentIndex: idx });
+                        setPreviewZoom(1);
+                      }}
+                      className={`flex-shrink-0 w-12 h-12 rounded border-2 overflow-hidden transition-all ${
+                        idx === previewImage.currentIndex ? 'border-orange-500' : 'border-transparent opacity-60 hover:opacity-100'
+                      }`}
+                    >
+                      <img
+                        src={img.url}
+                        alt={img.name}
+                        className="w-full h-full object-cover"
+                      />
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </DialogContent>
         </Dialog>
