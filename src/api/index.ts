@@ -15,6 +15,24 @@ export const dashboardAPI = {
     const response = await apiClient.get('/dashboard/platform-revenue');
     return response.data;
   },
+
+  getTenantAlerts: async () => {
+    const response = await apiClient.get('/dashboard/tenant-alerts');
+    return response.data;
+  },
+
+  acknowledgeExtrajudicial: async (notificationId: string, data: {
+    acknowledgmentType: 'DASHBOARD_VIEW' | 'CLICK' | 'SIGNATURE';
+    ipAddress?: string;
+    geoLat?: number;
+    geoLng?: number;
+    geoConsent?: boolean;
+    userAgent?: string;
+    signature?: string;
+  }) => {
+    const response = await apiClient.post(`/dashboard/extrajudicial/${notificationId}/acknowledge`, data);
+    return response.data;
+  },
 };
 
 export const propertiesAPI = {

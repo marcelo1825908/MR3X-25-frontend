@@ -1,14 +1,16 @@
-import { useQuery } from '@tanstack/react-query';
-import { dashboardAPI } from '../../api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { dashboardAPI, extrajudicialNotificationsAPI, agreementsAPI } from '../../api';
 import { formatCurrency } from '../../lib/utils';
 import {
   FileText, DollarSign, Bell, Clock,
   CheckCircle, AlertTriangle, User, Phone, Mail,
-  CreditCard, Receipt, TrendingUp, Calendar, Building2
+  CreditCard, Receipt, TrendingUp, Calendar, Building2,
+  Scale, Handshake, AlertOctagon, Shield, MapPin, X
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../components/ui/dialog';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -26,18 +28,181 @@ import {
   Area,
   AreaChart
 } from 'recharts';
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
+import { toast } from 'sonner';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
+
+// Types for alerts
+interface ExtrajudicialAlert {
+  id: string;
+  token?: string;
+  type: string;
+  status: string;
+  principalAmount?: number;
+  deadlineDate?: string;
+  viewedAt?: string;
+  acknowledgedAt?: string;
+  creditorName?: string;
+}
+
+interface AgreementAlert {
+  id: string;
+  token?: string;
+  type: string;
+  status: string;
+  totalAmount?: number;
+  effectiveDate?: string;
+}
+
+interface TenantAlerts {
+  hasOverduePayment: boolean;
+  overdueAmount?: number;
+  overdueDays?: number;
+  hasActiveExtrajudicial: boolean;
+  extrajudicialNotifications: ExtrajudicialAlert[];
+  hasPendingAgreement: boolean;
+  pendingAgreements: AgreementAlert[];
+  isSeverelyOverdue: boolean;
+  requiresImmediateAction: boolean;
+}
 
 export function TenantDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  // State for extrajudicial modal
+  const [showExtrajudicialModal, setShowExtrajudicialModal] = useState(false);
+  const [activeExtrajudicial, setActiveExtrajudicial] = useState<ExtrajudicialAlert | null>(null);
+  const [geoLocation, setGeoLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoConsent, setGeoConsent] = useState(false);
+  const [isAcknowledging, setIsAcknowledging] = useState(false);
+  const [userIp, setUserIp] = useState<string>('');
+  const [hasShownModal, setHasShownModal] = useState(false);
 
   const { data: dashboard, isLoading } = useQuery({
     queryKey: ['tenant-dashboard', user?.id],
     queryFn: () => dashboardAPI.getDashboard(),
   });
+
+  // Fetch tenant alerts (extrajudicial, agreements, overdue status)
+  const { data: tenantAlerts } = useQuery<TenantAlerts>({
+    queryKey: ['tenant-alerts', user?.id],
+    queryFn: async () => {
+      try {
+        return await dashboardAPI.getTenantAlerts();
+      } catch {
+        // Fallback: fetch individually
+        const [extrajudicialRes, agreementsRes] = await Promise.allSettled([
+          extrajudicialNotificationsAPI.getNotifications({ debtorId: user?.id }),
+          agreementsAPI.getAgreements({ tenantId: user?.id, status: 'AGUARDANDO_ASSINATURA' }),
+        ]);
+
+        const extrajudicials = extrajudicialRes.status === 'fulfilled'
+          ? (Array.isArray(extrajudicialRes.value) ? extrajudicialRes.value : [])
+          : [];
+        const agreements = agreementsRes.status === 'fulfilled'
+          ? (Array.isArray(agreementsRes.value) ? agreementsRes.value : [])
+          : [];
+
+        const activeExtrajudicials = extrajudicials.filter((n: any) =>
+          ['SENT', 'PENDING_SEND', 'VIEWED'].includes(n.status) && !n.acknowledgedAt
+        );
+
+        return {
+          hasOverduePayment: false,
+          hasActiveExtrajudicial: activeExtrajudicials.length > 0,
+          extrajudicialNotifications: activeExtrajudicials,
+          hasPendingAgreement: agreements.length > 0,
+          pendingAgreements: agreements,
+          isSeverelyOverdue: false,
+          requiresImmediateAction: activeExtrajudicials.length > 0,
+        };
+      }
+    },
+    enabled: !!user?.id,
+  });
+
+  // Get user IP address
+  useEffect(() => {
+    const getIp = async () => {
+      try {
+        const response = await fetch('https://api.ipify.org?format=json');
+        const data = await response.json();
+        setUserIp(data.ip);
+      } catch {
+        setUserIp('unknown');
+      }
+    };
+    getIp();
+  }, []);
+
+  // Get geolocation if consent given
+  const requestGeolocation = useCallback(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setGeoLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+          setGeoConsent(true);
+        },
+        () => {
+          toast.error('Não foi possível obter sua localização');
+          setGeoConsent(false);
+        }
+      );
+    }
+  }, []);
+
+  // Acknowledgment mutation
+  const acknowledgeMutation = useMutation({
+    mutationFn: async (notificationId: string) => {
+      return dashboardAPI.acknowledgeExtrajudicial(notificationId, {
+        acknowledgmentType: 'CLICK',
+        ipAddress: userIp,
+        geoLat: geoLocation?.lat,
+        geoLng: geoLocation?.lng,
+        geoConsent,
+        userAgent: navigator.userAgent,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenant-alerts'] });
+    },
+  });
+
+  // Show extrajudicial modal on mount if needed
+  useEffect(() => {
+    if (!hasShownModal && tenantAlerts?.requiresImmediateAction && tenantAlerts.extrajudicialNotifications.length > 0) {
+      const unacknowledged = tenantAlerts.extrajudicialNotifications.find(n => !n.acknowledgedAt);
+      if (unacknowledged) {
+        setActiveExtrajudicial(unacknowledged);
+        setShowExtrajudicialModal(true);
+        setHasShownModal(true);
+      }
+    }
+  }, [tenantAlerts, hasShownModal]);
+
+  // Handle acknowledgment and redirect
+  const handleAcknowledge = async () => {
+    if (!activeExtrajudicial) return;
+
+    setIsAcknowledging(true);
+    try {
+      await acknowledgeMutation.mutateAsync(activeExtrajudicial.id);
+      toast.success('Ciência registrada com sucesso');
+      setShowExtrajudicialModal(false);
+      // Redirect to acknowledgment page for signature
+      navigate(`/dashboard/extrajudicial-acknowledgment/${activeExtrajudicial.id}`);
+    } catch {
+      toast.error('Erro ao registrar ciência');
+    } finally {
+      setIsAcknowledging(false);
+    }
+  };
 
   const chartData = useMemo(() => {
     const paymentHistory = dashboard?.paymentHistory || [];
@@ -153,17 +318,135 @@ export function TenantDashboard() {
 
   return (
     <div className="space-y-6">
-      {}
+      {/* Welcome Banner - Must be first */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl p-6 text-white">
-        <h1 className="text-2xl font-bold mb-2">
-          Olá, {user?.name || 'Inquilino'}!
-        </h1>
+        <div className="flex items-center gap-3 mb-2">
+          <Shield className="w-8 h-8" />
+          <div>
+            <h1 className="text-2xl font-bold">
+              Olá, {user?.name || 'Inquilino'}!
+            </h1>
+            <p className="text-blue-100 text-sm">
+              {contract?.status === 'ACTIVE' ? 'Contrato Ativo' : 'Portal do Inquilino'}
+            </p>
+          </div>
+        </div>
         <p className="text-blue-100">
           Bem-vindo ao seu painel de locação. Aqui você pode acompanhar seu contrato, pagamentos e documentos.
         </p>
       </div>
 
-      {}
+      {/* Priority Alerts Section - Always visible when applicable */}
+      {(tenantAlerts?.hasOverduePayment || tenantAlerts?.hasActiveExtrajudicial || tenantAlerts?.hasPendingAgreement) && (
+        <div className="space-y-3">
+          {/* Extrajudicial Notice Alert - Highest Priority */}
+          {tenantAlerts?.hasActiveExtrajudicial && tenantAlerts.extrajudicialNotifications.map((notification) => (
+            <Card key={notification.id} className="border-red-500 bg-red-50 border-2 shadow-lg">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Scale className="w-6 h-6 text-red-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-bold text-red-800 text-lg">⚠️ Notificação Extrajudicial</h4>
+                      <Badge variant="destructive" className="animate-pulse">URGENTE</Badge>
+                    </div>
+                    <p className="text-red-700 mb-2">
+                      Você possui uma notificação extrajudicial ativa que requer sua ciência imediata.
+                      {notification.principalAmount && (
+                        <span className="font-semibold"> Valor: {formatCurrency(notification.principalAmount)}</span>
+                      )}
+                    </p>
+                    <p className="text-red-600 text-sm mb-3">
+                      O não reconhecimento desta notificação pode resultar em medidas judiciais.
+                    </p>
+                    <Button
+                      className="bg-red-600 hover:bg-red-700 text-white"
+                      onClick={() => {
+                        setActiveExtrajudicial(notification);
+                        setShowExtrajudicialModal(true);
+                      }}
+                    >
+                      <AlertOctagon className="w-4 h-4 mr-2" />
+                      Ver Notificação e Dar Ciência
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+
+          {/* Payment Overdue Alert */}
+          {tenantAlerts?.hasOverduePayment && (
+            <Card className="border-orange-500 bg-orange-50 border-2">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle className="w-6 h-6 text-orange-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-bold text-orange-800">Pagamento em Atraso</h4>
+                      <Badge className="bg-orange-500">ATENÇÃO</Badge>
+                    </div>
+                    <p className="text-orange-700 mb-2">
+                      Você possui pagamento(s) em atraso.
+                      {tenantAlerts.overdueAmount && (
+                        <span className="font-semibold"> Total: {formatCurrency(tenantAlerts.overdueAmount)}</span>
+                      )}
+                      {tenantAlerts.overdueDays && (
+                        <span className="font-semibold"> ({tenantAlerts.overdueDays} dias)</span>
+                      )}
+                    </p>
+                    <Button
+                      className="bg-orange-600 hover:bg-orange-700 text-white"
+                      onClick={() => navigate('/dashboard/tenant-payments')}
+                    >
+                      <DollarSign className="w-4 h-4 mr-2" />
+                      Regularizar Pagamento
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Agreement Available Alert */}
+          {tenantAlerts?.hasPendingAgreement && tenantAlerts.pendingAgreements.map((agreement) => (
+            <Card key={agreement.id} className="border-blue-500 bg-blue-50 border-2">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                    <Handshake className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h4 className="font-bold text-blue-800">Acordo Disponível</h4>
+                      <Badge className="bg-blue-500">NOVO</Badge>
+                    </div>
+                    <p className="text-blue-700 mb-2">
+                      Você possui um acordo disponível para assinatura.
+                      {agreement.totalAmount && (
+                        <span className="font-semibold"> Valor: {formatCurrency(agreement.totalAmount)}</span>
+                      )}
+                    </p>
+                    <Button
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      onClick={() => navigate('/dashboard/agreements')}
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      Ver Acordo
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Metrics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-gradient-to-br from-green-50 to-green-100 border-green-200">
           <CardContent className="p-4">
@@ -703,6 +986,144 @@ export function TenantDashboard() {
           </CardContent>
         </Card>
       )}
+
+      {/* Extrajudicial Acknowledgment Modal - Mandatory popup */}
+      <Dialog open={showExtrajudicialModal} onOpenChange={(open) => {
+        // Prevent closing without acknowledgment if required
+        if (!open && activeExtrajudicial && !activeExtrajudicial.acknowledgedAt) {
+          toast.warning('Por favor, dê ciência da notificação antes de continuar.');
+          return;
+        }
+        setShowExtrajudicialModal(open);
+      }}>
+        <DialogContent className="max-w-lg" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <div className="flex items-center gap-3 text-red-600">
+              <Scale className="w-8 h-8" />
+              <div>
+                <DialogTitle className="text-xl text-red-700">
+                  Notificação Extrajudicial
+                </DialogTitle>
+                <DialogDescription className="text-red-600">
+                  Ciência obrigatória - Documento legal
+                </DialogDescription>
+              </div>
+            </div>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Legal Notice */}
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <h4 className="font-bold text-red-800 mb-2">⚠️ AVISO LEGAL IMPORTANTE</h4>
+              <p className="text-red-700 text-sm">
+                Você está recebendo uma <strong>notificação extrajudicial</strong> referente a obrigações
+                contratuais pendentes. Este documento tem validade jurídica e sua ciência está sendo
+                registrada para fins legais.
+              </p>
+            </div>
+
+            {/* Notification Details */}
+            {activeExtrajudicial && (
+              <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Token:</span>
+                  <span className="font-mono text-sm">{activeExtrajudicial.token || activeExtrajudicial.id}</span>
+                </div>
+                {activeExtrajudicial.principalAmount && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Valor Principal:</span>
+                    <span className="font-semibold text-red-600">
+                      {formatCurrency(activeExtrajudicial.principalAmount)}
+                    </span>
+                  </div>
+                )}
+                {activeExtrajudicial.deadlineDate && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Prazo:</span>
+                    <span className="font-semibold">
+                      {new Date(activeExtrajudicial.deadlineDate).toLocaleDateString('pt-BR')}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Tracking Info */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-semibold text-blue-800 mb-2 flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Registro de Ciência
+              </h4>
+              <div className="text-sm text-blue-700 space-y-1">
+                <p><strong>Data/Hora:</strong> {new Date().toLocaleString('pt-BR')}</p>
+                <p><strong>IP:</strong> {userIp || 'Obtendo...'}</p>
+                {geoLocation && (
+                  <p className="flex items-center gap-1">
+                    <MapPin className="w-3 h-3" />
+                    <strong>Localização:</strong> {geoLocation.lat.toFixed(6)}, {geoLocation.lng.toFixed(6)}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Geolocation Consent */}
+            {!geoLocation && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={requestGeolocation}
+                  className="text-blue-600"
+                >
+                  <MapPin className="w-4 h-4 mr-1" />
+                  Permitir localização (recomendado)
+                </Button>
+                <span className="text-xs text-gray-500">
+                  Fortalece a validade jurídica do registro
+                </span>
+              </div>
+            )}
+
+            {/* Legal Declaration */}
+            <div className="border-t pt-4">
+              <p className="text-sm text-gray-700 mb-4">
+                Ao clicar em "Dar Ciência e Continuar", declaro que:
+              </p>
+              <ul className="text-sm text-gray-600 space-y-1 list-disc list-inside mb-4">
+                <li>Estou ciente da notificação extrajudicial recebida</li>
+                <li>Entendo que esta ação está sendo registrada para fins legais</li>
+                <li>Os prazos legais passam a contar a partir desta ciência</li>
+              </ul>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                onClick={handleAcknowledge}
+                disabled={isAcknowledging}
+              >
+                {isAcknowledging ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                    Registrando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="w-4 h-4 mr-2" />
+                    Dar Ciência e Continuar
+                  </>
+                )}
+              </Button>
+            </div>
+
+            <p className="text-xs text-center text-gray-500">
+              Este registro serve como prova legal de que você foi notificado.
+              Navegador: {navigator.userAgent.split(' ').slice(-2).join(' ')}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
