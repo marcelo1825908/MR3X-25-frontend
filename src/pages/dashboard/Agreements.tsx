@@ -31,6 +31,7 @@ import {
   Search,
 } from 'lucide-react';
 import { formatDate, formatCurrency } from '../../lib/utils';
+import { SignatureCapture } from '../../components/contracts/SignatureCapture';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -399,6 +400,10 @@ export function Agreements() {
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showSignModal, setShowSignModal] = useState(false);
   const [signAgreementData, setSignAgreementData] = useState<{ agreement: Agreement | null; type: 'agency' | 'owner' | 'tenant' | null }>({ agreement: null, type: null });
+  const [signature, setSignature] = useState<string | null>(null);
+  const [geoConsent, setGeoConsent] = useState(false);
+  const [geoLocation, setGeoLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [signing, setSigning] = useState(false);
 
   const [filterType, _setFilterType] = useState<string>('');
   const [filterStatus, _setFilterStatus] = useState<string>('');
@@ -809,22 +814,65 @@ export function Agreements() {
     setShowSignModal(true);
   };
 
+  const handleGeoConsentChange = (consent: boolean) => {
+    setGeoConsent(consent);
+    if (consent && navigator.geolocation) {
+      toast.info('Obtendo localização...');
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setGeoLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+          toast.success('Localização obtida com sucesso!');
+        },
+        (error) => {
+          console.error('Error getting geolocation:', error);
+          if (error.code === 1) {
+            toast.error('Permissão de localização negada. Por favor, permita o acesso à localização.');
+          } else if (error.code === 2) {
+            toast.error('Não foi possível determinar sua localização. Verifique se o GPS está ativado.');
+          } else if (error.code === 3) {
+            toast.error('Tempo esgotado ao obter localização.');
+          } else {
+            toast.error('Erro ao obter localização.');
+          }
+          setGeoConsent(false);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    }
+  };
+
+  const closeSignModal = () => {
+    setShowSignModal(false);
+    setSignAgreementData({ agreement: null, type: null });
+    setSignature(null);
+    setGeoConsent(false);
+    setGeoLocation(null);
+    setSigning(false);
+  };
+
   const confirmSign = () => {
-    if (!signAgreementData.agreement || !signAgreementData.type) return;
+    if (!signAgreementData.agreement || !signAgreementData.type || !signature || !geoLocation) return;
 
-    const signatureData: any = {};
-    const timestamp = Date.now();
-    const signedBy = user?.name || user?.email || 'Unknown';
+    setSigning(true);
+    const signatureData: {
+      tenantSignature?: string;
+      ownerSignature?: string;
+      agencySignature?: string;
+    } = {};
 
+    // Backend only accepts signature fields - SignedAt is set automatically by the backend
     switch (signAgreementData.type) {
       case 'agency':
-        signatureData.agencySignature = `SIGNED_BY_AGENCY_${signedBy}_${timestamp}`;
+        signatureData.agencySignature = signature;
         break;
       case 'owner':
-        signatureData.ownerSignature = `SIGNED_BY_OWNER_${signedBy}_${timestamp}`;
+        signatureData.ownerSignature = signature;
         break;
       case 'tenant':
-        signatureData.tenantSignature = `SIGNED_BY_TENANT_${signedBy}_${timestamp}`;
+        signatureData.tenantSignature = signature;
         break;
     }
 
@@ -832,8 +880,7 @@ export function Agreements() {
       id: signAgreementData.agreement.id,
       signature: signatureData,
     });
-    setShowSignModal(false);
-    setSignAgreementData({ agreement: null, type: null });
+    closeSignModal();
   };
 
   const getSignTypeLabel = (type: 'agency' | 'owner' | 'tenant' | null) => {
@@ -856,7 +903,7 @@ export function Agreements() {
     };
     const s = statusMap[status] || { label: status, className: 'bg-gray-500', icon: null };
     return (
-      <Badge className={`${s.className} text-white flex items-center gap-1`}>
+      <Badge className={`${s.className} text-white inline-flex items-center `}>
         {s.icon}
         {s.label}
       </Badge>
@@ -1729,29 +1776,50 @@ export function Agreements() {
                 <div className="border-t pt-3 sm:pt-4">
                   <h4 className="text-sm sm:text-base font-medium mb-2 sm:mb-3">Assinaturas</h4>
                   <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                    <div className={`p-2 sm:p-3 border rounded-lg text-center ${agreementDetail.tenantSignedAt ? 'border-green-500' : ''}`}>
-                      <PenTool className={`w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 ${agreementDetail.tenantSignedAt ? 'text-green-600' : 'text-muted-foreground'}`} />
-                      <Label className={`text-[10px] sm:text-xs block ${agreementDetail.tenantSignedAt ? 'text-green-600' : 'text-muted-foreground'}`}>Inquilino</Label>
+                    <div className={`p-2 sm:p-3 border rounded-lg text-center ${agreementDetail.tenantSignedAt ? 'border-green-300 bg-green-50' : ''}`}>
+                      {agreementDetail.tenantSignature ? (
+                        <img src={agreementDetail.tenantSignature} alt="Assinatura Inquilino" className="h-10 sm:h-12 mx-auto object-contain mb-1" />
+                      ) : (
+                        <PenTool className="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 text-muted-foreground" />
+                      )}
+                      <Label className="text-[10px] sm:text-xs block text-muted-foreground">Inquilino</Label>
                       {agreementDetail.tenantSignedAt ? (
-                        <p className="text-[10px] sm:text-xs text-green-600">Assinado {formatDate(agreementDetail.tenantSignedAt)}</p>
+                        <p className="text-[10px] sm:text-xs text-green-600">
+                          <CheckCircle className="w-3 h-3 inline mr-1" />
+                          Assinado
+                        </p>
                       ) : (
                         <p className="text-[10px] sm:text-xs text-muted-foreground">Pendente</p>
                       )}
                     </div>
-                    <div className={`p-2 sm:p-3 border rounded-lg text-center ${agreementDetail.ownerSignedAt ? 'border-green-500' : ''}`}>
-                      <PenTool className={`w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 ${agreementDetail.ownerSignedAt ? 'text-green-600' : 'text-muted-foreground'}`} />
-                      <Label className={`text-[10px] sm:text-xs block ${agreementDetail.ownerSignedAt ? 'text-green-600' : 'text-muted-foreground'}`}>Proprietario</Label>
+                    <div className={`p-2 sm:p-3 border rounded-lg text-center ${agreementDetail.ownerSignedAt ? 'border-green-300 bg-green-50' : ''}`}>
+                      {agreementDetail.ownerSignature ? (
+                        <img src={agreementDetail.ownerSignature} alt="Assinatura Proprietário" className="h-10 sm:h-12 mx-auto object-contain mb-1" />
+                      ) : (
+                        <PenTool className="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 text-muted-foreground" />
+                      )}
+                      <Label className="text-[10px] sm:text-xs block text-muted-foreground">Proprietário</Label>
                       {agreementDetail.ownerSignedAt ? (
-                        <p className="text-[10px] sm:text-xs text-green-600">Assinado {formatDate(agreementDetail.ownerSignedAt)}</p>
+                        <p className="text-[10px] sm:text-xs text-green-600">
+                          <CheckCircle className="w-3 h-3 inline mr-1" />
+                          Assinado
+                        </p>
                       ) : (
                         <p className="text-[10px] sm:text-xs text-muted-foreground">Pendente</p>
                       )}
                     </div>
-                    <div className={`p-2 sm:p-3 border rounded-lg text-center ${agreementDetail.agencySignedAt ? 'border-green-500' : ''}`}>
-                      <PenTool className={`w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 ${agreementDetail.agencySignedAt ? 'text-green-600' : 'text-muted-foreground'}`} />
-                      <Label className={`text-[10px] sm:text-xs block ${agreementDetail.agencySignedAt ? 'text-green-600' : 'text-muted-foreground'}`}>Agencia</Label>
+                    <div className={`p-2 sm:p-3 border rounded-lg text-center ${agreementDetail.agencySignedAt ? 'border-green-300 bg-green-50' : ''}`}>
+                      {agreementDetail.agencySignature ? (
+                        <img src={agreementDetail.agencySignature} alt="Assinatura Agência" className="h-10 sm:h-12 mx-auto object-contain mb-1" />
+                      ) : (
+                        <PenTool className="w-4 h-4 sm:w-5 sm:h-5 mx-auto mb-1 text-muted-foreground" />
+                      )}
+                      <Label className="text-[10px] sm:text-xs block text-muted-foreground">Agência</Label>
                       {agreementDetail.agencySignedAt ? (
-                        <p className="text-[10px] sm:text-xs text-green-600">Assinado {formatDate(agreementDetail.agencySignedAt)}</p>
+                        <p className="text-[10px] sm:text-xs text-green-600">
+                          <CheckCircle className="w-3 h-3 inline mr-1" />
+                          Assinado
+                        </p>
                       ) : (
                         <p className="text-[10px] sm:text-xs text-muted-foreground">Pendente</p>
                       )}
@@ -1842,31 +1910,27 @@ export function Agreements() {
         </AlertDialog>
 
         {}
-        <Dialog open={showSignModal} onOpenChange={setShowSignModal}>
-          <DialogContent className="max-w-md">
+        <Dialog open={showSignModal} onOpenChange={(open) => !open && closeSignModal()}>
+          <DialogContent className="w-[calc(100%-2rem)] sm:max-w-lg rounded-xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <PenTool className="w-5 h-5 text-green-600" />
                 Assinar Acordo
               </DialogTitle>
               <DialogDescription>
-                Confirme a assinatura do acordo como {getSignTypeLabel(signAgreementData.type)}
+                Assinatura como: <strong>{getSignTypeLabel(signAgreementData.type)}</strong>
               </DialogDescription>
             </DialogHeader>
             {signAgreementData.agreement && (
               <div className="space-y-4">
-                <div className="bg-muted p-4 rounded-lg space-y-2">
+                <div className="bg-muted p-3 rounded-lg space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Titulo:</span>
-                    <span className="text-sm font-medium">{signAgreementData.agreement.title}</span>
+                    <span className="text-muted-foreground">Titulo:</span>
+                    <span className="font-medium truncate ml-2">{signAgreementData.agreement.title}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Tipo:</span>
-                    <span className="text-sm font-medium">{signAgreementData.agreement.type}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Valor:</span>
-                    <span className="text-sm font-medium">
+                    <span className="text-muted-foreground">Valor:</span>
+                    <span className="font-medium">
                       {signAgreementData.agreement.negotiatedAmount
                         ? formatCurrency(parseFloat(signAgreementData.agreement.negotiatedAmount))
                         : signAgreementData.agreement.originalAmount
@@ -1874,24 +1938,38 @@ export function Agreements() {
                           : '-'}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Assinando como:</span>
-                    <Badge className="bg-green-600 text-white">{getSignTypeLabel(signAgreementData.type)}</Badge>
-                  </div>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Ao clicar em "Assinar", voce confirma que leu e concorda com os termos deste acordo.
-                </p>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setShowSignModal(false)}>
+
+                <SignatureCapture
+                  onSignatureChange={setSignature}
+                  onGeolocationConsent={handleGeoConsentChange}
+                  geolocationRequired={true}
+                  label="Desenhe sua assinatura"
+                  disabled={signing}
+                />
+
+                {geoLocation && (
+                  <div className="text-xs text-green-600 flex items-center gap-1">
+                    <CheckCircle className="w-3 h-3" />
+                    Localização capturada: {geoLocation.lat.toFixed(6)}, {geoLocation.lng.toFixed(6)}
+                  </div>
+                )}
+
+                <div className="flex flex-row gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={closeSignModal}
+                    disabled={signing}
+                  >
                     Cancelar
                   </Button>
                   <Button
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    className="flex-1 bg-green-600 hover:bg-green-700"
                     onClick={confirmSign}
+                    disabled={signing || !signature || !geoConsent || !geoLocation}
                   >
-                    <PenTool className="w-4 h-4 mr-2" />
-                    Assinar
+                    {signing ? 'Assinando...' : 'Confirmar Assinatura'}
                   </Button>
                 </div>
               </div>

@@ -24,6 +24,20 @@ import {
   Briefcase,
   Users
 } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081';
+
+const getStaticBaseUrl = () => {
+  const url = API_BASE_URL;
+  return url.endsWith('/api') ? url.slice(0, -4) : url;
+};
+
+const getPhotoUrl = (photoUrl: string | null | undefined) => {
+  if (!photoUrl) return undefined;
+  if (photoUrl.startsWith('http')) return photoUrl;
+  return `${getStaticBaseUrl()}${photoUrl}`;
+};
 import { DocumentInput } from '@/components/ui/document-input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { CEPInput } from '@/components/ui/cep-input'
@@ -524,7 +538,20 @@ export function Brokers() {
                     {brokers.map((broker: any) => (
                       <tr key={broker.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                         <td className="p-4">
-                          <div className="font-medium">{broker.name || 'Sem nome'}</div>
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9">
+                              <AvatarImage src={getPhotoUrl(broker.photoUrl)} alt={broker.name || 'Corretor'} />
+                              <AvatarFallback className="bg-yellow-100 text-yellow-700">
+                                {(broker.name || broker.email || 'C').charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium">{broker.name || 'Sem nome'}</div>
+                              {broker.token && (
+                                <div className="text-[10px] text-muted-foreground font-mono">{broker.token}</div>
+                              )}
+                            </div>
+                          </div>
                         </td>
                         <td className="p-4">
                           <div className="text-muted-foreground">{broker.phone || '-'}</div>
@@ -554,22 +581,22 @@ export function Brokers() {
                         </td>
                         <td className="p-4">
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => handleViewBroker(broker)} disabled={loadingDetails} className="text-orange-600 border-orange-600 hover:bg-orange-50">
-                              Detalhes
+                            <Button size="icon" variant="outline" onClick={() => handleViewBroker(broker)} disabled={loadingDetails} className="text-orange-600 border-orange-600 hover:bg-orange-50">
+                              <Eye className="w-4 h-4" />
                             </Button>
                             {canUpdateUsers && !broker.isFrozen && (
-                              <Button size="sm" variant="outline" onClick={() => handleEditBroker(broker)} disabled={loadingDetails} className="text-orange-600 border-orange-600 hover:bg-orange-50">
-                                Editar
+                              <Button size="icon" variant="outline" onClick={() => handleEditBroker(broker)} disabled={loadingDetails} className="text-orange-600 border-orange-600 hover:bg-orange-50">
+                                <Edit className="w-4 h-4" />
                               </Button>
                             )}
                             {canUpdateUsers && broker.isFrozen && (
-                              <Button size="sm" variant="outline" disabled className="text-muted-foreground border-muted">
-                                Editar (congelado)
+                              <Button size="icon" variant="outline" disabled className="text-muted-foreground border-muted">
+                                <Edit className="w-4 h-4" />
                               </Button>
                             )}
                             {canDeleteUsers && (
-                              <Button size="sm" variant="outline" onClick={() => handleDeleteBroker(broker)} className="text-red-600 border-red-600 hover:bg-red-50">
-                                Excluir
+                              <Button size="icon" variant="outline" onClick={() => handleDeleteBroker(broker)} className="text-red-600 border-red-600 hover:bg-red-50">
+                                <Trash2 className="w-4 h-4" />
                               </Button>
                             )}
                           </div>
@@ -584,9 +611,20 @@ export function Brokers() {
                 {brokers.map((broker: any) => (
                   <div key={broker.id} className="border-b border-border last:border-b-0 p-4">
                     <div className="flex items-start justify-between mb-3 min-w-0 gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-lg truncate">{broker.name || 'Sem nome'}</h3>
-                        <p className="text-sm text-muted-foreground truncate">{broker.email || '-'}</p>
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <Avatar className="h-10 w-10 flex-shrink-0">
+                          <AvatarImage src={getPhotoUrl(broker.photoUrl)} alt={broker.name || 'Corretor'} />
+                          <AvatarFallback className="bg-yellow-100 text-yellow-700">
+                            {(broker.name || broker.email || 'C').charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-lg truncate">{broker.name || 'Sem nome'}</h3>
+                          {broker.token && (
+                            <p className="text-[10px] text-muted-foreground font-mono">{broker.token}</p>
+                          )}
+                          <p className="text-sm text-muted-foreground truncate">{broker.email || '-'}</p>
+                        </div>
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <Badge className="bg-blue-500 text-white text-xs flex-shrink-0">Corretor</Badge>
@@ -599,23 +637,23 @@ export function Brokers() {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleViewBroker(broker)} className="text-orange-600 border-orange-600 hover:bg-orange-50 flex-1">
-                        Detalhes
+                    <div className="flex gap-2 w-full justify-end">
+                      <Button size="icon" variant="outline" onClick={() => handleViewBroker(broker)} className="text-orange-600 border-orange-600 hover:bg-orange-50">
+                        <Eye className="w-4 h-4" />
                       </Button>
                       {canUpdateUsers && !broker.isFrozen && (
-                        <Button size="sm" variant="outline" onClick={() => handleEditBroker(broker)} className="text-orange-600 border-orange-600 hover:bg-orange-50 flex-1">
-                          Editar
+                        <Button size="icon" variant="outline" onClick={() => handleEditBroker(broker)} className="text-orange-600 border-orange-600 hover:bg-orange-50">
+                          <Edit className="w-4 h-4" />
                         </Button>
                       )}
                       {canUpdateUsers && broker.isFrozen && (
-                        <Button size="sm" variant="outline" disabled className="text-muted-foreground border-muted flex-1">
-                          Editar (congelado)
+                        <Button size="icon" variant="outline" disabled className="text-muted-foreground border-muted">
+                          <Edit className="w-4 h-4" />
                         </Button>
                       )}
                       {canDeleteUsers && (
-                        <Button size="sm" variant="outline" onClick={() => handleDeleteBroker(broker)} className="text-red-600 border-red-600 hover:bg-red-50 flex-1">
-                          Excluir
+                        <Button size="icon" variant="outline" onClick={() => handleDeleteBroker(broker)} className="text-red-600 border-red-600 hover:bg-red-50">
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       )}
                     </div>
@@ -629,9 +667,12 @@ export function Brokers() {
                 <Card key={broker.id} className="transition-all hover:shadow-md">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                        <Building2 className="w-6 h-6 text-primary" />
-                      </div>
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={getPhotoUrl(broker.photoUrl)} alt={broker.name || 'Corretor'} />
+                        <AvatarFallback className="bg-yellow-100 text-yellow-700">
+                          {(broker.name || broker.email || 'C').charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold truncate">{broker.name || 'Sem nome'}</h3>
@@ -643,6 +684,9 @@ export function Brokers() {
                             <Badge className="bg-green-500 text-white text-xs">Ativo</Badge>
                           )}
                         </div>
+                        {broker.token && (
+                          <p className="text-[10px] text-muted-foreground font-mono">{broker.token}</p>
+                        )}
                         <p className="text-sm text-muted-foreground truncate">{broker.email}</p>
                       </div>
                       <DropdownMenu>
@@ -917,6 +961,28 @@ export function Brokers() {
                     <Input id="edit-birthDate" name="birthDate" type="date" value={editForm.birthDate} onChange={handleEditInputChange} />
                   </div>
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-creci">CRECI do Corretor</Label>
+                    <div className="relative">
+                      <BadgeCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="edit-creci"
+                        name="creci"
+                        value={editForm.creci}
+                        onChange={(e) =>
+                          setEditForm(prev => ({ ...prev, creci: formatCRECIInput(e.target.value) }))
+                        }
+                        placeholder="123456/SP-F"
+                        className="pl-10"
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Formato: 123456/SP ou 123456/SP-F
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -1004,6 +1070,10 @@ export function Brokers() {
                       <div className="text-base">
                         {brokerDetail.birthDate ? new Date(brokerDetail.birthDate).toLocaleDateString('pt-BR') : '-'}
                       </div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">CRECI</label>
+                      <div className="text-base">{brokerDetail.creci || '-'}</div>
                     </div>
                   </div>
                 </div>

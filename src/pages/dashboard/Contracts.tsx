@@ -11,7 +11,6 @@ import {
   Download,
   Calendar,
   DollarSign,
-  Edit,
   Trash2,
   Eye,
   MoreHorizontal,
@@ -20,7 +19,9 @@ import {
   List,
   Grid3X3,
   Printer,
-  Search
+  Search,
+  Send,
+  Lock
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { formatCurrency, formatDate } from '../../lib/utils';
@@ -84,7 +85,6 @@ export function Contracts() {
   const allowedUserTypes = getUserTypeFromRole(user?.role || '');
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
 
   const [newContract, setNewContract] = useState({
@@ -119,27 +119,14 @@ export function Contracts() {
   });
 
   const [pdfFile, setPdfFile] = useState<File | null>(null);
-  const [editPdfFile, setEditPdfFile] = useState<File | null>(null);
-
-  const [editForm, setEditForm] = useState({
-    propertyId: '',
-    tenantId: '',
-    startDate: '',
-    endDate: '',
-    monthlyRent: '',
-    deposit: '',
-    dueDay: '',
-    description: '',
-  });
 
   const [selectedContract, setSelectedContract] = useState<any>(null);
   const [contractToDelete, setContractToDelete] = useState<any>(null);
   const [contractDetail, setContractDetail] = useState<any>(null);
   const [properties, setProperties] = useState<any[]>([]);
   const [tenants, setTenants] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [updating, setUpdating] = useState(false);
   const [deleting] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [showPreviewModal, setShowPreviewModal] = useState(false);
@@ -148,6 +135,7 @@ export function Contracts() {
   const [previewContent, setPreviewContent] = useState<string>('');
   const [previewToken, setPreviewToken] = useState<string>('');
   const [userIp, setUserIp] = useState<string>('');
+  const [signing, setSigning] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -541,21 +529,11 @@ export function Contracts() {
 
   const closeAllModals = () => {
     setShowCreateModal(false);
-    setShowEditModal(false);
     setShowDetailModal(false);
     setSelectedContract(null);
     setContractToDelete(null);
     setPdfFile(null);
-    setEditPdfFile(null);
   };
-
-  const updateContractMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string, data: any }) => contractsAPI.updateContract(id, data),
-    
-    onError: () => {
-      toast.error('Erro ao atualizar contrato');
-    },
-  });
 
   const deleteContractMutation = useMutation({
     mutationFn: (id: string) => contractsAPI.deleteContract(id),
@@ -568,8 +546,8 @@ export function Contracts() {
       closeAllModals();
       toast.success('Contrato excluído com sucesso');
     },
-    onError: () => {
-      toast.error('Erro ao excluir contrato');
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || error?.message || 'Erro ao excluir contrato');
     },
   });
 
@@ -586,7 +564,7 @@ export function Contracts() {
         monthlyRent: Number(newContract.monthlyRent),
         deposit: newContract.deposit ? Number(newContract.deposit) : undefined,
         dueDay: newContract.dueDay ? Number(newContract.dueDay) : undefined,
-        status: 'ATIVO',
+        status: 'PENDENTE',
         templateId: newContract.templateId || undefined,
         templateType: newContract.templateType || undefined,
         creci: resolvedCreci,
@@ -645,47 +623,7 @@ export function Contracts() {
     }
   };
 
-  const handleUpdateContract = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedContract) return;
-    setUpdating(true);
-    try {
-      const contractToSend = {
-        ...editForm,
-        startDate: new Date(editForm.startDate),
-        endDate: new Date(editForm.endDate),
-        monthlyRent: Number(editForm.monthlyRent),
-        deposit: Number(editForm.deposit),
-        dueDay: Number(editForm.dueDay),
-      };
-
-      await updateContractMutation.mutateAsync({ id: selectedContract.id.toString(), data: contractToSend });
-
-      if (editPdfFile) {
-        try {
-          await contractsAPI.uploadContractPDF(selectedContract.id.toString(), editPdfFile);
-          toast.success('Contrato e PDF atualizados com sucesso');
-        } catch (uploadError: any) {
-          console.error('Error uploading PDF:', uploadError);
-          toast.error(uploadError?.message || 'Contrato atualizado, mas falha ao enviar PDF');
-        }
-      } else {
-        toast.success('Contrato atualizado com sucesso');
-      }
-
-      queryClient.invalidateQueries({
-        queryKey: ['contracts', user?.id ?? 'anonymous', user?.role ?? 'unknown', user?.agencyId ?? 'none', user?.brokerId ?? 'none']
-      });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-      queryClient.invalidateQueries({ queryKey: ['audit-logs'] });
-      closeAllModals();
-      setEditPdfFile(null);
-    } catch (error: any) {
-      toast.error(error.message || 'Erro ao atualizar contrato');
-    } finally {
-      setUpdating(false);
-    }
-  };
+  // Contract update is disabled - contracts cannot be edited once created
 
   const handleViewContract = async (contract: any) => {
     closeAllModals();
@@ -1066,48 +1004,7 @@ export function Contracts() {
     setPreviewContent(content);
   };
 
-  const handleEditContract = async (contract: any) => {
-    if (!canEditContract(contract)) {
-      toast.error(getImmutabilityMessage(contract) || 'Este contrato não pode ser editado');
-      return;
-    }
-
-    closeAllModals();
-    setLoading(true);
-    try {
-
-      const fullContractDetails = await contractsAPI.getContractById(contract.id.toString());
-      console.log('[handleEditContract] Full contract details:', fullContractDetails);
-
-      if (!fullContractDetails) {
-        toast.error('Contrato não encontrado');
-        return;
-      }
-
-      setSelectedContract(fullContractDetails);
-
-      const propertyIdStr = fullContractDetails.propertyId?.toString() || fullContractDetails.property?.id?.toString() || '';
-      const tenantIdStr = fullContractDetails.tenantId?.toString() || fullContractDetails.tenantUser?.id?.toString() || '';
-
-      setEditForm({
-        propertyId: propertyIdStr,
-        tenantId: tenantIdStr,
-        startDate: fullContractDetails.startDate ? (typeof fullContractDetails.startDate === 'string' ? fullContractDetails.startDate.split('T')[0] : new Date(fullContractDetails.startDate).toISOString().split('T')[0]) : '',
-        endDate: fullContractDetails.endDate ? (typeof fullContractDetails.endDate === 'string' ? fullContractDetails.endDate.split('T')[0] : new Date(fullContractDetails.endDate).toISOString().split('T')[0]) : '',
-        monthlyRent: fullContractDetails.monthlyRent ? fullContractDetails.monthlyRent.toString() : '',
-        deposit: fullContractDetails.deposit ? fullContractDetails.deposit.toString() : '',
-        dueDay: fullContractDetails.dueDay ? fullContractDetails.dueDay.toString() : '',
-        description: fullContractDetails.description || '',
-      });
-      setEditPdfFile(null); 
-      setShowEditModal(true);
-    } catch (error: any) {
-      console.error('Error fetching contract details:', error);
-      toast.error(error?.message || 'Erro ao carregar detalhes do contrato');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Contract editing is disabled - contracts cannot be edited once created
 
   const handleDeleteContract = (contract: any) => {
     closeAllModals();
@@ -1143,9 +1040,115 @@ export function Contracts() {
     }
   };
 
-  const canEditContract = (contract: any): boolean => {
-    const immutableStatuses = ['AGUARDANDO_ASSINATURAS', 'ASSINADO', 'ATIVO', 'REVOGADO', 'ENCERRADO'];
-    return !immutableStatuses.includes(contract.status);
+  const prepareForSigningMutation = useMutation({
+    mutationFn: (id: string) => contractsAPI.prepareForSigning(id),
+    onSuccess: () => {
+      toast.success('Contrato enviado para assinatura');
+      queryClient.invalidateQueries({
+        queryKey: ['contracts', user?.id ?? 'anonymous', user?.role ?? 'unknown', user?.agencyId ?? 'none', user?.brokerId ?? 'none']
+      });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['audit-logs'] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || error?.message || 'Erro ao enviar contrato para assinatura');
+    },
+  });
+
+  const handlePrepareForSigning = (contract: any) => {
+    prepareForSigningMutation.mutate(contract.id.toString());
+  };
+
+  const getUserSignatureType = (contract: any): 'tenant' | 'owner' | 'agency' | null => {
+    const userId = user?.id?.toString();
+    if (!userId) return null;
+
+    if (contract.tenantId?.toString() === userId) {
+      return 'tenant';
+    }
+
+    if (contract.ownerId?.toString && contract.ownerId.toString() === userId) {
+      return 'owner';
+    }
+
+    if (user?.agencyId && contract.agencyId?.toString && contract.agencyId.toString() === user.agencyId.toString()) {
+      return 'agency';
+    }
+
+    return null;
+  };
+
+  const canUserSignContract = (contract: any): boolean => {
+    if (!contract || contract.status !== 'AGUARDANDO_ASSINATURAS') return false;
+    const type = getUserSignatureType(contract);
+    if (!type) return false;
+
+    switch (type) {
+      case 'tenant':
+        return !contract.tenantSignature;
+      case 'owner':
+        return !contract.ownerSignature;
+      case 'agency':
+        return !contract.agencySignature;
+      default:
+        return false;
+    }
+  };
+
+  const handleSignContract = async () => {
+    if (!selectedContract || !user) {
+      toast.error('Contrato não carregado');
+      return;
+    }
+
+    const signatureType = getUserSignatureType(selectedContract);
+    if (!signatureType) {
+      toast.error('Você não pode assinar este contrato');
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      toast.error('Geolocalização não suportada neste navegador');
+      return;
+    }
+
+    setSigning(true);
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      try {
+        await contractsAPI.signContractWithGeo(selectedContract.id.toString(), {
+          signature: user.name || 'Assinatura eletrônica',
+          signatureType,
+          geoLat: position.coords.latitude,
+          geoLng: position.coords.longitude,
+          geoConsent: true,
+        });
+
+        toast.success('Contrato assinado com sucesso');
+        queryClient.invalidateQueries({
+          queryKey: ['contracts', user?.id ?? 'anonymous', user?.role ?? 'unknown', user?.agencyId ?? 'none', user?.brokerId ?? 'none']
+        });
+        queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+        queryClient.invalidateQueries({ queryKey: ['audit-logs'] });
+
+        // Refresh current contract details
+        await handleViewContract(selectedContract);
+      } catch (error: any) {
+        console.error('Error signing contract:', error);
+        toast.error(error?.response?.data?.message || error?.message || 'Erro ao assinar contrato');
+      } finally {
+        setSigning(false);
+      }
+    }, (error) => {
+      console.error('Geolocation error:', error);
+      toast.error('Não foi possível obter a localização para assinatura');
+      setSigning(false);
+    }, { enableHighAccuracy: true });
+  };
+
+  const canEditContract = (_contract: any): boolean => {
+    // Contracts cannot be edited once created
+    return false;
   };
 
   const canDeleteContract = (contract: any): boolean => {
@@ -1546,41 +1549,7 @@ export function Contracts() {
     });
   };
 
-  const handleEditInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setEditForm(prev => {
-      const updated = { ...prev, [name]: value };
-
-      if (name === 'propertyId' && value) {
-        const selectedProperty = properties.find(p => {
-          const pId = p.id?.toString() || String(p.id);
-          const vId = value?.toString() || String(value);
-          return pId === vId;
-        });
-        if (selectedProperty) {
-          
-          if (selectedProperty.monthlyRent) {
-            updated.monthlyRent = selectedProperty.monthlyRent.toString();
-          }
-          
-          if (selectedProperty.dueDay) {
-            updated.dueDay = selectedProperty.dueDay.toString();
-          }
-          
-          if (selectedProperty.tenantId) {
-            const tenantIdStr = selectedProperty.tenantId?.toString() || String(selectedProperty.tenantId);
-            updated.tenantId = tenantIdStr;
-          }
-          
-          if (selectedProperty.deposit) {
-            updated.deposit = selectedProperty.deposit.toString();
-          }
-        }
-      }
-
-      return updated;
-    });
-  };
+  // Edit input change handler removed - contracts cannot be edited
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -1595,6 +1564,15 @@ export function Contracts() {
     }
   };
 
+  const isPartyRole = ['INQUILINO', 'PROPRIETARIO', 'INDEPENDENT_OWNER'].includes(user?.role || '');
+
+  const visibleContracts = useMemo(() => {
+    if (!contracts) return [];
+    if (!isPartyRole) return contracts;
+    // Tenants / owners should only see contracts after they are sent for signing
+    return contracts.filter((c: any) => c.status !== 'PENDENTE');
+  }, [contracts, isPartyRole]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1606,7 +1584,7 @@ export function Contracts() {
   return (
     <TooltipProvider>
       <div className="space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-3">
             <div className="p-3 bg-emerald-100 rounded-lg">
               <FileText className="w-6 h-6 text-emerald-700" />
@@ -1618,7 +1596,7 @@ export function Contracts() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             {}
             <div className="flex border border-border rounded-lg p-1">
               <Tooltip>
@@ -1653,7 +1631,7 @@ export function Contracts() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                    className="bg-orange-600 hover:bg-orange-700 text-white w-full"
                     onClick={() => {
                       closeAllModals();
                       setShowCreateModal(true);
@@ -1704,7 +1682,7 @@ export function Contracts() {
         </div>
 
         {}
-        {contracts && contracts.length > 0 ? (
+        {visibleContracts && visibleContracts.length > 0 ? (
           viewMode === 'table' ? (
 
             <div className="bg-card border border-border rounded-lg overflow-hidden">
@@ -1721,8 +1699,8 @@ export function Contracts() {
                       <th className="text-left p-4 font-semibold">Ações</th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {contracts.map((contract: any) => (
+                   <tbody>
+                     {visibleContracts.map((contract: any) => (
                       <tr key={contract.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                         <td className="p-4">
                           <div className="font-medium">{contract.property?.name || contract.property?.address || 'Sem imóvel'}</div>
@@ -1751,39 +1729,39 @@ export function Contracts() {
                         </td>
                         <td className="p-4">
                           <div className="flex gap-2">
-                            <Button
-                              size="sm"
+                             <Button
+                              size="icon"
                               variant="outline"
                               onClick={() => handleViewContract(contract)}
                               className="text-orange-600 border-orange-600 hover:bg-orange-50"
                             >
-                              Detalhes
+                              <Eye className="w-4 h-4" />
                             </Button>
-                            {canUpdateContracts && canEditContract(contract) && (
+                             {canUpdateContracts && contract.status === 'PENDENTE' && (
                               <Button
-                                size="sm"
+                                size="icon"
                                 variant="outline"
-                                onClick={() => handleEditContract(contract)}
-                                className="text-orange-600 border-orange-600 hover:bg-orange-50"
-                                title="Editar contrato"
+                                onClick={() => handlePrepareForSigning(contract)}
+                                className="text-green-600 border-green-600 hover:bg-green-50"
+                                title="Enviar para assinatura"
                               >
-                                Editar
+                                <Send className="w-4 h-4" />
                               </Button>
                             )}
-                            {canUpdateContracts && !canEditContract(contract) && (
+                             {canUpdateContracts && !canEditContract(contract) && (
                               <Button
-                                size="sm"
+                                size="icon"
                                 variant="outline"
                                 disabled
                                 className="text-gray-400 border-gray-300 cursor-not-allowed"
                                 title={getImmutabilityMessage(contract)}
                               >
-                                Imutável
+                                <Lock className="w-4 h-4" />
                               </Button>
                             )}
-                            {contract.pdfPath && (
+                             {contract.pdfPath && (
                               <Button
-                                size="sm"
+                                size="icon"
                                 variant="outline"
                                 onClick={() => handleDownload(contract.id.toString())}
                                 className="text-blue-600 border-blue-600 hover:bg-blue-50"
@@ -1791,14 +1769,14 @@ export function Contracts() {
                                 <Download className="w-4 h-4" />
                               </Button>
                             )}
-                            {canDeleteContracts && canDeleteContract(contract) && (
+                             {canDeleteContracts && canDeleteContract(contract) && (
                               <Button
-                                size="sm"
+                                size="icon"
                                 variant="outline"
                                 onClick={() => handleDeleteContract(contract)}
                                 className="text-red-600 border-red-600 hover:bg-red-50"
                               >
-                                Excluir
+                                <Trash2 className="w-4 h-4" />
                               </Button>
                             )}
                           </div>
@@ -1810,8 +1788,8 @@ export function Contracts() {
               </div>
 
               {}
-              <div className="md:hidden">
-                {contracts.map((contract: any) => (
+               <div className="md:hidden">
+                 {visibleContracts.map((contract: any) => (
                   <div key={contract.id} className="border-b border-border last:border-b-0 p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
@@ -1835,40 +1813,40 @@ export function Contracts() {
                       </div>
                     </div>
 
-                    <div className="flex gap-2 flex-wrap">
+                     <div className="flex gap-2 flex-wrap w-full justify-end">
                       <Button
-                        size="sm"
+                        size="icon"
                         variant="outline"
                         onClick={() => handleViewContract(contract)}
-                        className="text-orange-600 border-orange-600 hover:bg-orange-50 flex-1"
+                        className="text-orange-600 border-orange-600 hover:bg-orange-50"
                       >
-                        Detalhes
+                        <Eye className="w-4 h-4" />
                       </Button>
-                      {canUpdateContracts && canEditContract(contract) && (
+                       {canUpdateContracts && contract.status === 'PENDENTE' && (
+                         <Button
+                           size="icon"
+                           variant="outline"
+                           onClick={() => handlePrepareForSigning(contract)}
+                           className="text-green-600 border-green-600 hover:bg-green-50"
+                           title="Enviar para assinatura"
+                         >
+                           <Send className="w-4 h-4" />
+                         </Button>
+                       )}
+                       {canUpdateContracts && !canEditContract(contract) && (
                         <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleEditContract(contract)}
-                          className="text-orange-600 border-orange-600 hover:bg-orange-50 flex-1"
-                          title="Editar contrato"
-                        >
-                          Editar
-                        </Button>
-                      )}
-                      {canUpdateContracts && !canEditContract(contract) && (
-                        <Button
-                          size="sm"
+                          size="icon"
                           variant="outline"
                           disabled
-                          className="text-gray-400 border-gray-300 cursor-not-allowed flex-1"
+                          className="text-gray-400 border-gray-300 cursor-not-allowed"
                           title={getImmutabilityMessage(contract)}
                         >
-                          Imutável
+                          <Lock className="w-4 h-4" />
                         </Button>
                       )}
                       {contract.pdfPath && (
                         <Button
-                          size="sm"
+                          size="icon"
                           variant="outline"
                           onClick={() => handleDownload(contract.id.toString())}
                           className="text-blue-600 border-blue-600 hover:bg-blue-50"
@@ -1878,12 +1856,12 @@ export function Contracts() {
                       )}
                       {canDeleteContracts && canDeleteContract(contract) && (
                         <Button
-                          size="sm"
+                          size="icon"
                           variant="outline"
                           onClick={() => handleDeleteContract(contract)}
-                          className="text-red-600 border-red-600 hover:bg-red-50 flex-1"
+                          className="text-red-600 border-red-600 hover:bg-red-50"
                         >
-                          Excluir
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       )}
                     </div>
@@ -1950,18 +1928,6 @@ export function Contracts() {
                                 <Eye className="w-4 h-4 mr-2" />
                                 Visualizar
                               </DropdownMenuItem>
-                              {canUpdateContracts && canEditContract(contract) && (
-                                <DropdownMenuItem onClick={() => handleEditContract(contract)}>
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  Editar contrato
-                                </DropdownMenuItem>
-                              )}
-                              {canUpdateContracts && !canEditContract(contract) && (
-                                <DropdownMenuItem disabled className="text-gray-400 cursor-not-allowed">
-                                  <Edit className="w-4 h-4 mr-2" />
-                                  {getImmutabilityMessage(contract)}
-                                </DropdownMenuItem>
-                              )}
                               {contract.pdfPath && (
                                 <DropdownMenuItem onClick={() => handleDownload(contract.id.toString())}>
                                   <Download className="w-4 h-4 mr-2" />
@@ -2526,6 +2492,17 @@ export function Contracts() {
               </div>
               {!isCreatePreview && previewContent && (
                 <div className="flex gap-2">
+                  {selectedContract && canUserSignContract(selectedContract) && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={handleSignContract}
+                      disabled={signing}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      {signing ? 'Assinando...' : 'Assinar digitalmente'}
+                    </Button>
+                  )}
                   <Button variant="ghost" size="icon" onClick={handleDownloadPreviewPDF} title="Baixar PDF">
                     <Download className="w-5 h-5" />
                   </Button>
@@ -2679,205 +2656,6 @@ export function Contracts() {
         </Dialog>
 
         {}
-        <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Editar contrato</DialogTitle>
-            </DialogHeader>
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                <span className="ml-3 text-muted-foreground">Carregando dados do contrato...</span>
-              </div>
-            ) : (
-            <form className="space-y-4" onSubmit={handleUpdateContract}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-propertyId">Imóvel</Label>
-                  <Select
-                    value={editForm.propertyId}
-                    onValueChange={(value) => setEditForm(prev => ({ ...prev, propertyId: value }))}
-                  >
-                    <SelectTrigger className="[&>span]:text-left [&>span]:truncate">
-                      <SelectValue placeholder="Selecione um imóvel" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {properties.map((property) => {
-                        const propId = property.id?.toString() || String(property.id);
-                        return (
-                          <SelectItem key={propId} value={propId}>
-                            {property.name || property.address}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="edit-tenantId">Inquilino</Label>
-                  <Select
-                    value={editForm.tenantId}
-                    onValueChange={(value) => setEditForm(prev => ({ ...prev, tenantId: value }))}
-                  >
-                    <SelectTrigger className="[&>span]:text-left [&>span]:truncate">
-                      <SelectValue placeholder="Selecione um inquilino" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {tenants.map((tenant) => {
-                        const tenantId = tenant.id?.toString() || String(tenant.id);
-                        return (
-                          <SelectItem
-                            key={tenantId}
-                            value={tenantId}
-                            disabled={tenant.isFrozen}
-                            className={tenant.isFrozen ? 'opacity-50' : ''}
-                          >
-                            {tenant.name || tenant.email || 'Sem nome'}
-                            {tenant.isFrozen && <span className="ml-2 text-xs text-red-500">(Congelado)</span>}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-startDate">Data de início</Label>
-                  <Input
-                    id="edit-startDate"
-                    name="startDate"
-                    type="date"
-                    value={editForm.startDate}
-                    onChange={handleEditInputChange}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-endDate">Data de término</Label>
-                  <Input
-                    id="edit-endDate"
-                    name="endDate"
-                    type="date"
-                    value={editForm.endDate}
-                    onChange={handleEditInputChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-monthlyRent">Valor do aluguel</Label>
-                  <Input
-                    id="edit-monthlyRent"
-                    name="monthlyRent"
-                    type="number"
-                    step="0.01"
-                    value={editForm.monthlyRent}
-                    onChange={handleEditInputChange}
-                    placeholder="0.00"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-deposit">Depósito</Label>
-                  <Input
-                    id="edit-deposit"
-                    name="deposit"
-                    type="number"
-                    step="0.01"
-                    value={editForm.deposit}
-                    onChange={handleEditInputChange}
-                    placeholder="0.00"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-dueDay">Dia de vencimento</Label>
-                  <Input
-                    id="edit-dueDay"
-                    name="dueDay"
-                    type="number"
-                    min="1"
-                    max="31"
-                    value={editForm.dueDay}
-                    onChange={handleEditInputChange}
-                    placeholder="5"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="edit-description">Descrição</Label>
-                <Input
-                  id="edit-description"
-                  name="description"
-                  value={editForm.description}
-                  onChange={handleEditInputChange}
-                  placeholder="Descrição do contrato"
-                />
-              </div>
-
-              {}
-              <div className="space-y-2">
-                {selectedContract?.pdfPath && (
-                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-blue-600" />
-                        <span className="text-sm text-blue-700">PDF atual disponível</span>
-                      </div>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDownload(selectedContract.id.toString())}
-                        className="text-blue-600 border-blue-600 hover:bg-blue-50"
-                      >
-                        <Download className="w-3 h-3 mr-1" />
-                        Baixar
-                      </Button>
-                    </div>
-                  </div>
-                )}
-
-                <div>
-                  <Label htmlFor="edit-pdf">
-                    {selectedContract?.pdfPath ? 'Substituir PDF do Contrato (opcional)' : 'Upload PDF do Contrato (opcional)'}
-                  </Label>
-                  <Input
-                    id="edit-pdf"
-                    type="file"
-                    accept=".pdf"
-                    onChange={(e) => setEditPdfFile(e.target.files?.[0] || null)}
-                    className="cursor-pointer"
-                  />
-                  {editPdfFile && (
-                    <p className="text-sm text-green-600 mt-1">✓ Novo PDF: {editPdfFile.name}</p>
-                  )}
-                  {selectedContract?.pdfPath && editPdfFile && (
-                    <p className="text-sm text-orange-600 mt-1">⚠️ O PDF atual será substituído pelo novo arquivo</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowEditModal(false)} disabled={updating}>
-                  Cancelar
-                </Button>
-                <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={updating}>
-                  {updating ? 'Salvando...' : 'Salvar'}
-                </Button>
-              </div>
-            </form>
-            )}
-          </DialogContent>
-        </Dialog>
 
         {}
         <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>

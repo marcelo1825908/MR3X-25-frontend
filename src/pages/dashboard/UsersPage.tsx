@@ -6,11 +6,26 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { FrozenUserBadge } from '../../components/ui/FrozenBadge';
+import { getRoleLabel } from '../../lib/role-utils';
 
-type UserItem = { id: string; name: string | null; email: string; role: string; status: string; plan?: string; createdAt?: string; isFrozen?: boolean; frozenReason?: string };
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081';
+
+const getStaticBaseUrl = () => {
+  const url = API_BASE_URL;
+  return url.endsWith('/api') ? url.slice(0, -4) : url;
+};
+
+const getPhotoUrl = (photoUrl: string | null | undefined) => {
+  if (!photoUrl) return undefined;
+  if (photoUrl.startsWith('http')) return photoUrl;
+  return `${getStaticBaseUrl()}${photoUrl}`;
+};
+
+type UserItem = { id: string; name: string | null; email: string; role: string; status: string; plan?: string; createdAt?: string; isFrozen?: boolean; frozenReason?: string; photoUrl?: string | null; token?: string | null };
 
 export function UsersPage() {
   const { user, hasPermission } = useAuth();
@@ -276,13 +291,24 @@ export function UsersPage() {
             </div>
           ) : items.map((u) => (
             <div key={u.id} className="border border-border rounded-lg p-4 space-y-3 bg-card shadow-sm min-w-0 overflow-hidden">
-              <div className="min-w-0">
-                <h3 className="text-base font-semibold leading-tight truncate" title={u.name || 'Sem nome'}>
-                  {u.name || 'Sem nome'}
-                </h3>
-                <p className="text-xs text-muted-foreground truncate">
-                  Criado em {u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : 'data desconhecida'}
-                </p>
+              <div className="flex items-center gap-3 min-w-0">
+                <Avatar className="h-10 w-10 flex-shrink-0">
+                  <AvatarImage src={getPhotoUrl(u.photoUrl)} alt={u.name || 'Usuário'} />
+                  <AvatarFallback className="bg-orange-100 text-orange-700">
+                    {(u.name || u.email || 'U').charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="min-w-0 flex-1">
+                  <h3 className="text-base font-semibold leading-tight truncate" title={u.name || 'Sem nome'}>
+                    {u.name || 'Sem nome'}
+                  </h3>
+                  {u.token && (
+                    <p className="text-[10px] text-muted-foreground font-mono">{u.token}</p>
+                  )}
+                  <p className="text-xs text-muted-foreground truncate">
+                    Criado em {u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : 'data desconhecida'}
+                  </p>
+                </div>
               </div>
               <div className="text-sm min-w-0">
                 <span className="font-medium text-muted-foreground">Email:</span>
@@ -292,7 +318,7 @@ export function UsersPage() {
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium text-muted-foreground">Função:</span>
-                <Badge className={getRoleColor(u.role)}>{u.role}</Badge>
+                <Badge className={getRoleColor(u.role)}>{getRoleLabel(u.role)}</Badge>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium text-muted-foreground">Plano:</span>
@@ -386,16 +412,29 @@ export function UsersPage() {
                 items.map((u) => (
                   <tr key={u.id} className="hover:bg-muted/40">
                     <td className="px-4 py-2 whitespace-nowrap">
-                      <div className="font-medium text-foreground">{u.name || 'Sem nome'}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Criado em {u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : 'data desconhecida'}
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9">
+                          <AvatarImage src={getPhotoUrl(u.photoUrl)} alt={u.name || 'Usuário'} />
+                          <AvatarFallback className="bg-orange-100 text-orange-700">
+                            {(u.name || u.email || 'U').charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium text-foreground">{u.name || 'Sem nome'}</div>
+                          {u.token && (
+                            <div className="text-[10px] text-muted-foreground font-mono">{u.token}</div>
+                          )}
+                          <div className="text-xs text-muted-foreground">
+                            Criado em {u.createdAt ? new Date(u.createdAt).toLocaleDateString('pt-BR') : 'data desconhecida'}
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-2">
                       <div className="text-sm text-muted-foreground break-all">{u.email}</div>
                     </td>
                     <td className="px-4 py-2">
-                      <Badge className={getRoleColor(u.role)}>{u.role}</Badge>
+                      <Badge className={getRoleColor(u.role)}>{getRoleLabel(u.role)}</Badge>
                     </td>
                     <td className="px-4 py-2">
                       <Badge variant="outline">{u.plan || '-'}</Badge>

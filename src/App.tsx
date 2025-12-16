@@ -84,7 +84,6 @@ import Reports from './pages/dashboard/Reports';
 import Plans from './pages/dashboard/Plans';
 import Billing from './pages/dashboard/Billing';
 import Communications from './pages/dashboard/Communications';
-import Integrations from './pages/dashboard/Integrations';
 import Documents from './pages/dashboard/Documents';
 import { CEOPayments } from './pages/dashboard/CEOPayments';
 import { PricingPage } from './pages/public/PricingPage';
@@ -203,7 +202,6 @@ function App() {
               <Route path="subscription" element={<SubscriptionPage />} />
               <Route path="billing" element={<Billing />} />
               <Route path="communications" element={<Communications />} />
-              <Route path="integrations" element={<Integrations />} />
               <Route path="audit" element={<Audit />} />
               <Route path="documents" element={<Documents />} />
               <Route path="settings" element={<Settings />} />

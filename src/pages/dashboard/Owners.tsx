@@ -24,6 +24,20 @@ import {
   Search,
   CreditCard
 } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081';
+
+const getStaticBaseUrl = () => {
+  const url = API_BASE_URL;
+  return url.endsWith('/api') ? url.slice(0, -4) : url;
+};
+
+const getPhotoUrl = (photoUrl: string | null | undefined) => {
+  if (!photoUrl) return undefined;
+  if (photoUrl.startsWith('http')) return photoUrl;
+  return `${getStaticBaseUrl()}${photoUrl}`;
+};
 import { DocumentInput } from '@/components/ui/document-input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { CEPInput } from '@/components/ui/cep-input'
@@ -536,10 +550,20 @@ export function Owners() {
                     {owners.map((owner: any) => (
                       <tr key={owner.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                         <td className="p-4">
-                          <div className="font-medium">{owner.name || 'Sem nome'}</div>
-                          {owner.token && (
-                            <div className="text-[10px] text-muted-foreground font-mono">{owner.token}</div>
-                          )}
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9">
+                              <AvatarImage src={getPhotoUrl(owner.photoUrl)} alt={owner.name || 'Proprietário'} />
+                              <AvatarFallback className="bg-purple-100 text-purple-700">
+                                {(owner.name || owner.email || 'P').charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium">{owner.name || 'Sem nome'}</div>
+                              {owner.token && (
+                                <div className="text-[10px] text-muted-foreground font-mono">{owner.token}</div>
+                              )}
+                            </div>
+                          </div>
                         </td>
                         <td className="p-4">
                           <div className="text-muted-foreground">{owner.document || '-'}</div>
@@ -572,22 +596,22 @@ export function Owners() {
                         </td>
                         <td className="p-4">
                           <div className="flex gap-2">
-                            <Button size="sm" variant="outline" onClick={() => handleViewOwner(owner)} disabled={loadingDetails} className="text-orange-600 border-orange-600 hover:bg-orange-50">
-                              Detalhes
+                            <Button size="icon" variant="outline" onClick={() => handleViewOwner(owner)} disabled={loadingDetails} className="text-orange-600 border-orange-600 hover:bg-orange-50">
+                              <Eye className="w-4 h-4" />
                             </Button>
                             {canUpdateUsers && !owner.isFrozen && (
-                              <Button size="sm" variant="outline" onClick={() => handleEditOwner(owner)} disabled={loadingDetails} className="text-orange-600 border-orange-600 hover:bg-orange-50">
-                                Editar
+                              <Button size="icon" variant="outline" onClick={() => handleEditOwner(owner)} disabled={loadingDetails} className="text-orange-600 border-orange-600 hover:bg-orange-50">
+                                <Edit className="w-4 h-4" />
                               </Button>
                             )}
                             {canUpdateUsers && owner.isFrozen && (
-                              <Button size="sm" variant="outline" disabled className="text-muted-foreground border-muted">
-                                Editar (congelado)
+                              <Button size="icon" variant="outline" disabled className="text-muted-foreground border-muted">
+                                <Edit className="w-4 h-4" />
                               </Button>
                             )}
                             {canDeleteUsers && (
-                              <Button size="sm" variant="outline" onClick={() => handleDeleteOwner(owner)} className="text-red-600 border-red-600 hover:bg-red-50">
-                                Excluir
+                              <Button size="icon" variant="outline" onClick={() => handleDeleteOwner(owner)} className="text-red-600 border-red-600 hover:bg-red-50">
+                                <Trash2 className="w-4 h-4" />
                               </Button>
                             )}
                           </div>
@@ -602,13 +626,21 @@ export function Owners() {
                 {owners.map((owner: any) => (
                   <div key={owner.id} className="border-b border-border last:border-b-0 p-4">
                     <div className="flex items-start justify-between mb-3 min-w-0 gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-lg truncate">{owner.name || 'Sem nome'}</h3>
-                        {owner.token && (
-                          <p className="text-[10px] text-muted-foreground font-mono">{owner.token}</p>
-                        )}
-                        <p className="text-sm text-muted-foreground truncate">{owner.document || '-'}</p>
-                        <p className="text-sm text-muted-foreground truncate">{owner.email || '-'}</p>
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <Avatar className="h-10 w-10 flex-shrink-0">
+                          <AvatarImage src={getPhotoUrl(owner.photoUrl)} alt={owner.name || 'Proprietário'} />
+                          <AvatarFallback className="bg-purple-100 text-purple-700">
+                            {(owner.name || owner.email || 'P').charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-lg truncate">{owner.name || 'Sem nome'}</h3>
+                          {owner.token && (
+                            <p className="text-[10px] text-muted-foreground font-mono">{owner.token}</p>
+                          )}
+                          <p className="text-sm text-muted-foreground truncate">{owner.document || '-'}</p>
+                          <p className="text-sm text-muted-foreground truncate">{owner.email || '-'}</p>
+                        </div>
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <Badge className="bg-purple-500 text-white text-xs flex-shrink-0">Proprietário</Badge>
@@ -621,23 +653,23 @@ export function Owners() {
                         )}
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <Button size="sm" variant="outline" onClick={() => handleViewOwner(owner)} className="text-orange-600 border-orange-600 hover:bg-orange-50 flex-1">
-                        Detalhes
+                    <div className="flex gap-2 w-full justify-end">
+                      <Button size="icon" variant="outline" onClick={() => handleViewOwner(owner)} className="text-orange-600 border-orange-600 hover:bg-orange-50">
+                        <Eye className="w-4 h-4" />
                       </Button>
                       {canUpdateUsers && !owner.isFrozen && (
-                        <Button size="sm" variant="outline" onClick={() => handleEditOwner(owner)} className="text-orange-600 border-orange-600 hover:bg-orange-50 flex-1">
-                          Editar
+                        <Button size="icon" variant="outline" onClick={() => handleEditOwner(owner)} className="text-orange-600 border-orange-600 hover:bg-orange-50">
+                          <Edit className="w-4 h-4" />
                         </Button>
                       )}
                       {canUpdateUsers && owner.isFrozen && (
-                        <Button size="sm" variant="outline" disabled className="text-muted-foreground border-muted flex-1">
-                          Editar (congelado)
+                        <Button size="icon" variant="outline" disabled className="text-muted-foreground border-muted">
+                          <Edit className="w-4 h-4" />
                         </Button>
                       )}
                       {canDeleteUsers && (
-                        <Button size="sm" variant="outline" onClick={() => handleDeleteOwner(owner)} className="text-red-600 border-red-600 hover:bg-red-50 flex-1">
-                          Excluir
+                        <Button size="icon" variant="outline" onClick={() => handleDeleteOwner(owner)} className="text-red-600 border-red-600 hover:bg-red-50">
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       )}
                     </div>
@@ -651,9 +683,12 @@ export function Owners() {
                 <Card key={owner.id} className="transition-all hover:shadow-md">
                   <CardContent className="p-4">
                     <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                        <Home className="w-6 h-6 text-primary" />
-                      </div>
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={getPhotoUrl(owner.photoUrl)} alt={owner.name || 'Proprietário'} />
+                        <AvatarFallback className="bg-purple-100 text-purple-700">
+                          {(owner.name || owner.email || 'P').charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <h3 className="font-semibold truncate">{owner.name || 'Sem nome'}</h3>
@@ -925,7 +960,7 @@ export function Owners() {
         <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
           <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto mx-4 sm:mx-0">
             <DialogHeader>
-              <DialogTitle>Editar Imóvel</DialogTitle>
+              <DialogTitle>Editar Proprietário</DialogTitle>
             </DialogHeader>
             <form className="space-y-6" onSubmit={handleUpdateOwner}>
               {}

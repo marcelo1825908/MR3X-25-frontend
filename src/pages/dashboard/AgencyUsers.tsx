@@ -10,12 +10,26 @@ import {
   MoreHorizontal,
   Grid3X3,
   List,
-  Briefcase,
-  UserCog,
-  UserCheck,
-  Search
+  Search,
+  MapPin,
+  Home,
+  CreditCard
 } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081';
+
+const getStaticBaseUrl = () => {
+  const url = API_BASE_URL;
+  return url.endsWith('/api') ? url.slice(0, -4) : url;
+};
+
+const getPhotoUrl = (photoUrl: string | null | undefined) => {
+  if (!photoUrl) return undefined;
+  if (photoUrl.startsWith('http')) return photoUrl;
+  return `${getStaticBaseUrl()}${photoUrl}`;
+};
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -47,13 +61,6 @@ const roleColors: Record<UserRole, string> = {
   PROPRIETARIO: 'bg-green-500',
   AGENCY_MANAGER: 'bg-indigo-500',
   INQUILINO: 'bg-blue-500',
-}
-
-const roleIcons: Record<UserRole, any> = {
-  BROKER: Briefcase,
-  PROPRIETARIO: UserCog,
-  AGENCY_MANAGER: UserCheck,
-  INQUILINO: Users,
 }
 
 const statusLabels: Record<string, string> = {
@@ -257,15 +264,22 @@ export function AgencyUsers() {
                   </thead>
                   <tbody>
                     {filteredUsers.map((userData: any) => {
-                      const RoleIcon = roleIcons[userData.role as UserRole] || Users
                       return (
                         <tr key={userData.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                           <td className="p-4">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                                <RoleIcon className="w-4 h-4 text-primary" />
+                              <Avatar className="h-9 w-9">
+                                <AvatarImage src={getPhotoUrl(userData.photoUrl)} alt={userData.name || 'Usuário'} />
+                                <AvatarFallback className={`${roleColors[userData.role as UserRole]?.replace('bg-', 'bg-').replace('-500', '-100')} ${roleColors[userData.role as UserRole]?.replace('bg-', 'text-').replace('-500', '-700')}`}>
+                                  {(userData.name || userData.email || 'U').charAt(0).toUpperCase()}
+                                </AvatarFallback>
+                              </Avatar>
+                              <div>
+                                <div className="font-medium">{userData.name || 'Sem nome'}</div>
+                                {userData.token && (
+                                  <div className="text-[10px] text-muted-foreground font-mono">{userData.token}</div>
+                                )}
                               </div>
-                              <div className="font-medium">{userData.name || 'Sem nome'}</div>
                             </div>
                           </td>
                           <td className="p-4">
@@ -297,8 +311,7 @@ export function AgencyUsers() {
                               disabled={loadingDetails}
                               className="text-orange-600 border-orange-600 hover:bg-orange-50"
                             >
-                              <Eye className="w-4 h-4 mr-2" />
-                              Detalhes
+                              <Eye className="w-4 h-4" />
                             </Button>
                           </td>
                         </tr>
@@ -310,16 +323,21 @@ export function AgencyUsers() {
 
               <div className="md:hidden">
                 {filteredUsers.map((userData: any) => {
-                  const RoleIcon = roleIcons[userData.role as UserRole] || Users
                   return (
                     <div key={userData.id} className="border-b border-border last:border-b-0 p-4">
                       <div className="flex items-start justify-between mb-3 min-w-0 gap-2">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                            <RoleIcon className="w-5 h-5 text-primary" />
-                          </div>
+                          <Avatar className="h-10 w-10 flex-shrink-0">
+                            <AvatarImage src={getPhotoUrl(userData.photoUrl)} alt={userData.name || 'Usuário'} />
+                            <AvatarFallback className={`${roleColors[userData.role as UserRole]?.replace('bg-', 'bg-').replace('-500', '-100')} ${roleColors[userData.role as UserRole]?.replace('bg-', 'text-').replace('-500', '-700')}`}>
+                              {(userData.name || userData.email || 'U').charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-lg truncate">{userData.name || 'Sem nome'}</h3>
+                            {userData.token && (
+                              <p className="text-[10px] text-muted-foreground font-mono">{userData.token}</p>
+                            )}
                             <p className="text-sm text-muted-foreground truncate">{userData.email || '-'}</p>
                           </div>
                         </div>
@@ -343,8 +361,7 @@ export function AgencyUsers() {
                         onClick={() => handleViewUser(userData)}
                         className="text-orange-600 border-orange-600 hover:bg-orange-50 w-full"
                       >
-                        <Eye className="w-4 h-4 mr-2" />
-                        Ver Detalhes
+                        <Eye className="w-4 h-4" />
                       </Button>
                     </div>
                   )
@@ -354,16 +371,21 @@ export function AgencyUsers() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {filteredUsers.map((userData: any) => {
-                const RoleIcon = roleIcons[userData.role as UserRole] || Users
                 return (
                   <Card key={userData.id} className="transition-all hover:shadow-md">
                     <CardContent className="p-4">
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
-                          <RoleIcon className="w-6 h-6 text-primary" />
-                        </div>
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={getPhotoUrl(userData.photoUrl)} alt={userData.name || 'Usuário'} />
+                          <AvatarFallback className={`${roleColors[userData.role as UserRole]?.replace('bg-', 'bg-').replace('-500', '-100')} ${roleColors[userData.role as UserRole]?.replace('bg-', 'text-').replace('-500', '-700')}`}>
+                            {(userData.name || userData.email || 'U').charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold truncate">{userData.name || 'Sem nome'}</h3>
+                          {userData.token && (
+                            <p className="text-[10px] text-muted-foreground font-mono">{userData.token}</p>
+                          )}
                           <p className="text-sm text-muted-foreground truncate">{userData.email}</p>
                           <div className="flex gap-1 mt-1 flex-wrap">
                             <Badge className={`${roleColors[userData.role as UserRole] || 'bg-gray-500'} text-white`}>
@@ -414,25 +436,44 @@ export function AgencyUsers() {
         )}
 
         <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Detalhes do Usuário</DialogTitle>
+              <DialogTitle>
+                {userDetail?.role === 'PROPRIETARIO' ? 'Detalhes do Proprietário' :
+                 userDetail?.role === 'BROKER' ? 'Detalhes do Corretor' :
+                 userDetail?.role === 'INQUILINO' ? 'Detalhes do Locatário' :
+                 userDetail?.role === 'AGENCY_MANAGER' ? 'Detalhes do Gerente' :
+                 'Detalhes do Usuário'}
+              </DialogTitle>
             </DialogHeader>
             {userDetail ? (
               <div className="space-y-6">
+                {/* Personal Information Section */}
                 <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                      {userDetail.role === 'PROPRIETARIO' ? (
+                        <Home className="w-4 h-4 text-primary" />
+                      ) : (
+                        <Users className="w-4 h-4 text-primary" />
+                      )}
+                    </div>
+                    <h3 className="text-lg font-semibold">Informações Pessoais</h3>
+                  </div>
+                  {userDetail.token && (
+                    <div className="mb-4">
+                      <label className="text-sm font-medium text-muted-foreground">Token</label>
+                      <div className="text-sm font-mono bg-muted px-2 py-1 rounded inline-block">{userDetail.token}</div>
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Documento (CPF/CNPJ)</label>
+                      <div className="text-base">{userDetail.document || '-'}</div>
+                    </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Nome</label>
                       <div className="text-base">{userDetail.name || '-'}</div>
-                    </div>
-                    <div>
-                      <label className="text-sm font-medium text-muted-foreground">Tipo</label>
-                      <div>
-                        <Badge className={`${roleColors[userDetail.role as UserRole] || 'bg-gray-500'} text-white`}>
-                          {roleLabels[userDetail.role as UserRole] || userDetail.role}
-                        </Badge>
-                      </div>
                     </div>
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">Telefone</label>
@@ -443,20 +484,50 @@ export function AgencyUsers() {
                       <div className="text-base">{userDetail.email || '-'}</div>
                     </div>
                     <div>
-                      <label className="text-sm font-medium text-muted-foreground">Documento</label>
-                      <div className="text-base">{userDetail.document || '-'}</div>
-                    </div>
-                    <div>
                       <label className="text-sm font-medium text-muted-foreground">Data de Nascimento</label>
                       <div className="text-base">
                         {userDetail.birthDate ? new Date(userDetail.birthDate).toLocaleDateString('pt-BR') : '-'}
                       </div>
                     </div>
+                    {/* BROKER: show CRECI */}
+                    {userDetail.role === 'BROKER' && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">CRECI</label>
+                        <div className="text-base">{userDetail.creci || '-'}</div>
+                      </div>
+                    )}
+                    {/* PROPRIETARIO or INQUILINO: show RG, Nationality, Marital Status, Profession */}
+                    {(userDetail.role === 'PROPRIETARIO' || userDetail.role === 'INQUILINO') && (
+                      <>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">RG</label>
+                          <div className="text-base">{userDetail.rg || '-'}</div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Nacionalidade</label>
+                          <div className="text-base">{userDetail.nationality || '-'}</div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Estado Civil</label>
+                          <div className="text-base">{userDetail.maritalStatus || '-'}</div>
+                        </div>
+                        <div>
+                          <label className="text-sm font-medium text-muted-foreground">Profissão</label>
+                          <div className="text-base">{userDetail.profession || '-'}</div>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
+                {/* Address Section */}
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold">Endereço</h3>
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                      <MapPin className="w-4 h-4 text-primary" />
+                    </div>
+                    <h3 className="text-lg font-semibold">Endereço</h3>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="text-sm font-medium text-muted-foreground">CEP</label>
@@ -480,6 +551,36 @@ export function AgencyUsers() {
                     </div>
                   </div>
                 </div>
+
+                {/* Bank Data Section - Only for PROPRIETARIO */}
+                {userDetail.role === 'PROPRIETARIO' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 mb-4">
+                      <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                        <CreditCard className="w-4 h-4 text-primary" />
+                      </div>
+                      <h3 className="text-lg font-semibold">Dados Bancários</h3>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Banco</label>
+                        <div className="text-base">{userDetail.bankName || '-'}</div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Agência</label>
+                        <div className="text-base">{userDetail.bankBranch || '-'}</div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Conta</label>
+                        <div className="text-base">{userDetail.bankAccount || '-'}</div>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Chave PIX</label>
+                        <div className="text-base">{userDetail.pixKey || '-'}</div>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">

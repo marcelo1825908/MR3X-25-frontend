@@ -23,6 +23,7 @@ import {
   DialogTitle,
 } from '../../../components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs';
+import { getRoleLabel } from '../../../lib/role-utils';
 
 const tickets = [
   {
@@ -418,7 +419,7 @@ export function ManagerSupportCenter() {
                         >
                           <User className="w-5 h-5" />
                           <span className="font-medium">{member.name}</span>
-                          <span className="text-xs text-muted-foreground">{member.role}</span>
+                          <span className="text-xs text-muted-foreground">{getRoleLabel(member.role)}</span>
                         </Button>
                       ))}
                     </div>

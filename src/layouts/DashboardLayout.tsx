@@ -5,13 +5,14 @@ import {
   Home, Building2, Users, FileText, DollarSign, MessageSquare, Bell,
   LogOut, Menu, X, BarChart3, User, Shield, Building, Briefcase,
   UserCheck, UserCog, ShieldCheck, Settings, FileDown,
-  Crown, Package, Mail, Wrench, Receipt, ClipboardCheck, FileSignature,
+  Crown, Package, Mail, Receipt, ClipboardCheck, FileSignature,
   Code, KeyRound, Activity, Webhook, BookOpen, UserCog2,
   Award, Inbox, TrendingUp, Kanban,
   Database, GitCompare, Headphones, UserSearch, Gavel, UsersRound
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { chatAPI, notificationsAPI, extrajudicialNotificationsAPI, profileAPI } from '../api';
+import { getRoleLabel } from '../lib/role-utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081';
@@ -56,7 +57,6 @@ const baseNavigation = [
   { name: 'Planos', href: '/dashboard/plans', icon: Package, perm: undefined, roles: ['CEO', 'ADMIN'] },
   { name: 'Faturamento', href: '/dashboard/billing', icon: Receipt, perm: 'billing:read', roles: ['CEO', 'ADMIN', 'INDEPENDENT_OWNER'] },
   { name: 'Comunicação', href: '/dashboard/communications', icon: Mail, perm: undefined, roles: ['CEO'] },
-  { name: 'Centro Técnico', href: '/dashboard/integrations', icon: Wrench, perm: 'integrations:read', roles: ['CEO', 'ADMIN', 'INDEPENDENT_OWNER'] },
   { name: 'Auditorias', href: '/dashboard/audit', icon: ShieldCheck, perm: 'audit:read', roles: ['CEO', 'ADMIN'] },
   { name: 'Documentos', href: '/dashboard/documents', icon: FileDown, perm: 'documents:read', roles: ['CEO', 'ADMIN', 'INDEPENDENT_OWNER'] },
   { name: 'Configuracoes', href: '/dashboard/settings', icon: Settings, perm: 'settings:read', roles: ['CEO', 'ADMIN', 'INDEPENDENT_OWNER'] },
@@ -192,7 +192,6 @@ export function DashboardLayout() {
         '/dashboard/agencies',
         '/dashboard/plans',
         '/dashboard/billing',
-        '/dashboard/integrations',
         '/dashboard/audit',
         '/dashboard/settings',
         '/dashboard/chat',
@@ -228,7 +227,6 @@ export function DashboardLayout() {
         '/dashboard/plans',
         '/dashboard/billing',
         '/dashboard/communications',
-        '/dashboard/integrations',
         '/dashboard/audit',
         '/dashboard/documents',
         '/dashboard/settings',
@@ -266,7 +264,6 @@ export function DashboardLayout() {
         '/dashboard/plans', 
         '/dashboard/billing', 
         '/dashboard/communications', 
-        '/dashboard/integrations', 
         '/dashboard/audit', 
         '/dashboard/settings', 
       ];
@@ -308,7 +305,6 @@ export function DashboardLayout() {
         '/dashboard/plans',
         '/dashboard/billing',
         '/dashboard/communications',
-        '/dashboard/integrations',
         '/dashboard/audit',
         '/dashboard/documents',
         '/dashboard/tenants', 
@@ -368,7 +364,6 @@ export function DashboardLayout() {
         '/dashboard/plans',
         '/dashboard/billing',
         '/dashboard/communications',
-        '/dashboard/integrations',
         '/dashboard/audit',
         '/dashboard/documents',
         '/dashboard/settings',
@@ -521,7 +516,7 @@ export function DashboardLayout() {
                         user.role === 'REPRESENTATIVE' ? 'bg-pink-100 text-pink-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
-                          {user.role || 'Usuário'}
+                          {getRoleLabel(user.role) || 'Usuário'}
                       </span>
                     </div>
                   </div>

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { agenciesAPI, plansAPI } from '../../api';
+import { getRoleLabel } from '../../lib/role-utils';
 import {
   Package,
   Building2,
@@ -281,6 +282,37 @@ export function AgencyPlanConfig() {
             </div>
           </div>
 
+          {/* Free Usage Limits Display */}
+          <div className="space-y-2 border-t pt-2">
+            <h4 className="text-sm font-semibold">Limites Gratuitos/mês:</h4>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Vistorias:</span>
+                <Badge variant="secondary" className="text-xs">
+                  {currentPlanData?.freeInspections === -1 ? '∞' : (currentPlanData?.freeInspections ?? 0)}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Análises:</span>
+                <Badge variant="secondary" className="text-xs">
+                  {currentPlanData?.freeSearches === -1 ? '∞' : (currentPlanData?.freeSearches ?? 0)}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Acordos:</span>
+                <Badge variant="secondary" className="text-xs">
+                  {currentPlanData?.freeSettlements === -1 ? '∞' : (currentPlanData?.freeSettlements ?? 0)}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">API:</span>
+                <Badge variant="secondary" className="text-xs">
+                  {currentPlanData?.freeApiCalls === -1 ? '∞' : (currentPlanData?.freeApiCalls ?? 0)}
+                </Badge>
+              </div>
+            </div>
+          </div>
+
           <div className="pt-2 border-t">
             <h4 className="text-sm font-semibold mb-2">Recursos:</h4>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -421,7 +453,7 @@ export function AgencyPlanConfig() {
                 <div key={user.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
                     <p className="font-medium">{user.name || user.email}</p>
-                    <p className="text-sm text-muted-foreground">{user.role}</p>
+                    <p className="text-sm text-muted-foreground">{getRoleLabel(user.role)}</p>
                   </div>
                   <Badge variant="secondary" className="gap-1 bg-amber-100 text-amber-800">
                     <Lock className="w-3 h-3" />
@@ -490,6 +522,37 @@ export function AgencyPlanConfig() {
                         <Badge variant="outline">
                           {plan.userLimit}
                         </Badge>
+                      </div>
+                    </div>
+
+                    {/* Free Usage Limits Display */}
+                    <div className="space-y-2 border-t pt-2">
+                      <h4 className="text-sm font-semibold">Limites Gratuitos/mês:</h4>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Vistorias:</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {plan.freeInspections === -1 ? '∞' : (plan.freeInspections ?? 0)}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Análises:</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {plan.freeSearches === -1 ? '∞' : (plan.freeSearches ?? 0)}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">Acordos:</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {plan.freeSettlements === -1 ? '∞' : (plan.freeSettlements ?? 0)}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted-foreground">API:</span>
+                          <Badge variant="secondary" className="text-xs">
+                            {plan.freeApiCalls === -1 ? '∞' : (plan.freeApiCalls ?? 0)}
+                          </Badge>
+                        </div>
                       </div>
                     </div>
 

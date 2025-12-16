@@ -415,6 +415,20 @@ export const usersAPI = {
     const response = await apiClient.patch(`/users/${id}/status`, { status, reason });
     return response.data;
   },
+
+  uploadUserPhoto: async (userId: string, file: File) => {
+    const formData = new FormData();
+    formData.append('photo', file);
+    const response = await apiClient.post(`/users/${userId}/photo`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  },
+
+  deleteUserPhoto: async (userId: string) => {
+    const response = await apiClient.delete(`/users/${userId}/photo`);
+    return response.data;
+  },
 };
 
 export const chatAPI = {

@@ -1178,8 +1178,14 @@ export function Properties() {
           <div className="grid grid-cols-[repeat(auto-fit,minmax(400px,1fr))] gap-6 w-full max-w-7xl px-2 items-stretch justify-center">
             {properties && properties.length > 0 ? (
               properties.map((property: any) => (
-                <Card key={property.id} className="transition-all hover:shadow-md flex flex-col w-[400px] mx-auto overflow-hidden">
+                <Card key={property.id} className="transition-all hover:shadow-md flex flex-col w-[400px] mx-auto overflow-hidden relative">
                   <CardContent className="p-0 h-full flex flex-col overflow-hidden min-w-0">
+                    {}
+                    {property.token && (
+                      <div className="absolute top-2 right-2 z-10 bg-background/90 backdrop-blur-sm border border-border rounded-md px-2 py-1 shadow-sm">
+                        <p className="text-[10px] text-muted-foreground font-mono">{property.token}</p>
+                      </div>
+                    )}
                     <div className="flex h-full min-w-0">
                       {}
                       <div className="w-40 min-w-40 h-full bg-gray-100 flex items-center justify-center rounded-l-md overflow-hidden">
@@ -1189,9 +1195,6 @@ export function Properties() {
                       <div className="flex-1 flex flex-col justify-between p-4 min-w-0 overflow-hidden">
                         <div className="min-w-0 space-y-1">
                           <h3 className="text-lg font-bold truncate" title={property.name}>{property.name}</h3>
-                          {property.token && (
-                            <p className="text-[10px] text-muted-foreground font-mono">{property.token}</p>
-                          )}
                           <p className="text-sm font-semibold text-gray-700 truncate" title={property.address}>
                             {property.address}
                           </p>

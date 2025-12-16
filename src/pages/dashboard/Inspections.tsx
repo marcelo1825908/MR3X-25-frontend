@@ -3,6 +3,8 @@ import { inspectionsAPI, propertiesAPI, contractsAPI } from '../../api';
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
+import { QRCodeSVG } from 'qrcode.react';
+import Barcode from 'react-barcode';
 import {
   ClipboardCheck,
   Plus,
@@ -56,6 +58,8 @@ import {
   TooltipTrigger,
 } from '../../components/ui/tooltip';
 import { SignatureCapture } from '../../components/contracts/SignatureCapture';
+import html2canvas from 'html2canvas-pro';
+import { jsPDF } from 'jspdf';
 
 interface InspectionItem {
   id?: string;
@@ -817,7 +821,7 @@ export function Inspections() {
     };
     const s = statusMap[status] || { label: status, className: 'bg-gray-500', icon: null };
     return (
-      <Badge className={`${s.className} text-white flex items-center gap-1`}>
+      <Badge className={`${s.className} text-white inline-flex items-center`}>
         {s.icon}
         {s.label}
       </Badge>
@@ -843,6 +847,480 @@ export function Inspections() {
     };
     const c = conditionMap[condition] || { label: condition, className: 'bg-gray-100 text-gray-800' };
     return <Badge className={c.className}>{c.label}</Badge>;
+  };
+
+  const captureBarcodeAsRotatedImage = async (): Promise<{ rotated: string; original: string; width: number; height: number } | null> => {
+    try {
+      let svgElement: SVGElement | null = null;
+
+      const allSvgs = document.querySelectorAll('#inspection-detail-content svg');
+
+      for (const svg of allSvgs) {
+        const bbox = svg.getBoundingClientRect();
+        const aspectRatio = bbox.width / bbox.height;
+
+        if (aspectRatio > 2 && svg.querySelectorAll('rect').length > 10) {
+          svgElement = svg as SVGElement;
+          break;
+        }
+      }
+
+      if (!svgElement) return null;
+
+      const bbox = svgElement.getBoundingClientRect();
+      const svgWidth = bbox.width || 300;
+      const svgHeight = bbox.height || 80;
+
+      const svgData = new XMLSerializer().serializeToString(svgElement);
+      const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+      const url = URL.createObjectURL(svgBlob);
+
+      return new Promise((resolve) => {
+        const img = document.createElement('img');
+        img.onload = () => {
+          const originalCanvas = document.createElement('canvas');
+          originalCanvas.width = img.width || svgWidth;
+          originalCanvas.height = img.height || svgHeight;
+          const origCtx = originalCanvas.getContext('2d');
+          if (origCtx) {
+            origCtx.fillStyle = 'white';
+            origCtx.fillRect(0, 0, originalCanvas.width, originalCanvas.height);
+            origCtx.drawImage(img, 0, 0);
+          }
+
+          const rotatedCanvas = document.createElement('canvas');
+          rotatedCanvas.width = originalCanvas.height;
+          rotatedCanvas.height = originalCanvas.width;
+          const rotCtx = rotatedCanvas.getContext('2d');
+
+          if (rotCtx) {
+            rotCtx.fillStyle = 'white';
+            rotCtx.fillRect(0, 0, rotatedCanvas.width, rotatedCanvas.height);
+
+            rotCtx.translate(rotatedCanvas.width, 0);
+            rotCtx.rotate(Math.PI / 2);
+            rotCtx.drawImage(originalCanvas, 0, 0);
+          }
+
+          URL.revokeObjectURL(url);
+          resolve({
+            rotated: rotatedCanvas.toDataURL('image/png'),
+            original: originalCanvas.toDataURL('image/png'),
+            width: rotatedCanvas.width,
+            height: rotatedCanvas.height
+          });
+        };
+        img.onerror = () => {
+          URL.revokeObjectURL(url);
+          resolve(null);
+        };
+        img.src = url;
+      });
+    } catch (error) {
+      console.error('Error capturing barcode:', error);
+      return null;
+    }
+  };
+
+  const handlePrintInspection = async () => {
+    if (!inspectionDetail) return;
+
+    const barcodeData = await captureBarcodeAsRotatedImage();
+    const token = inspectionDetail.token || '';
+
+    const statusLabels: Record<string, string> = {
+      'RASCUNHO': 'Rascunho',
+      'EM_ANDAMENTO': 'Em Andamento',
+      'AGUARDANDO_ASSINATURA': 'Aguardando Assinatura',
+      'CONCLUIDA': 'Concluída',
+      'APROVADA': 'Aprovada',
+      'REJEITADA': 'Rejeitada',
+    };
+
+    const typeLabels: Record<string, string> = {
+      'ENTRY': 'Entrada',
+      'EXIT': 'Saída',
+      'PERIODIC': 'Periódica',
+    };
+
+    const mediaItems = getDetailMediaGeneral();
+    let photosArray: string[] = [];
+
+    if (mediaItems.length === 0 && inspectionDetail.photos) {
+      try {
+        const parsed = typeof inspectionDetail.photos === 'string'
+          ? JSON.parse(inspectionDetail.photos)
+          : inspectionDetail.photos;
+        if (Array.isArray(parsed)) {
+          photosArray = parsed.map((photo: string) =>
+            photo.startsWith('http') ? photo : `${(import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '')}/uploads/${photo}`
+          );
+        }
+      } catch {
+        // ignore
+      }
+    }
+
+    const allImages = mediaItems.length > 0
+      ? mediaItems.filter(m => m.type === 'IMAGE').map(m => getMediaUrl(m))
+      : photosArray;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      toast.error('Não foi possível abrir a janela de impressão');
+      return;
+    }
+
+    const barcodeHtml = barcodeData && barcodeData.rotated
+      ? `<img src="${barcodeData.rotated}" class="barcode-img" alt="barcode" />`
+      : `<div style="writing-mode: vertical-rl; transform: rotate(180deg); font-family: monospace; font-size: 8pt;">${token}</div>`;
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Vistoria - ${token}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; padding: 20px; padding-right: 25mm; color: #333; position: relative; }
+          .header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #f97316; }
+          .header h1 { font-size: 24px; color: #333; margin-bottom: 10px; }
+          .token-box { background: linear-gradient(to right, #fff7ed, #ffedd5); border: 1px solid #fed7aa; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+          .token-label { font-size: 10px; color: #c2410c; text-transform: uppercase; }
+          .token-value { font-family: monospace; font-size: 18px; font-weight: bold; color: #9a3412; }
+          .locked-notice { font-size: 11px; color: #c2410c; margin-top: 8px; }
+          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+          .info-item { }
+          .info-label { font-size: 12px; color: #6b7280; margin-bottom: 4px; }
+          .info-value { font-size: 14px; font-weight: 500; }
+          .badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+          .badge-entry { background: #dbeafe; color: #1e40af; }
+          .badge-exit { background: #ffedd5; color: #9a3412; }
+          .badge-periodic { background: #f3e8ff; color: #7c3aed; }
+          .notes-section { background: #f3f4f6; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+          .notes-label { font-size: 12px; color: #6b7280; margin-bottom: 8px; }
+          .notes-text { font-size: 14px; }
+          .media-section { margin-top: 20px; }
+          .media-title { font-size: 14px; color: #6b7280; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
+          .media-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+          .media-item { width: 100%; height: 150px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb; page-break-inside: avoid; }
+          .signatures-section { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb; page-break-inside: avoid; }
+          .signatures-title { font-size: 14px; color: #6b7280; margin-bottom: 15px; }
+          .signatures-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+          .signature-box { border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; text-align: center; }
+          .signature-box.signed { border-color: #86efac; background: #f0fdf4; }
+          .signature-img { height: 50px; margin: 0 auto 10px; }
+          .signature-label { font-size: 12px; color: #6b7280; }
+          .signature-status { font-size: 11px; margin-top: 5px; }
+          .signature-status.signed { color: #16a34a; }
+          .signature-status.pending { color: #6b7280; }
+          .page-footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 10px; color: #9ca3af; }
+          .barcode-container {
+            position: fixed;
+            right: 2mm;
+            top: 50%;
+            transform: translateY(-50%);
+            background: white;
+            z-index: 9999;
+            padding: 2mm;
+          }
+          .barcode-img {
+            max-height: 60%;
+            width: auto;
+            max-width: 15mm;
+          }
+          @media print {
+            body { padding: 15px; padding-right: 20mm; margin: 0; }
+            .media-item { height: 120px; }
+            .barcode-container { position: fixed; right: 2mm; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="barcode-container">
+          ${barcodeHtml}
+        </div>
+
+        <div class="header">
+          <h1>Detalhes da Vistoria</h1>
+        </div>
+
+        ${token ? `
+          <div class="token-box">
+            <div class="token-label">TOKEN DE VERIFICAÇÃO</div>
+            <div class="token-value">${token}</div>
+            ${inspectionDetail.hasSignatures ? '<div class="locked-notice">🔒 Documento bloqueado (possui assinaturas)</div>' : ''}
+          </div>
+        ` : ''}
+
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">Imóvel</div>
+            <div class="info-value">${inspectionDetail.property?.name || inspectionDetail.property?.address || '-'}</div>
+            ${inspectionDetail.property?.token ? `<div style="font-size: 10px; color: #9ca3af; font-family: monospace;">${inspectionDetail.property.token}</div>` : ''}
+          </div>
+          <div class="info-item">
+            <div class="info-label">Tipo</div>
+            <div class="info-value">
+              <span class="badge badge-${inspectionDetail.type?.toLowerCase()}">${typeLabels[inspectionDetail.type] || inspectionDetail.type}</span>
+            </div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Data</div>
+            <div class="info-value">${formatDate(inspectionDetail.date)}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Status</div>
+            <div class="info-value">${statusLabels[inspectionDetail.status] || inspectionDetail.status}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Vistoriador</div>
+            <div class="info-value">${inspectionDetail.inspector?.name || 'Não atribuído'}</div>
+          </div>
+          ${inspectionDetail.scheduledDate ? `
+            <div class="info-item">
+              <div class="info-label">Data Agendada</div>
+              <div class="info-value">${formatDate(inspectionDetail.scheduledDate)}</div>
+            </div>
+          ` : ''}
+        </div>
+
+        ${inspectionDetail.notes ? `
+          <div class="notes-section">
+            <div class="notes-label">Observações</div>
+            <div class="notes-text">${inspectionDetail.notes}</div>
+          </div>
+        ` : ''}
+
+        ${allImages.length > 0 ? `
+          <div class="media-section">
+            <div class="media-title">📷 Mídia Geral (${allImages.length})</div>
+            <div class="media-grid">
+              ${allImages.map(url => `<img src="${url}" class="media-item" onerror="this.style.display='none'" />`).join('')}
+            </div>
+          </div>
+        ` : ''}
+
+        <div class="signatures-section">
+          <div class="signatures-title">Assinaturas</div>
+          <div class="signatures-grid">
+            <div class="signature-box ${inspectionDetail.tenantSignedAt ? 'signed' : ''}">
+              ${inspectionDetail.tenantSignature ? `<img src="${inspectionDetail.tenantSignature}" class="signature-img" />` : '<div style="height: 50px; display: flex; align-items: center; justify-content: center; color: #9ca3af;">✏️</div>'}
+              <div class="signature-label">Inquilino</div>
+              <div class="signature-status ${inspectionDetail.tenantSignedAt ? 'signed' : 'pending'}">
+                ${inspectionDetail.tenantSignedAt ? '✓ Assinado' : 'Pendente'}
+              </div>
+            </div>
+            <div class="signature-box ${inspectionDetail.ownerSignedAt ? 'signed' : ''}">
+              ${inspectionDetail.ownerSignature ? `<img src="${inspectionDetail.ownerSignature}" class="signature-img" />` : '<div style="height: 50px; display: flex; align-items: center; justify-content: center; color: #9ca3af;">✏️</div>'}
+              <div class="signature-label">Proprietário</div>
+              <div class="signature-status ${inspectionDetail.ownerSignedAt ? 'signed' : 'pending'}">
+                ${inspectionDetail.ownerSignedAt ? '✓ Assinado' : 'Pendente'}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="page-footer">
+          Impresso em ${new Date().toLocaleString('pt-BR')} | Token: ${inspectionDetail.token || 'N/A'}
+        </div>
+      </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    // Wait for images to load before printing
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+      }, 500);
+    };
+  };
+
+  const handleDownloadInspectionPDF = async () => {
+    const element = document.getElementById('inspection-detail-content');
+    if (!element || !inspectionDetail) {
+      toast.error('Erro ao gerar PDF');
+      return;
+    }
+
+    const barcodeData = await captureBarcodeAsRotatedImage();
+    const token = inspectionDetail.token || 'DRAFT';
+
+    try {
+      // Clone the element to capture at fixed width for consistent 4-column layout
+      const clone = element.cloneNode(true) as HTMLElement;
+      clone.style.width = '800px';
+      clone.style.position = 'absolute';
+      clone.style.left = '-9999px';
+      clone.style.top = '0';
+      clone.style.background = 'white';
+      document.body.appendChild(clone);
+
+      // Use html2canvas-pro which supports OKLCH colors
+      const canvas = await html2canvas(clone, {
+        scale: 2,
+        useCORS: true,
+        scrollX: 0,
+        scrollY: 0,
+        width: 800,
+        windowWidth: 800,
+        backgroundColor: '#ffffff',
+      });
+
+      // Remove the clone
+      document.body.removeChild(clone);
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+
+      // Margins
+      const marginLeft = 10;
+      const marginTop = 10;
+      const marginRight = 20; // Extra margin for barcode
+
+      const usableWidth = pageWidth - marginLeft - marginRight;
+      const usableHeight = pageHeight - marginTop - marginTop;
+
+      // Calculate the scale to fit width
+      const imgScale = usableWidth / canvas.width;
+      const pxPerPage = usableHeight / imgScale;
+
+      // Find smart break points between content rows
+      const findBreakPoints = (): number[] => {
+        const breaks: number[] = [0];
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          // Fallback to simple pagination
+          let y = pxPerPage;
+          while (y < canvas.height) {
+            breaks.push(Math.floor(y));
+            y += pxPerPage;
+          }
+          breaks.push(canvas.height);
+          return breaks;
+        }
+
+        let currentY = 0;
+
+        while (currentY < canvas.height) {
+          const targetY = currentY + pxPerPage;
+
+          if (targetY >= canvas.height) {
+            breaks.push(canvas.height);
+            break;
+          }
+
+          // Search backwards from targetY to find a good break point (white row)
+          let bestBreakY = Math.floor(targetY);
+          const searchStart = Math.floor(targetY);
+          const searchEnd = Math.floor(currentY + pxPerPage * 0.6);
+
+          for (let y = searchStart; y > searchEnd; y -= 2) {
+            try {
+              const imageData = ctx.getImageData(0, y, canvas.width, 2);
+              const pixels = imageData.data;
+
+              let whitePixels = 0;
+              const totalPixels = (canvas.width * 2);
+
+              for (let i = 0; i < pixels.length; i += 4) {
+                const r = pixels[i];
+                const g = pixels[i + 1];
+                const b = pixels[i + 2];
+                if (r > 245 && g > 245 && b > 245) {
+                  whitePixels++;
+                }
+              }
+
+              // If this row is mostly white (gap between content), use it as break
+              if (whitePixels / totalPixels > 0.85) {
+                bestBreakY = y;
+                break;
+              }
+            } catch {
+              // If getImageData fails, use default position
+              break;
+            }
+          }
+
+          breaks.push(bestBreakY);
+          currentY = bestBreakY;
+        }
+
+        return breaks;
+      };
+
+      const breakPoints = findBreakPoints();
+
+      for (let i = 0; i < breakPoints.length - 1; i++) {
+        if (i > 0) {
+          pdf.addPage();
+        }
+
+        const srcY = breakPoints[i];
+        const srcHeight = breakPoints[i + 1] - srcY;
+
+        if (srcHeight <= 0) continue;
+
+        const destHeight = srcHeight * imgScale;
+
+        // Create a temporary canvas for this page's portion
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = srcHeight;
+        const ctx = pageCanvas.getContext('2d');
+
+        if (ctx) {
+          ctx.fillStyle = 'white';
+          ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+
+          ctx.drawImage(
+            canvas,
+            0, srcY, canvas.width, srcHeight,
+            0, 0, canvas.width, srcHeight
+          );
+
+          const pageImgData = pageCanvas.toDataURL('image/jpeg', 0.98);
+          pdf.addImage(pageImgData, 'JPEG', marginLeft, marginTop, usableWidth, destHeight);
+        }
+
+        // Add barcode/token to this page
+        if (barcodeData && barcodeData.rotated) {
+          const finalWidth = 10;
+          const finalHeight = pageHeight * 0.5;
+
+          const xPos = pageWidth - finalWidth - 3;
+          const yPos = (pageHeight - finalHeight) / 2;
+
+          pdf.setFillColor(255, 255, 255);
+          pdf.rect(xPos - 2, yPos - 2, finalWidth + 4, finalHeight + 4, 'F');
+
+          pdf.addImage(barcodeData.rotated, 'PNG', xPos, yPos, finalWidth, finalHeight);
+        } else {
+          pdf.setFillColor(255, 255, 255);
+          pdf.rect(pageWidth - 15, pageHeight / 2 - 40, 12, 80, 'F');
+
+          pdf.setFontSize(8);
+          pdf.setTextColor(0, 0, 0);
+          pdf.text(token, pageWidth - 5, pageHeight / 2, { angle: 90 });
+        }
+      }
+
+      pdf.save(`vistoria-${token}.pdf`);
+      toast.success('PDF baixado com sucesso!');
+    } catch (error) {
+      console.error('PDF generation error:', error);
+      toast.error('Erro ao gerar PDF');
+    }
   };
 
   const defaultRooms = [
@@ -896,7 +1374,7 @@ export function Inspections() {
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             {}
             <div className="flex border border-border rounded-lg p-1">
               <Tooltip>
@@ -931,15 +1409,14 @@ export function Inspections() {
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
-                    className="bg-orange-600 hover:bg-orange-700 text-white"
+                    className="bg-orange-600 hover:bg-orange-700 text-white w-full"
                     onClick={() => {
                       closeAllModals();
                       setShowCreateModal(true);
                     }}
                   >
                     <Plus className="w-4 h-4 mr-2" />
-                    <span className="hidden sm:inline">Nova Vistoria</span>
-                    <span className="sm:hidden">Adicionar</span>
+                    Adicionar
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Criar Nova Vistoria</TooltipContent>
@@ -1003,6 +1480,9 @@ export function Inspections() {
                       <tr key={inspection.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                         <td className="p-4">
                           <div className="font-medium">{inspection.property?.name || inspection.property?.address || 'Sem imóvel'}</div>
+                          {inspection?.token && (
+                            <div className="text-[10px] text-muted-foreground font-mono">{inspection.token}</div>
+                          )}
                           <div className="text-sm text-muted-foreground">{inspection.property?.city || ''}</div>
                         </td>
                         <td className="p-4">{getTypeBadge(inspection.type)}</td>
@@ -1021,7 +1501,7 @@ export function Inspections() {
                         <td className="p-4">
                           <div className="flex gap-2">
                             <Button
-                              size="sm"
+                              size="icon"
                               variant="outline"
                               onClick={() => handleViewInspection(inspection)}
                               className="text-orange-600 border-orange-600 hover:bg-orange-50"
@@ -1030,7 +1510,7 @@ export function Inspections() {
                             </Button>
                             {canUpdateInspections && inspection.status !== 'APROVADA' && !inspection.hasSignatures && (
                               <Button
-                                size="sm"
+                                size="icon"
                                 variant="outline"
                                 onClick={() => handleEditInspection(inspection)}
                                 className="text-blue-600 border-blue-600 hover:bg-blue-50"
@@ -1042,7 +1522,7 @@ export function Inspections() {
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
-                                    size="sm"
+                                    size="icon"
                                     variant="outline"
                                     onClick={() => handleSend(inspection)}
                                     className="text-green-600 border-green-600 hover:bg-green-50"
@@ -1059,7 +1539,7 @@ export function Inspections() {
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
-                                    size="sm"
+                                    size="icon"
                                     variant="outline"
                                     disabled
                                     className="text-green-600 border-green-300"
@@ -1076,7 +1556,7 @@ export function Inspections() {
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
-                                    size="sm"
+                                    size="icon"
                                     variant="outline"
                                     disabled
                                     className="text-gray-400 border-gray-300"
@@ -1092,7 +1572,7 @@ export function Inspections() {
                             {canApproveInspections && inspection.status === 'CONCLUIDA' && (
                               <>
                                 <Button
-                                  size="sm"
+                                  size="icon"
                                   variant="outline"
                                   onClick={() => handleApprove(inspection)}
                                   className="text-green-600 border-green-600 hover:bg-green-50"
@@ -1100,7 +1580,7 @@ export function Inspections() {
                                   <CheckCircle className="w-4 h-4" />
                                 </Button>
                                 <Button
-                                  size="sm"
+                                  size="icon"
                                   variant="outline"
                                   onClick={() => handleReject(inspection)}
                                   className="text-red-600 border-red-600 hover:bg-red-50"
@@ -1111,7 +1591,7 @@ export function Inspections() {
                             )}
                             {canDeleteInspections && inspection.status !== 'APROVADA' && (
                               <Button
-                                size="sm"
+                                size="icon"
                                 variant="outline"
                                 onClick={() => handleDeleteInspection(inspection)}
                                 className="text-red-600 border-red-600 hover:bg-red-50"
@@ -1133,9 +1613,12 @@ export function Inspections() {
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="flex-1 min-w-0">
                         <h3 className="font-semibold text-sm truncate">{inspection.property?.name || inspection.property?.address || 'Imóvel'}</h3>
+                        {inspection.property?.token && (
+                          <p className="text-[10px] text-muted-foreground font-mono">{inspection.property.token}</p>
+                        )}
                         <p className="text-xs text-muted-foreground truncate">{inspection.inspector?.name || 'Sem vistoriador'}</p>
                       </div>
-                      <div className="flex flex-col gap-1 shrink-0">
+                      <div className="flex flex-col gap-1 shrink-0 items-end">
                         {getTypeBadge(inspection.type)}
                         {getStatusBadge(inspection.status)}
                       </div>
@@ -1152,26 +1635,23 @@ export function Inspections() {
                       <span>{formatDate(inspection.date)}</span>
                     </div>
 
-                    <div className="flex gap-2 flex-wrap">
-                      <Button size="sm" variant="outline" onClick={() => handleViewInspection(inspection)} className="text-xs h-8">
-                        <Eye className="w-3 h-3 mr-1" />
-                        Ver
+                    <div className="flex gap-2 flex-wrap w-full justify-end">
+                      <Button size="icon" variant="outline" onClick={() => handleViewInspection(inspection)} className="text-orange-600 border-orange-600 hover:bg-orange-50">
+                        <Eye className="w-4 h-4" />
                       </Button>
                       {canUpdateInspections && inspection.status !== 'APROVADA' && !inspection.hasSignatures && (
-                        <Button size="sm" variant="outline" onClick={() => handleEditInspection(inspection)} className="text-xs h-8">
-                          <Edit className="w-3 h-3 mr-1" />
-                          Editar
+                        <Button size="icon" variant="outline" onClick={() => handleEditInspection(inspection)} className="text-orange-600 border-orange-600 hover:bg-orange-50">
+                          <Edit className="w-4 h-4" />
                         </Button>
                       )}
                       {inspection.hasSignatures && inspection.status !== 'APROVADA' && (
-                        <Button size="sm" variant="outline" disabled className="text-gray-400 text-xs h-8">
-                          <Lock className="w-3 h-3 mr-1" />
-                          Bloqueado
+                        <Button size="icon" variant="outline" disabled className="text-gray-400 border-gray-300">
+                          <Lock className="w-4 h-4" />
                         </Button>
                       )}
                       {canDeleteInspections && inspection.status !== 'APROVADA' && !inspection.hasSignatures && (
-                        <Button size="sm" variant="outline" className="text-red-600 text-xs h-8" onClick={() => handleDeleteInspection(inspection)}>
-                          <Trash2 className="w-3 h-3" />
+                        <Button size="icon" variant="outline" className="text-red-600 border-red-600 hover:bg-red-50" onClick={() => handleDeleteInspection(inspection)}>
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       )}
                     </div>
@@ -1194,6 +1674,9 @@ export function Inspections() {
                           <h3 className="font-semibold line-clamp-1">
                             {inspection.property?.name || inspection.property?.address || 'Imóvel'}
                           </h3>
+                          {inspection.property?.token && (
+                            <p className="text-[10px] text-muted-foreground font-mono">{inspection.property.token}</p>
+                          )}
                           <div className="text-sm text-muted-foreground">{getTypeBadge(inspection.type)}</div>
                         </div>
                       </div>
@@ -1927,60 +2410,116 @@ export function Inspections() {
         </Dialog>
 
         <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
-          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6">
-            <DialogHeader>
+          <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto p-4 sm:p-6 print-content">
+            <DialogHeader className="print-avoid-break">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                 <DialogTitle className="text-base sm:text-lg">Detalhes da Vistoria</DialogTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => window.print()}
-                  className="flex items-center gap-1 w-fit"
-                >
-                  <Printer className="w-4 h-4" />
-                  <span className="hidden sm:inline">Imprimir</span>
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleDownloadInspectionPDF}
+                        className="flex items-center gap-1"
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Baixar PDF</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handlePrintInspection}
+                        className="flex items-center gap-1"
+                      >
+                        <Printer className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Imprimir</TooltipContent>
+                  </Tooltip>
+                </div>
               </div>
             </DialogHeader>
             {inspectionDetail && (
-              <div className="space-y-4 sm:space-y-6">
+              <div id="inspection-detail-content" className="space-y-4 sm:space-y-6">
                 {inspectionDetail.token && (
-                  <div className="p-3 sm:p-4 bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-lg">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <Label className="text-[10px] sm:text-xs text-orange-700">TOKEN DE VERIFICAÇÃO</Label>
-                        <p className="font-mono text-sm sm:text-lg font-bold text-orange-800 truncate">{inspectionDetail.token}</p>
+                  <>
+                    <div className="bg-muted p-3 sm:p-4 rounded-lg border">
+                      <h3 className="font-semibold mb-3">Informações de Segurança</h3>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-sm">
+                        <div className="break-all sm:break-normal">
+                          <span className="font-medium">Token:</span>{' '}
+                          <span className="font-mono text-xs">{inspectionDetail.token}</span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(inspectionDetail.token || '');
+                                  toast.success('Token copiado para a área de transferência');
+                                }}
+                                className="h-6 w-6 p-0 ml-1 print-hide"
+                              >
+                                <Copy className="w-3 h-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Copiar token</TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <div>
+                          <span className="font-medium">Data/Hora:</span>{' '}
+                          <span className="font-mono text-xs">{formatDate(inspectionDetail.createdAt || inspectionDetail.date)}</span>
+                        </div>
+                        {(inspectionDetail as { creatorIp?: string }).creatorIp && (
+                          <div>
+                            <span className="font-medium">IP:</span>{' '}
+                            <span className="font-mono text-xs">{(inspectionDetail as { creatorIp?: string }).creatorIp}</span>
+                          </div>
+                        )}
+                        {(inspectionDetail as { hash?: string }).hash && (
+                          <div className="col-span-1 sm:col-span-2 break-all">
+                            <span className="font-medium">Hash:</span>{' '}
+                            <span className="font-mono text-xs">{(inspectionDetail as { hash?: string }).hash}</span>
+                          </div>
+                        )}
                       </div>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              navigator.clipboard.writeText(inspectionDetail.token || '');
-                              toast.success('Token copiado para a área de transferência');
-                            }}
-                            className="text-orange-700 hover:text-orange-800 shrink-0"
-                          >
-                            <Copy className="w-4 h-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Copiar token</TooltipContent>
-                      </Tooltip>
                     </div>
-                    {inspectionDetail.hasSignatures && (
-                      <div className="flex items-center gap-2 mt-2 text-[10px] sm:text-xs text-orange-700">
-                        <Lock className="w-3 h-3 shrink-0" />
-                        <span>Documento bloqueado (possui assinaturas)</span>
+
+                    <div className="flex flex-col sm:flex-row items-center justify-center p-3 sm:p-4 bg-white border rounded-lg gap-4 sm:gap-6">
+                      <div className="flex-shrink-0">
+                        <QRCodeSVG
+                          value={`https://mr3x.com.br/verify/${inspectionDetail.token}`}
+                          size={80}
+                          level="H"
+                        />
                       </div>
-                    )}
-                  </div>
+                      <div className="flex-shrink-0 w-full sm:w-auto overflow-x-auto flex justify-center">
+                        <Barcode
+                          value={inspectionDetail.token}
+                          format="CODE128"
+                          width={2}
+                          height={50}
+                          displayValue={true}
+                          fontSize={14}
+                          textMargin={4}
+                        />
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                   <div>
                     <Label className="text-xs sm:text-sm text-muted-foreground">Imóvel</Label>
                     <p className="font-medium text-sm sm:text-base truncate">{inspectionDetail.property?.name || inspectionDetail.property?.address}</p>
+                    {inspectionDetail.property?.token && (
+                      <p className="text-[10px] text-muted-foreground font-mono">{inspectionDetail.property.token}</p>
+                    )}
                   </div>
                   <div>
                     <Label className="text-xs sm:text-sm text-muted-foreground">Tipo</Label>
@@ -2018,7 +2557,7 @@ export function Inspections() {
                     .filter(m => m.type === 'IMAGE')
                     .map(m => ({ url: getMediaUrl(m), name: m.originalName }));
                   return (
-                    <div>
+                    <div className="print-page-break">
                       <Label className="text-muted-foreground mb-2 flex items-center gap-1">
                         <Image className="w-4 h-4" />
                         <Video className="w-4 h-4" />
@@ -2069,7 +2608,7 @@ export function Inspections() {
                         name: `Foto ${idx + 1}`
                       }));
                       return (
-                        <div>
+                        <div className="print-page-break">
                           <Label className="text-muted-foreground mb-2 flex items-center gap-1">
                             <Image className="w-4 h-4" />
                             Fotos Gerais ({photos.length})

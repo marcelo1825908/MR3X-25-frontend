@@ -25,6 +25,20 @@ import {
   Loader2,
   Crown
 } from 'lucide-react'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081';
+
+const getStaticBaseUrl = () => {
+  const url = API_BASE_URL;
+  return url.endsWith('/api') ? url.slice(0, -4) : url;
+};
+
+const getPhotoUrl = (photoUrl: string | null | undefined) => {
+  if (!photoUrl) return undefined;
+  if (photoUrl.startsWith('http')) return photoUrl;
+  return `${getStaticBaseUrl()}${photoUrl}`;
+};
 import { DocumentInput } from '@/components/ui/document-input'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
 import { CEPInput } from '@/components/ui/cep-input'
@@ -673,7 +687,7 @@ export function Tenants() {
             </div>
 
             {showCreateTenantButton && (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 w-full">
                 <Button
                   className="bg-orange-600 hover:bg-orange-700 text-white flex-1 sm:flex-none"
                   onClick={() => {
@@ -743,10 +757,20 @@ export function Tenants() {
                     {tenants.map((tenant: any) => (
                       <tr key={tenant.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                         <td className="p-4">
-                          <div className="font-medium">{tenant.name || 'Sem nome'}</div>
-                          {tenant.token && (
-                            <div className="text-[10px] text-muted-foreground font-mono">{tenant.token}</div>
-                          )}
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-9 w-9">
+                              <AvatarImage src={getPhotoUrl(tenant.photoUrl)} alt={tenant.name || 'Inquilino'} />
+                              <AvatarFallback className="bg-blue-100 text-blue-700">
+                                {(tenant.name || tenant.email || 'I').charAt(0).toUpperCase()}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <div className="font-medium">{tenant.name || 'Sem nome'}</div>
+                              {tenant.token && (
+                                <div className="text-[10px] text-muted-foreground font-mono">{tenant.token}</div>
+                              )}
+                            </div>
+                          </div>
                         </td>
                         <td className="p-4">
                           <div className="text-muted-foreground">{tenant.phone || '-'}</div>
@@ -779,42 +803,42 @@ export function Tenants() {
                         <td className="p-4">
                           <div className="flex gap-2">
                             <Button
-                              size="sm"
+                              size="icon"
                               variant="outline"
                               onClick={() => handleViewTenant(tenant)}
                               className="text-orange-600 border-orange-600 hover:bg-orange-50"
                             >
-                              Detalhes
+                              <Eye className="w-4 h-4" />
                             </Button>
                             {canUpdateUsers && !tenant.isFrozen && (
                               <Button
-                                size="sm"
+                                size="icon"
                                 variant="outline"
                                 onClick={() => handleEditTenant(tenant)}
                                 disabled={loadingEdit}
                                 className="text-orange-600 border-orange-600 hover:bg-orange-50"
                               >
-                                {loadingEdit ? 'Carregando...' : 'Editar'}
+                                <Edit className="w-4 h-4" />
                               </Button>
                             )}
                             {canUpdateUsers && tenant.isFrozen && (
                               <Button
-                                size="sm"
+                                size="icon"
                                 variant="outline"
                                 disabled
                                 className="text-muted-foreground border-muted"
                               >
-                                Editar (congelado)
+                                <Edit className="w-4 h-4" />
                               </Button>
                             )}
                             {canDeleteUsers && (
                               <Button
-                                size="sm"
+                                size="icon"
                                 variant="outline"
                                 onClick={() => handleDeleteTenant(tenant)}
                                 className="text-red-600 border-red-600 hover:bg-red-50"
                               >
-                                Excluir
+                                <Trash2 className="w-4 h-4" />
                               </Button>
                             )}
                           </div>
@@ -829,12 +853,20 @@ export function Tenants() {
                 {tenants.map((tenant: any) => (
                   <div key={tenant.id} className="border-b border-border last:border-b-0 p-4">
                     <div className="flex items-start justify-between mb-3 min-w-0 gap-2">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-lg truncate">{tenant.name || 'Sem nome'}</h3>
-                        {tenant.token && (
-                          <p className="text-[10px] text-muted-foreground font-mono">{tenant.token}</p>
-                        )}
-                        <p className="text-sm text-muted-foreground truncate">{tenant.email || '-'}</p>
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <Avatar className="h-10 w-10 flex-shrink-0">
+                          <AvatarImage src={getPhotoUrl(tenant.photoUrl)} alt={tenant.name || 'Inquilino'} />
+                          <AvatarFallback className="bg-blue-100 text-blue-700">
+                            {(tenant.name || tenant.email || 'I').charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-semibold text-lg truncate">{tenant.name || 'Sem nome'}</h3>
+                          {tenant.token && (
+                            <p className="text-[10px] text-muted-foreground font-mono">{tenant.token}</p>
+                          )}
+                          <p className="text-sm text-muted-foreground truncate">{tenant.email || '-'}</p>
+                        </div>
                       </div>
                       <div className="flex flex-col items-end gap-1">
                         <Badge className="bg-green-500 text-white text-xs flex-shrink-0">Inquilino</Badge>
@@ -848,43 +880,43 @@ export function Tenants() {
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 w-full justify-end">
                       <Button
-                        size="sm"
+                        size="icon"
                         variant="outline"
                         onClick={() => handleViewTenant(tenant)}
-                        className="text-orange-600 border-orange-600 hover:bg-orange-50 flex-1"
+                        className="text-orange-600 border-orange-600 hover:bg-orange-50"
                       >
-                        Detalhes
+                        <Eye className="w-4 h-4" />
                       </Button>
                       {canUpdateUsers && !tenant.isFrozen && (
                         <Button
-                          size="sm"
+                          size="icon"
                           variant="outline"
                           onClick={() => handleEditTenant(tenant)}
-                          className="text-orange-600 border-orange-600 hover:bg-orange-50 flex-1"
+                          className="text-orange-600 border-orange-600 hover:bg-orange-50"
                         >
-                          Editar
+                          <Edit className="w-4 h-4" />
                         </Button>
                       )}
                       {canUpdateUsers && tenant.isFrozen && (
                         <Button
-                          size="sm"
+                          size="icon"
                           variant="outline"
                           disabled
-                          className="text-muted-foreground border-muted flex-1"
+                          className="text-muted-foreground border-muted"
                         >
-                          Editar (congelado)
+                          <Edit className="w-4 h-4" />
                         </Button>
                       )}
                       {canDeleteUsers && (
                         <Button
-                          size="sm"
+                          size="icon"
                           variant="outline"
                           onClick={() => handleDeleteTenant(tenant)}
-                          className="text-red-600 border-red-600 hover:bg-red-50 flex-1"
+                          className="text-red-600 border-red-600 hover:bg-red-50"
                         >
-                          Excluir
+                          <Trash2 className="w-4 h-4" />
                         </Button>
                       )}
                     </div>
@@ -902,7 +934,12 @@ export function Tenants() {
                       <div className="flex h-full min-w-0">
                         {}
                         <div className="w-28 min-w-28 h-36 bg-primary/10 flex items-center justify-center rounded-l-md flex-shrink-0">
-                          <Users className="w-12 h-12 text-primary" />
+                          <Avatar className="h-16 w-16">
+                            <AvatarImage src={getPhotoUrl(tenant.photoUrl)} alt={tenant.name || 'Inquilino'} />
+                            <AvatarFallback className="bg-blue-100 text-blue-700 text-2xl">
+                              {(tenant.name || tenant.email || 'I').charAt(0).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
                         </div>
                         {}
                         <div className="flex-1 flex flex-col justify-between p-4 min-w-0 overflow-hidden">

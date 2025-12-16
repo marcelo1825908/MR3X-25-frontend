@@ -9,6 +9,7 @@ import { Label } from '../../components/ui/label';
 import { toast } from 'sonner';
 import { usersAPI } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
+import { getRoleLabel } from '../../lib/role-utils';
 
 interface UserDetails {
   id: string;
@@ -16,6 +17,7 @@ interface UserDetails {
   email: string;
   phone?: string;
   document?: string;
+  token?: string | null;
   role: string;
   status: string;
   plan: string;
@@ -200,6 +202,12 @@ export function UserDetailPage() {
                   <Label className="text-xs sm:text-sm font-medium text-muted-foreground">Nome</Label>
                   <p className="text-sm font-medium break-words">{user.name}</p>
                 </div>
+                {user.token && (
+                  <div className="space-y-1">
+                    <Label className="text-xs sm:text-sm font-medium text-muted-foreground">Token</Label>
+                    <p className="text-sm font-mono bg-muted px-2 py-1 rounded inline-block">{user.token}</p>
+                  </div>
+                )}
                 <div className="space-y-1">
                   <Label className="text-xs sm:text-sm font-medium text-muted-foreground">Email</Label>
                   <p className="text-sm flex items-center gap-2 break-all">
@@ -221,7 +229,7 @@ export function UserDetailPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs sm:text-sm font-medium text-muted-foreground">Função</Label>
-                    <div><Badge className={`${getRoleColor(user.role)} text-xs whitespace-nowrap`}>{user.role}</Badge></div>
+                    <div><Badge className={`${getRoleColor(user.role)} text-xs whitespace-nowrap`}>{getRoleLabel(user.role)}</Badge></div>
                   </div>
                   <div className="space-y-1">
                     <Label className="text-xs sm:text-sm font-medium text-muted-foreground">Status</Label>

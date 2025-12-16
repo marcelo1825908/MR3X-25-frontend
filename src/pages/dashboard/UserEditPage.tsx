@@ -1,15 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Save, User, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Save, User, Eye, EyeOff, Camera, Trash2, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Checkbox } from '../../components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
+import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { toast } from 'sonner';
 import { usersAPI } from '../../api';
 import { useAuth } from '../../contexts/AuthContext';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8081';
+
+const getStaticBaseUrl = () => {
+  const url = API_BASE_URL;
+  return url.endsWith('/api') ? url.slice(0, -4) : url;
+};
+
+const getPhotoUrl = (photoUrl: string | null | undefined) => {
+  if (!photoUrl) return undefined;
+  if (photoUrl.startsWith('http')) return photoUrl;
+  return `${getStaticBaseUrl()}${photoUrl}`;
+};
 
 const ROLE_LABELS: Record<string, string> = {
   'CEO': 'CEO - Administrador MR3X',
@@ -68,6 +82,7 @@ interface UserData {
   status: string;
   plan: string;
   password?: string;
+  photoUrl?: string | null;
   notificationPreferences?: {
     email: boolean;
     whatsapp: boolean;
@@ -79,8 +94,11 @@ export function UserEditPage() {
   const params = useParams();
   const navigate = useNavigate();
   const { hasPermission, user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [deletingPhoto, setDeletingPhoto] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [currentUserRole, setCurrentUserRole] = useState<string>('');
   const baseAvailableRoles = getAvailableRoles(user?.role);
@@ -99,6 +117,7 @@ export function UserEditPage() {
     status: 'ACTIVE',
     plan: '',
     password: '',
+    photoUrl: null,
     notificationPreferences: {
       email: true,
       whatsapp: true,
@@ -137,6 +156,7 @@ export function UserEditPage() {
         status: userData.status || 'ACTIVE',
         plan: userData.plan || '',
         password: userData.plainPassword || '',
+        photoUrl: userData.photoUrl || null,
         notificationPreferences: userData.notificationPreferences || {
           email: true,
           whatsapp: true,
@@ -200,6 +220,49 @@ export function UserEditPage() {
     }));
   };
 
+  const handlePhotoClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('A foto deve ter no máximo 5MB');
+      return;
+    }
+
+    setUploadingPhoto(true);
+    try {
+      const result = await usersAPI.uploadUserPhoto(formData.id, file);
+      setFormData(prev => ({ ...prev, photoUrl: result.photoUrl }));
+      toast.success('Foto atualizada com sucesso!');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Erro ao fazer upload da foto');
+    } finally {
+      setUploadingPhoto(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleDeletePhoto = async () => {
+    if (!formData.photoUrl) return;
+
+    setDeletingPhoto(true);
+    try {
+      await usersAPI.deleteUserPhoto(formData.id);
+      setFormData(prev => ({ ...prev, photoUrl: null }));
+      toast.success('Foto removida com sucesso!');
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Erro ao remover foto');
+    } finally {
+      setDeletingPhoto(false);
+    }
+  };
+
   if (!canEditUsers) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -244,6 +307,58 @@ export function UserEditPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
+            {/* Photo Upload Section */}
+            <div className="flex flex-col items-center space-y-4 pb-4 border-b">
+              <div className="relative">
+                <Avatar className="h-24 w-24">
+                  <AvatarImage src={getPhotoUrl(formData.photoUrl)} alt={formData.name || 'Usuário'} />
+                  <AvatarFallback className="text-2xl bg-orange-100 text-orange-700">
+                    {(formData.name || formData.email || 'U').charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <button
+                  type="button"
+                  onClick={handlePhotoClick}
+                  className="absolute bottom-0 right-0 p-2 bg-primary text-white rounded-full hover:bg-primary/90 transition-colors"
+                  disabled={uploadingPhoto}
+                >
+                  {uploadingPhoto ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Camera className="h-4 w-4" />
+                  )}
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handlePhotoChange}
+                />
+              </div>
+              <div className="text-center">
+                <p className="text-sm font-medium">{formData.name || 'Usuário'}</p>
+                <p className="text-xs text-muted-foreground">{formData.email}</p>
+              </div>
+              {formData.photoUrl && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleDeletePhoto}
+                  disabled={deletingPhoto}
+                  className="text-destructive hover:text-destructive"
+                >
+                  {deletingPhoto ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4 mr-2" />
+                  )}
+                  Remover Foto
+                </Button>
+              )}
+            </div>
+
             {}
             <div className="grid grid-cols-1 gap-4 sm:gap-6">
               <div className="space-y-2">
