@@ -455,7 +455,7 @@ export function canSignAgreement(
   agreement: AgreementContext,
   signatureType: SignatureType
 ): boolean {
-  
+
   if (!canPerformAction(user, AgreementAction.SIGN)) return false;
 
   if (!isSignableStatus(agreement.status)) return false;
@@ -464,24 +464,32 @@ export function canSignAgreement(
 
   if (!permissions.signatureTypes.includes(signatureType)) return false;
 
+  // Convert IDs to strings for comparison to avoid type mismatch
+  const userId = String(user.id);
+  const agreementTenantId = agreement.tenantId ? String(agreement.tenantId) : null;
+  const agreementOwnerId = agreement.ownerId ? String(agreement.ownerId) : null;
+  const propertyTenantId = agreement.property?.tenantId ? String(agreement.property.tenantId) : null;
+  const propertyOwnerId = agreement.property?.ownerId ? String(agreement.property.ownerId) : null;
+  const createdById = agreement.createdBy ? String(agreement.createdBy) : null;
+
   switch (signatureType) {
     case SignatureType.TENANT:
-      if (agreement.tenantId !== user.id &&
-          agreement.property?.tenantId !== user.id) {
+      if (agreementTenantId !== userId && propertyTenantId !== userId) {
         return false;
       }
       break;
 
     case SignatureType.OWNER:
+      // For PROPRIETARIO role, allow signing if they are the owner or created the agreement
       if (user.role === UserRole.PROPRIETARIO) {
-        if (agreement.createdBy !== user.id &&
-            agreement.ownerId !== user.id &&
-            agreement.property?.ownerId !== user.id) {
+        const isOwner = agreementOwnerId === userId || propertyOwnerId === userId;
+        const isCreator = createdById === userId;
+        // PROPRIETARIO can sign if they are the owner OR if they can view the agreement (party to it)
+        if (!isOwner && !isCreator && !isPartyToAgreement(user, agreement)) {
           return false;
         }
       } else {
-        if (agreement.ownerId !== user.id &&
-            agreement.property?.ownerId !== user.id) {
+        if (agreementOwnerId !== userId && propertyOwnerId !== userId) {
           return false;
         }
       }
@@ -489,6 +497,10 @@ export function canSignAgreement(
 
     case SignatureType.AGENCY:
       if (!user.agencyId || agreement.agencyId !== user.agencyId) {
+        return false;
+      }
+      // Agency can only sign after both tenant and owner have signed
+      if (!agreement.tenantSignature || !agreement.ownerSignature) {
         return false;
       }
       break;
@@ -499,7 +511,7 @@ export function canSignAgreement(
       break;
 
     case SignatureType.WITNESS:
-      
+
       break;
   }
 
@@ -537,13 +549,15 @@ export function canCancelAgreement(user: UserContext, agreement: AgreementContex
 }
 
 function isPartyToAgreement(user: UserContext, agreement: AgreementContext): boolean {
-  
-  if (agreement.tenantId === user.id) return true;
-  if (agreement.ownerId === user.id) return true;
+  // Convert IDs to strings for comparison
+  const userId = String(user.id);
+
+  if (agreement.tenantId && String(agreement.tenantId) === userId) return true;
+  if (agreement.ownerId && String(agreement.ownerId) === userId) return true;
 
   if (agreement.property) {
-    if (agreement.property.ownerId === user.id) return true;
-    if (agreement.property.tenantId === user.id) return true;
+    if (agreement.property.ownerId && String(agreement.property.ownerId) === userId) return true;
+    if (agreement.property.tenantId && String(agreement.property.tenantId) === userId) return true;
   }
 
   return false;

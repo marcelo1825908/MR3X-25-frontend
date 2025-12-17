@@ -19,7 +19,7 @@ export function DocumentInput({
   value,
   onChange,
   id = 'document',
-  label = 'Documento',
+  label = 'Documento (CPF/CNPJ)',
   placeholder = 'CPF ou CNPJ',
   className,
   disabled = false,
@@ -93,7 +93,14 @@ export function DocumentInput({
             {validation.isValid ? (
               <CheckCircle className="h-4 w-4 text-green-500" />
             ) : (
-              <XCircle className="h-4 w-4 text-red-500" />
+              <XCircle
+                className="h-4 w-4 text-red-500 cursor-pointer hover:text-red-700 transition-colors"
+                onClick={() => {
+                  setLocalValue('');
+                  onChange('');
+                  setValidation(null);
+                }}
+              />
             )}
           </div>
         )}

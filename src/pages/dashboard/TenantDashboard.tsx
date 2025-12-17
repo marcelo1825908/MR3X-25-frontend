@@ -5,7 +5,7 @@ import {
   FileText, DollarSign, Bell, Clock,
   CheckCircle, AlertTriangle, User, Phone, Mail,
   CreditCard, Receipt, TrendingUp, Calendar, Building2,
-  Scale, Handshake, AlertOctagon, Shield, MapPin
+  Scale, Handshake, AlertOctagon, Shield, MapPin, ArrowDown
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -39,10 +39,12 @@ interface ExtrajudicialAlert {
   token?: string;
   type: string;
   status: string;
+  priority?: string;
   principalAmount?: number;
   deadlineDate?: string;
   viewedAt?: string;
   acknowledgedAt?: string;
+  debtorSignedAt?: string;
   creditorName?: string;
 }
 
@@ -76,10 +78,13 @@ export function TenantDashboard() {
   const [showExtrajudicialModal, setShowExtrajudicialModal] = useState(false);
   const [activeExtrajudicial, setActiveExtrajudicial] = useState<ExtrajudicialAlert | null>(null);
   const [geoLocation, setGeoLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoAddress, setGeoAddress] = useState<string>('');
   const [geoConsent, setGeoConsent] = useState(false);
   const [isAcknowledging, setIsAcknowledging] = useState(false);
   const [userIp, setUserIp] = useState<string>('');
   const [hasShownModal, setHasShownModal] = useState(false);
+  // Guide step: 0 = none, 1 = point to location button, 2 = point to confirm button
+  const [guideStep, setGuideStep] = useState<0 | 1 | 2>(0);
 
   const { data: dashboard, isLoading } = useQuery({
     queryKey: ['tenant-dashboard', user?.id],
@@ -107,7 +112,7 @@ export function TenantDashboard() {
           : [];
 
         const activeExtrajudicials = extrajudicials.filter((n: any) =>
-          ['SENT', 'PENDING_SEND', 'VIEWED'].includes(n.status) && !n.acknowledgedAt
+          ['SENT', 'PENDING_SEND', 'VIEWED'].includes(n.status) && !n.acknowledgedAt && !n.debtorSignedAt
         );
 
         return {
@@ -138,16 +143,48 @@ export function TenantDashboard() {
     getIp();
   }, []);
 
+  // Reverse geocoding to get address from coordinates
+  const getAddressFromCoords = async (lat: number, lng: number): Promise<string> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=pt-BR`
+      );
+      const data = await response.json();
+      if (data.address) {
+        const { road, suburb, city, town, village, state, country } = data.address;
+        const parts = [
+          road,
+          suburb,
+          city || town || village,
+          state,
+          country
+        ].filter(Boolean);
+        return parts.join(', ');
+      }
+      return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    } catch {
+      return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    }
+  };
+
   // Get geolocation if consent given
   const requestGeolocation = useCallback(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setGeoLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          setGeoLocation({ lat, lng });
           setGeoConsent(true);
+
+          // Get address from coordinates
+          const address = await getAddressFromCoords(lat, lng);
+          setGeoAddress(address);
+
+          // Move guide to step 2 (point to confirm button)
+          if (guideStep === 1) {
+            setGuideStep(2);
+          }
         },
         () => {
           toast.error('Não foi possível obter sua localização');
@@ -155,7 +192,7 @@ export function TenantDashboard() {
         }
       );
     }
-  }, []);
+  }, [guideStep]);
 
   // Acknowledgment mutation
   const acknowledgeMutation = useMutation({
@@ -177,7 +214,7 @@ export function TenantDashboard() {
   // Show extrajudicial modal on mount if needed
   useEffect(() => {
     if (!hasShownModal && tenantAlerts?.requiresImmediateAction && tenantAlerts.extrajudicialNotifications.length > 0) {
-      const unacknowledged = tenantAlerts.extrajudicialNotifications.find(n => !n.acknowledgedAt);
+      const unacknowledged = tenantAlerts.extrajudicialNotifications.find(n => !n.acknowledgedAt && !n.debtorSignedAt);
       if (unacknowledged) {
         setActiveExtrajudicial(unacknowledged);
         setShowExtrajudicialModal(true);
@@ -190,6 +227,26 @@ export function TenantDashboard() {
   const handleAcknowledge = async () => {
     if (!activeExtrajudicial) return;
 
+    // If location not enabled, start the guide
+    if (!geoLocation && guideStep === 0) {
+      setGuideStep(1);
+      toast.info('Por favor, permita sua localização primeiro');
+      return;
+    }
+
+    // Save location data to localStorage to share with acknowledgment page
+    if (geoLocation) {
+      localStorage.setItem('extrajudicial_geolocation', JSON.stringify({
+        lat: geoLocation.lat,
+        lng: geoLocation.lng,
+        address: geoAddress,
+        ip: userIp,
+        timestamp: Date.now()
+      }));
+    }
+
+    // Reset guide and proceed
+    setGuideStep(0);
     setIsAcknowledging(true);
     try {
       await acknowledgeMutation.mutateAsync(activeExtrajudicial.id);
@@ -350,7 +407,22 @@ export function TenantDashboard() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
                       <h4 className="font-bold text-red-800 text-lg">⚠️ Notificação Extrajudicial</h4>
-                      <Badge variant="destructive" className="animate-pulse">URGENTE</Badge>
+                      <Badge
+                        variant="destructive"
+                        className={`animate-pulse ${
+                          notification.priority === 'URGENTE' ? 'bg-red-600' :
+                          notification.priority === 'ALTA' ? 'bg-orange-600' :
+                          notification.priority === 'MEDIA' ? 'bg-yellow-600' :
+                          notification.priority === 'BAIXA' ? 'bg-blue-600' :
+                          'bg-red-600'
+                        }`}
+                      >
+                        {notification.priority === 'URGENTE' ? 'URGENTE' :
+                         notification.priority === 'ALTA' ? 'ALTA' :
+                         notification.priority === 'MEDIA' ? 'MÉDIA' :
+                         notification.priority === 'BAIXA' ? 'BAIXA' :
+                         notification.priority || 'URGENTE'}
+                      </Badge>
                     </div>
                     <p className="text-red-700 mb-2">
                       Você possui uma notificação extrajudicial ativa que requer sua ciência imediata.
@@ -987,16 +1059,15 @@ export function TenantDashboard() {
         </Card>
       )}
 
-      {/* Extrajudicial Acknowledgment Modal - Mandatory popup */}
+      {/* Extrajudicial Acknowledgment Modal */}
       <Dialog open={showExtrajudicialModal} onOpenChange={(open) => {
-        // Prevent closing without acknowledgment if required
-        if (!open && activeExtrajudicial && !activeExtrajudicial.acknowledgedAt) {
-          toast.warning('Por favor, dê ciência da notificação antes de continuar.');
-          return;
-        }
         setShowExtrajudicialModal(open);
+        // Reset guide step when closing
+        if (!open) {
+          setGuideStep(0);
+        }
       }}>
-        <DialogContent className="max-w-lg" onPointerDownOutside={(e) => e.preventDefault()}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <div className="flex items-center gap-3 text-red-600">
               <Scale className="w-8 h-8" />
@@ -1058,29 +1129,45 @@ export function TenantDashboard() {
                 <p><strong>Data/Hora:</strong> {new Date().toLocaleString('pt-BR')}</p>
                 <p><strong>IP:</strong> {userIp || 'Obtendo...'}</p>
                 {geoLocation && (
-                  <p className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    <strong>Localização:</strong> {geoLocation.lat.toFixed(6)}, {geoLocation.lng.toFixed(6)}
-                  </p>
+                  <div className="mt-1">
+                    <p className="flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      <strong>Localização:</strong> {geoAddress || 'Obtendo endereço...'}
+                    </p>
+                    <p className="text-xs text-blue-500 ml-4">
+                      ({geoLocation.lat.toFixed(6)}, {geoLocation.lng.toFixed(6)})
+                    </p>
+                  </div>
                 )}
               </div>
             </div>
 
             {/* Geolocation Consent */}
             {!geoLocation && (
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={requestGeolocation}
-                  className="text-blue-600"
-                >
-                  <MapPin className="w-4 h-4 mr-1" />
-                  Permitir localização (recomendado)
-                </Button>
-                <span className="text-xs text-gray-500">
-                  Fortalece a validade jurídica do registro
-                </span>
+              <div className="relative">
+                {/* Arrow pointing to location button - Step 1 */}
+                {guideStep === 1 && (
+                  <div className="absolute -top-12 left-0 flex flex-col items-start animate-bounce z-10">
+                    <div className="bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg text-sm font-medium whitespace-nowrap">
+                      Clique aqui primeiro!
+                    </div>
+                    <ArrowDown className="w-6 h-6 text-blue-600 ml-4" />
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={requestGeolocation}
+                    className={`text-blue-600 ${guideStep === 1 ? 'ring-2 ring-blue-500 ring-offset-2 animate-pulse' : ''}`}
+                  >
+                    <MapPin className="w-4 h-4 mr-1" />
+                    Permitir localização (recomendado)
+                  </Button>
+                  <span className="text-xs text-gray-500">
+                    Fortalece a validade jurídica do registro
+                  </span>
+                </div>
               </div>
             )}
 
@@ -1097,24 +1184,35 @@ export function TenantDashboard() {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3">
-              <Button
-                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
-                onClick={handleAcknowledge}
-                disabled={isAcknowledging}
-              >
-                {isAcknowledging ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                    Registrando...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                    Dar Ciência e Continuar
-                  </>
-                )}
-              </Button>
+            <div className="relative">
+              {/* Arrow pointing to confirm button - Step 2 */}
+              {guideStep === 2 && (
+                <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce z-10">
+                  <div className="bg-green-600 text-white px-3 py-2 rounded-lg shadow-lg text-sm font-medium whitespace-nowrap">
+                    Agora clique aqui para confirmar!
+                  </div>
+                  <ArrowDown className="w-6 h-6 text-green-600" />
+                </div>
+              )}
+              <div className="flex gap-3">
+                <Button
+                  className={`flex-1 bg-red-600 hover:bg-red-700 text-white ${guideStep === 2 ? 'ring-2 ring-green-500 ring-offset-2 animate-pulse' : ''}`}
+                  onClick={handleAcknowledge}
+                  disabled={isAcknowledging}
+                >
+                  {isAcknowledging ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                      Registrando...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Dar Ciência e Continuar
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
 
             <p className="text-xs text-center text-gray-500">

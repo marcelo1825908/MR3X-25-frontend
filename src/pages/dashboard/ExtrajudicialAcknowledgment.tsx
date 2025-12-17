@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   Scale, Shield, MapPin, CheckCircle, FileText, AlertTriangle,
-  ArrowLeft, Download, Clock, User, Mail
+  ArrowLeft, Download, Clock, User, Mail, ArrowDown
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -27,10 +27,13 @@ export function ExtrajudicialAcknowledgment() {
   // State
   const [signature, setSignature] = useState<string | null>(null);
   const [geoLocation, setGeoLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [geoAddress, setGeoAddress] = useState<string>('');
   const [geoConsent, setGeoConsent] = useState(false);
   const [userIp, setUserIp] = useState<string>('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [isSigning, setIsSigning] = useState(false);
+  // Guide step: 0 = none, 1 = point to location button, 2 = point to confirm button
+  const [guideStep, setGuideStep] = useState<0 | 1 | 2>(0);
 
   // Fetch notification details
   const { data: notification, isLoading, error } = useQuery({
@@ -39,7 +42,7 @@ export function ExtrajudicialAcknowledgment() {
     enabled: !!notificationId,
   });
 
-  // Get user IP address
+  // Get user IP address and load saved location from modal
   useEffect(() => {
     const getIp = async () => {
       try {
@@ -51,18 +54,70 @@ export function ExtrajudicialAcknowledgment() {
       }
     };
     getIp();
+
+    // Load saved geolocation from modal (if available)
+    const savedGeo = localStorage.getItem('extrajudicial_geolocation');
+    if (savedGeo) {
+      try {
+        const geoData = JSON.parse(savedGeo);
+        // Only use if saved within last 10 minutes
+        if (Date.now() - geoData.timestamp < 10 * 60 * 1000) {
+          setGeoLocation({ lat: geoData.lat, lng: geoData.lng });
+          setGeoAddress(geoData.address || '');
+          setGeoConsent(true);
+          if (geoData.ip) {
+            setUserIp(geoData.ip);
+          }
+        }
+      } catch {
+        // Invalid data, ignore
+      }
+    }
   }, []);
+
+  // Reverse geocoding to get address from coordinates
+  const getAddressFromCoords = async (lat: number, lng: number): Promise<string> => {
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=pt-BR`
+      );
+      const data = await response.json();
+      if (data.address) {
+        const { road, suburb, city, town, village, state, country } = data.address;
+        const parts = [
+          road,
+          suburb,
+          city || town || village,
+          state,
+          country
+        ].filter(Boolean);
+        return parts.join(', ');
+      }
+      return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    } catch {
+      return `${lat.toFixed(6)}, ${lng.toFixed(6)}`;
+    }
+  };
 
   // Request geolocation
   const requestGeolocation = useCallback(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setGeoLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
+        async (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          setGeoLocation({ lat, lng });
           setGeoConsent(true);
+
+          // Get address from coordinates
+          const address = await getAddressFromCoords(lat, lng);
+          setGeoAddress(address);
+
+          // Move guide to step 2 (point to confirm button)
+          if (guideStep === 1) {
+            setGuideStep(2);
+          }
+
           toast.success('Localização capturada com sucesso');
         },
         () => {
@@ -71,13 +126,14 @@ export function ExtrajudicialAcknowledgment() {
         }
       );
     }
-  }, []);
+  }, [guideStep]);
 
   // Sign mutation
   const signMutation = useMutation({
     mutationFn: async () => {
-      // First, record the acknowledgment
-      await dashboardAPI.acknowledgeExtrajudicial(notificationId!, {
+      // Record the acknowledgment with signature
+      // The acknowledgeExtrajudicial endpoint already saves the signature
+      return dashboardAPI.acknowledgeExtrajudicial(notificationId!, {
         acknowledgmentType: 'SIGNATURE',
         ipAddress: userIp,
         geoLat: geoLocation?.lat,
@@ -86,19 +142,13 @@ export function ExtrajudicialAcknowledgment() {
         userAgent: navigator.userAgent,
         signature: signature || undefined,
       });
-
-      // Then, sign the notification
-      return extrajudicialNotificationsAPI.signNotification(notificationId!, {
-        debtorSignature: signature || undefined,
-        geoLat: geoLocation?.lat,
-        geoLng: geoLocation?.lng,
-      });
     },
     onSuccess: () => {
+      // Clear saved geolocation
+      localStorage.removeItem('extrajudicial_geolocation');
       queryClient.invalidateQueries({ queryKey: ['extrajudicial-notification', notificationId] });
       queryClient.invalidateQueries({ queryKey: ['tenant-alerts'] });
       toast.success('Ciência registrada com sucesso! Sua assinatura foi salva.');
-      navigate('/dashboard/tenant-dashboard');
     },
     onError: () => {
       toast.error('Erro ao registrar ciência. Tente novamente.');
@@ -107,6 +157,13 @@ export function ExtrajudicialAcknowledgment() {
 
   // Handle sign
   const handleSign = async () => {
+    // If location not enabled, start the guide
+    if (!geoLocation && guideStep === 0) {
+      setGuideStep(1);
+      toast.info('Por favor, permita sua localização primeiro');
+      return;
+    }
+
     if (!signature) {
       toast.error('Por favor, assine no campo de assinatura');
       return;
@@ -116,6 +173,8 @@ export function ExtrajudicialAcknowledgment() {
       return;
     }
 
+    // Reset guide and proceed
+    setGuideStep(0);
     setIsSigning(true);
     try {
       await signMutation.mutateAsync();
@@ -131,7 +190,7 @@ export function ExtrajudicialAcknowledgment() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `notificacao-extrajudicial-${notification?.token || notificationId}.pdf`;
+      a.download = `notificacao-extrajudicial-${notification?.notificationToken || notificationId}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success('PDF baixado com sucesso');
@@ -215,24 +274,28 @@ export function ExtrajudicialAcknowledgment() {
 
         <CardContent className="p-6 space-y-6">
           {/* Token and QR Code */}
-          <div className="flex flex-col md:flex-row items-center justify-center gap-6 p-4 bg-gray-50 rounded-lg border">
-            <div className="text-center">
+          <div className="flex flex-col md:flex-row items-center justify-center gap-6 p-6 bg-gray-50 rounded-lg border overflow-visible">
+            <div className="text-center flex-shrink-0">
               <QRCodeSVG
-                value={`https://mr3x.com.br/verify/extrajudicial/${notification.token}`}
-                size={100}
+                value={`https://mr3x.com.br/verify/extrajudicial/${notification.notificationToken || notificationId}`}
+                size={120}
                 level="H"
               />
               <p className="text-xs text-gray-500 mt-2">Verificação</p>
             </div>
-            <div className="text-center">
-              <Barcode
-                value={notification.token || notificationId || ''}
-                format="CODE128"
-                width={2}
-                height={50}
-                displayValue={true}
-                fontSize={12}
-              />
+            <div className="text-center flex-shrink-0 overflow-visible min-w-0">
+              <div className="inline-block overflow-visible">
+                <Barcode
+                  value={notification.notificationToken || notificationId || ''}
+                  format="CODE128"
+                  width={1.5}
+                  height={60}
+                  displayValue={true}
+                  fontSize={14}
+                  margin={10}
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">Token: {notification.notificationToken || notificationId}</p>
             </div>
           </div>
 
@@ -388,28 +451,42 @@ export function ExtrajudicialAcknowledgment() {
                   <p className="font-mono text-xs truncate">{navigator.userAgent}</p>
                 </div>
                 {geoLocation && (
-                  <div>
+                  <div className="md:col-span-2">
                     <span className="text-blue-700 flex items-center gap-1">
                       <MapPin className="w-3 h-3" />
                       Localização:
                     </span>
-                    <p className="font-mono">
-                      {geoLocation.lat.toFixed(6)}, {geoLocation.lng.toFixed(6)}
+                    <p className="text-sm mt-1">
+                      {geoAddress || 'Obtendo endereço...'}
+                    </p>
+                    <p className="font-mono text-xs text-gray-400 mt-1">
+                      ({geoLocation.lat.toFixed(6)}, {geoLocation.lng.toFixed(6)})
                     </p>
                   </div>
                 )}
               </div>
 
               {!geoLocation && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={requestGeolocation}
-                  className="mt-2"
-                >
-                  <MapPin className="w-4 h-4 mr-2" />
-                  Permitir Localização (recomendado)
-                </Button>
+                <div className="relative mt-2">
+                  {/* Arrow pointing to location button - Step 1 */}
+                  {guideStep === 1 && (
+                    <div className="absolute -top-12 left-0 flex flex-col items-start animate-bounce z-10">
+                      <div className="bg-blue-600 text-white px-3 py-2 rounded-lg shadow-lg text-sm font-medium whitespace-nowrap">
+                        Clique aqui primeiro!
+                      </div>
+                      <ArrowDown className="w-6 h-6 text-blue-600 ml-4" />
+                    </div>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={requestGeolocation}
+                    className={`${guideStep === 1 ? 'ring-2 ring-blue-500 ring-offset-2 animate-pulse' : ''}`}
+                  >
+                    <MapPin className="w-4 h-4 mr-2" />
+                    Permitir Localização (recomendado)
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -446,23 +523,34 @@ export function ExtrajudicialAcknowledgment() {
                 </div>
 
                 {/* Sign Button */}
-                <Button
-                  className="w-full bg-red-600 hover:bg-red-700 text-white py-6 text-lg"
-                  onClick={handleSign}
-                  disabled={isSigning || !signature || !acceptedTerms}
-                >
-                  {isSigning ? (
-                    <>
-                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
-                      Registrando Ciência...
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-5 h-5 mr-2" />
-                      Confirmar Ciência e Assinar
-                    </>
+                <div className="relative">
+                  {/* Arrow pointing to confirm button - Step 2 */}
+                  {guideStep === 2 && (
+                    <div className="absolute -top-12 left-1/2 -translate-x-1/2 flex flex-col items-center animate-bounce z-10">
+                      <div className="bg-green-600 text-white px-3 py-2 rounded-lg shadow-lg text-sm font-medium whitespace-nowrap">
+                        Agora clique aqui para confirmar!
+                      </div>
+                      <ArrowDown className="w-6 h-6 text-green-600" />
+                    </div>
                   )}
-                </Button>
+                  <Button
+                    className={`w-full bg-red-600 hover:bg-red-700 text-white py-6 text-lg ${guideStep === 2 ? 'ring-2 ring-green-500 ring-offset-2 animate-pulse' : ''}`}
+                    onClick={handleSign}
+                    disabled={isSigning}
+                  >
+                    {isSigning ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2" />
+                        Registrando Ciência...
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle className="w-5 h-5 mr-2" />
+                        Confirmar Ciência e Assinar
+                      </>
+                    )}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ) : (
@@ -486,6 +574,13 @@ export function ExtrajudicialAcknowledgment() {
                     />
                   </div>
                 )}
+                <Button
+                  className="mt-6 bg-green-600 hover:bg-green-700 text-white px-8"
+                  onClick={() => navigate('/dashboard/tenant-dashboard')}
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  OK - Voltar ao Dashboard
+                </Button>
               </CardContent>
             </Card>
           )}
@@ -493,7 +588,7 @@ export function ExtrajudicialAcknowledgment() {
           {/* Footer Notice */}
           <div className="text-center text-xs text-gray-500 space-y-1">
             <p>Este documento é protegido por criptografia e tem validade jurídica.</p>
-            <p>Token: {notification.token} | Hash: {notification.hash?.slice(0, 20)}...</p>
+            <p>Token: {notification.notificationToken} | Hash: {(notification.hashFinal || notification.provisionalHash)?.slice(0, 20)}...</p>
           </div>
         </CardContent>
       </Card>

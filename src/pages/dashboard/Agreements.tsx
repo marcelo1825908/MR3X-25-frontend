@@ -153,6 +153,7 @@ function AgreementActionsDropdown({
   onDelete,
   onSendForSignature,
   onSign,
+  onSignWaiting,
   onApprove,
   onReject,
   onCancel,
@@ -163,12 +164,21 @@ function AgreementActionsDropdown({
   onDelete: () => void;
   onSendForSignature: () => void;
   onSign: (type: 'agency' | 'owner' | 'tenant') => void;
+  onSignWaiting: () => void;
   onApprove: () => void;
   onReject: () => void;
   onCancel: () => void;
 }) {
   const context = useMemo(() => toAgreementContext(agreement), [agreement]);
   const actions = useAgreementActions(context);
+  const { user } = useAuth();
+
+  // Check if agency can sign (has permission) but is waiting for others
+  const isAgencyRole = ['AGENCY_ADMIN', 'AGENCY_MANAGER'].includes(user?.role || '');
+  const agencyWaitingForOthers = isAgencyRole &&
+    !agreement.agencySignedAt &&
+    (!agreement.tenantSignature || !agreement.ownerSignature) &&
+    ['AGUARDANDO_ASSINATURA', 'RASCUNHO'].includes(agreement.status);
 
   return (
     <DropdownMenu>
@@ -204,6 +214,12 @@ function AgreementActionsDropdown({
           <DropdownMenuItem onClick={() => onSign('agency')}>
             <PenTool className="w-4 h-4 mr-2" />
             Assinar como Agencia
+          </DropdownMenuItem>
+        )}
+        {agencyWaitingForOthers && (
+          <DropdownMenuItem onClick={onSignWaiting} className="text-gray-400">
+            <Lock className="w-4 h-4 mr-2" />
+            Assinar como Agencia (Aguardando)
           </DropdownMenuItem>
         )}
 
@@ -268,6 +284,7 @@ function TableRowActions({
   onApprove,
   onReject,
   onSign,
+  onSignWaiting,
 }: {
   agreement: Agreement;
   onView: () => void;
@@ -277,9 +294,18 @@ function TableRowActions({
   onApprove: () => void;
   onReject: () => void;
   onSign: (type: 'agency' | 'owner' | 'tenant') => void;
+  onSignWaiting: () => void;
 }) {
   const context = useMemo(() => toAgreementContext(agreement), [agreement]);
   const actions = useAgreementActions(context);
+  const { user } = useAuth();
+
+  // Check if agency can sign (has permission) but is waiting for others
+  const isAgencyRole = ['AGENCY_ADMIN', 'AGENCY_MANAGER'].includes(user?.role || '');
+  const agencyWaitingForOthers = isAgencyRole &&
+    !agreement.agencySignedAt &&
+    (!agreement.tenantSignature || !agreement.ownerSignature) &&
+    ['AGUARDANDO_ASSINATURA', 'RASCUNHO'].includes(agreement.status);
 
   return (
     <div className="flex gap-2">
@@ -301,6 +327,17 @@ function TableRowActions({
           title="Assinar como Agencia"
         >
           <PenTool className="w-4 h-4" />
+        </Button>
+      )}
+      {agencyWaitingForOthers && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onSignWaiting}
+          className="text-gray-400 border-gray-300 cursor-not-allowed"
+          title="Aguardando assinaturas do Inquilino e Proprietário"
+        >
+          <Lock className="w-4 h-4" />
         </Button>
       )}
 
@@ -399,6 +436,7 @@ export function Agreements() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [showSignModal, setShowSignModal] = useState(false);
+  const [showWaitingModal, setShowWaitingModal] = useState(false);
   const [signAgreementData, setSignAgreementData] = useState<{ agreement: Agreement | null; type: 'agency' | 'owner' | 'tenant' | null }>({ agreement: null, type: null });
   const [signature, setSignature] = useState<string | null>(null);
   const [geoConsent, setGeoConsent] = useState(false);
@@ -1090,6 +1128,7 @@ export function Agreements() {
                             onApprove={() => handleApprove(agreement)}
                             onReject={() => handleReject(agreement)}
                             onSign={(type) => handleSign(agreement, type)}
+                            onSignWaiting={() => setShowWaitingModal(true)}
                           />
                         </td>
                       </tr>
@@ -1119,6 +1158,7 @@ export function Agreements() {
                         onDelete={() => handleDeleteAgreement(agreement)}
                         onSendForSignature={() => handleSendForSignature(agreement)}
                         onSign={(type) => handleSign(agreement, type)}
+                        onSignWaiting={() => setShowWaitingModal(true)}
                         onApprove={() => handleApprove(agreement)}
                         onReject={() => handleReject(agreement)}
                         onCancel={() => handleCancel(agreement)}
@@ -1180,6 +1220,7 @@ export function Agreements() {
                         onDelete={() => handleDeleteAgreement(agreement)}
                         onSendForSignature={() => handleSendForSignature(agreement)}
                         onSign={(type) => handleSign(agreement, type)}
+                        onSignWaiting={() => setShowWaitingModal(true)}
                         onApprove={() => handleApprove(agreement)}
                         onReject={() => handleReject(agreement)}
                         onCancel={() => handleCancel(agreement)}
@@ -1974,6 +2015,33 @@ export function Agreements() {
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Waiting Modal for Agency Sign */}
+        <Dialog open={showWaitingModal} onOpenChange={setShowWaitingModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Lock className="w-5 h-5 text-orange-500" />
+                Aguardando Assinaturas
+              </DialogTitle>
+              <DialogDescription>
+                Você poderá assinar este acordo após o Inquilino e o Proprietário assinarem.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <p className="text-sm text-orange-800">
+                  A assinatura da agência só pode ser realizada depois que ambas as partes (Inquilino e Proprietário) já tiverem assinado o acordo.
+                </p>
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={() => setShowWaitingModal(false)}>
+                  Entendi
+                </Button>
+              </div>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

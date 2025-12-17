@@ -781,7 +781,17 @@ export const notificationsAPI = {
   },
 
   markAsRead: async (id: string) => {
-    const response = await apiClient.patch(`/notifications/${id}/read`);
+    const response = await apiClient.put(`/notifications/${id}/read`);
+    return response.data;
+  },
+
+  markAllAsRead: async () => {
+    const response = await apiClient.put('/notifications/mark-all-read');
+    return response.data;
+  },
+
+  getUnreadCount: async () => {
+    const response = await apiClient.get('/notifications/unread-count');
     return response.data;
   },
 };

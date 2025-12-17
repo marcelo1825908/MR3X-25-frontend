@@ -114,9 +114,9 @@ export function DashboardLayout() {
     refetchInterval: 30000,
   });
 
-  const { data: notificationsData } = useQuery({
+  const { data: notificationsUnreadData } = useQuery({
     queryKey: ['notifications-unread'],
-    queryFn: () => notificationsAPI.getNotifications(),
+    queryFn: () => notificationsAPI.getUnreadCount(),
     enabled: isAuthenticated,
     refetchInterval: 30000,
   });
@@ -138,9 +138,7 @@ export function DashboardLayout() {
     ? chatsData.reduce((sum: number, chat: any) => sum + (chat.unreadCount || 0), 0)
     : 0;
 
-  const unreadNotificationsCount = Array.isArray(notificationsData)
-    ? notificationsData.filter((n: any) => !n.read).length
-    : (notificationsData?.data ? notificationsData.data.filter((n: any) => !n.read).length : 0);
+  const unreadNotificationsCount = notificationsUnreadData?.count || 0;
 
   const pendingExtrajudicialCount = (() => {
     const notifications = extrajudicialData?.data || [];
@@ -338,6 +336,7 @@ export function DashboardLayout() {
         '/dashboard/tenant-payments',
         '/dashboard/inspections',
         '/dashboard/extrajudicial-notifications',
+        '/dashboard/agreements',
         '/dashboard/chat',
         '/dashboard/notifications',
         '/dashboard/my-account',

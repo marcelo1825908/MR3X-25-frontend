@@ -777,7 +777,7 @@ export function Owners() {
                   <DocumentInput
                     value={newOwner.document}
                     onChange={(value) => setNewOwner(prev => ({ ...prev, document: value }))}
-                    label="Documento"
+                    label="Documento (CPF/CNPJ)"
                     placeholder="000.000.000-00"
                     showValidation={true}
                   />

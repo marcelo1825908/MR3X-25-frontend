@@ -756,7 +756,7 @@ export function Managers() {
                   <DocumentInput
                     value={newManager.document}
                     onChange={(value) => setNewManager(prev => ({ ...prev, document: value }))}
-                    label="Documento"
+                    label="Documento (CPF/CNPJ)"
                     placeholder="000.000.000-00"
                     showValidation={true}
                   />

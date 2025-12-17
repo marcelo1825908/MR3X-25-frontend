@@ -1083,7 +1083,7 @@ export function Tenants() {
                     <DocumentInput
                       value={newTenant.document}
                       onChange={(value) => setNewTenant(prev => ({ ...prev, document: value }))}
-                      label="Documento"
+                      label="Documento (CPF/CNPJ)"
                       placeholder="000.000.000-00"
                       showValidation={true}
                     />
@@ -1888,7 +1888,7 @@ export function Tenants() {
                           <p className="font-medium text-gray-900">{analysisResult.name || '-'}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Documento</p>
+                          <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">Documento (CPF/CNPJ)</p>
                           <p className="font-medium text-gray-900 font-mono">{analysisResult.document || '-'}</p>
                         </div>
                       </div>

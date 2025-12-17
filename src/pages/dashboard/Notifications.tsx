@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext'
 import {
   Bell,
   Check,
+  CheckCheck,
   Trash2,
   Calendar,
   Info,
@@ -87,6 +88,18 @@ export function Notifications() {
     },
   })
 
+  const markAllAsReadMutation = useMutation({
+    mutationFn: () => notificationsAPI.markAllAsRead(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread'] })
+      toast.success('Todas as notificações foram marcadas como lidas')
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Erro ao marcar todas como lidas')
+    },
+  })
+
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'INFO':
@@ -112,8 +125,39 @@ export function Notifications() {
         return 'bg-green-100 text-green-800'
       case 'ERROR':
         return 'bg-red-100 text-red-800'
+      case 'agreement':
+        return 'bg-purple-100 text-purple-800'
+      case 'agreement_signed':
+        return 'bg-green-100 text-green-800'
+      case 'agreement_completed':
+        return 'bg-blue-100 text-blue-800'
+      case 'agreement_rejected':
+        return 'bg-red-100 text-red-800'
       default:
         return 'bg-gray-100 text-gray-800'
+    }
+  }
+
+  const getNotificationTypeLabel = (type: string) => {
+    switch (type) {
+      case 'INFO':
+        return 'Informação'
+      case 'WARNING':
+        return 'Aviso'
+      case 'SUCCESS':
+        return 'Sucesso'
+      case 'ERROR':
+        return 'Erro'
+      case 'agreement':
+        return 'Acordo'
+      case 'agreement_signed':
+        return 'Acordo Assinado'
+      case 'agreement_completed':
+        return 'Acordo Concluído'
+      case 'agreement_rejected':
+        return 'Acordo Rejeitado'
+      default:
+        return type || 'Notificação'
     }
   }
 
@@ -129,7 +173,7 @@ export function Notifications() {
 
   return (
     <div className="space-y-6">
-      {}
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-orange-100 rounded-lg">
@@ -142,9 +186,20 @@ export function Notifications() {
             </p>
           </div>
         </div>
+        {unreadCount > 0 && (
+          <Button
+            variant="outline"
+            onClick={() => markAllAsReadMutation.mutate()}
+            disabled={markAllAsReadMutation.isPending}
+            className="flex items-center gap-2"
+          >
+            <CheckCheck className="w-4 h-4" />
+            Marcar todas como lidas
+          </Button>
+        )}
       </div>
 
-      {}
+      {/* Notifications List */}
       {notifications.length > 0 ? (
         <div className="space-y-4">
           {notifications.map((notification: any) => (
@@ -163,7 +218,7 @@ export function Notifications() {
                         {notification.description || notification.title || 'Notificação'}
                       </h3>
                       <Badge className={getNotificationBadgeColor(notification.type)}>
-                        {notification.type}
+                        {getNotificationTypeLabel(notification.type)}
                       </Badge>
                       {!notification.read && (
                         <Badge className="bg-orange-500 text-white">Nova</Badge>

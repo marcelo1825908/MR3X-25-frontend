@@ -761,7 +761,7 @@ export function Brokers() {
                   <DocumentInput
                     value={newBroker.document}
                     onChange={(value) => setNewBroker(prev => ({ ...prev, document: value }))}
-                    label="Documento"
+                    label="Documento (CPF/CNPJ)"
                     placeholder="000.000.000-00"
                     showValidation={true}
                   />
