@@ -169,8 +169,8 @@ export const contractsAPI = {
   signContractWithGeo: async (id: string, data: {
     signature: string;
     signatureType: 'tenant' | 'owner' | 'agency' | 'witness';
-    geoLat: number;
-    geoLng: number;
+    geoLat?: number;
+    geoLng?: number;
     geoConsent: boolean;
     witnessName?: string;
     witnessDocument?: string;

@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
+import { safeGetCurrentPosition, isSecureOrigin } from '../../hooks/use-geolocation';
 import {
   Scale, Shield, MapPin, CheckCircle, FileText, AlertTriangle,
   ArrowLeft, Download, Clock, User, Mail, ArrowDown
@@ -101,9 +102,19 @@ export function ExtrajudicialAcknowledgment() {
 
   // Request geolocation
   const requestGeolocation = useCallback(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
+    if (!isSecureOrigin()) {
+      toast.warning('Geolocalização requer HTTPS. Continuando sem localização.');
+      setGeoLocation(null);
+      setGeoConsent(true); // Allow to proceed without location
+      if (guideStep === 1) {
+        setGuideStep(2);
+      }
+      return;
+    }
+
+    safeGetCurrentPosition(
+      async (position) => {
+        if (position) {
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
           setGeoLocation({ lat, lng });
@@ -119,13 +130,21 @@ export function ExtrajudicialAcknowledgment() {
           }
 
           toast.success('Localização capturada com sucesso');
-        },
-        () => {
-          toast.error('Não foi possível obter sua localização');
-          setGeoConsent(false);
+        } else {
+          // No location available but allow to proceed
+          setGeoLocation(null);
+          setGeoConsent(true);
+          if (guideStep === 1) {
+            setGuideStep(2);
+          }
+          toast.warning('Continuando sem localização.');
         }
-      );
-    }
+      },
+      () => {
+        toast.error('Não foi possível obter sua localização');
+        setGeoConsent(false);
+      }
+    );
   }, [guideStep]);
 
   // Sign mutation

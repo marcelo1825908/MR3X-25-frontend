@@ -31,6 +31,7 @@ import {
   Search,
 } from 'lucide-react';
 import { formatDate, formatCurrency } from '../../lib/utils';
+import { safeGetCurrentPosition, isSecureOrigin } from '../../hooks/use-geolocation';
 import { SignatureCapture } from '../../components/contracts/SignatureCapture';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
@@ -854,27 +855,31 @@ export function Agreements() {
 
   const handleGeoConsentChange = (consent: boolean) => {
     setGeoConsent(consent);
-    if (consent && navigator.geolocation) {
+    if (consent) {
+      // Check if on secure origin first
+      if (!isSecureOrigin()) {
+        toast.warning('Geolocalização requer HTTPS. Continuando sem localização.');
+        setGeoLocation(null);
+        return;
+      }
+
       toast.info('Obtendo localização...');
-      navigator.geolocation.getCurrentPosition(
+      safeGetCurrentPosition(
         (position) => {
-          setGeoLocation({
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          });
-          toast.success('Localização obtida com sucesso!');
+          if (position) {
+            setGeoLocation({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            });
+            toast.success('Localização obtida com sucesso!');
+          } else {
+            setGeoLocation(null);
+            toast.warning('Continuando sem localização.');
+          }
         },
         (error) => {
           console.error('Error getting geolocation:', error);
-          if (error.code === 1) {
-            toast.error('Permissão de localização negada. Por favor, permita o acesso à localização.');
-          } else if (error.code === 2) {
-            toast.error('Não foi possível determinar sua localização. Verifique se o GPS está ativado.');
-          } else if (error.code === 3) {
-            toast.error('Tempo esgotado ao obter localização.');
-          } else {
-            toast.error('Erro ao obter localização.');
-          }
+          toast.error('Erro ao obter localização.');
           setGeoConsent(false);
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }

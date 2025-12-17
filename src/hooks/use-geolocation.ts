@@ -1,5 +1,48 @@
 import { useState, useCallback, useEffect } from 'react';
 
+// Check if running on secure origin (HTTPS or localhost)
+export const isSecureOrigin = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.location.protocol === 'https:' ||
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1'
+  );
+};
+
+// Safe geolocation wrapper that handles HTTP gracefully
+export const safeGetCurrentPosition = (
+  onSuccess: (position: GeolocationPosition | null) => void,
+  onError?: (error: GeolocationPositionError | Error) => void,
+  options?: PositionOptions
+): void => {
+  if (!navigator.geolocation) {
+    onError?.(new Error('Geolocalização não é suportada pelo seu navegador'));
+    return;
+  }
+
+  if (!isSecureOrigin()) {
+    console.warn('Geolocation requires HTTPS. Continuing without location.');
+    // Call success with null to allow the operation to continue without location
+    onSuccess(null);
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => onSuccess(position),
+    (error) => {
+      console.error('Geolocation error:', error);
+      if (onError) {
+        onError(error);
+      } else {
+        // Default: continue without location
+        onSuccess(null);
+      }
+    },
+    options || { enableHighAccuracy: true }
+  );
+};
+
 export interface GeolocationState {
   loading: boolean;
   error: string | null;

@@ -15,6 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { extrajudicialNotificationsAPI, propertiesAPI, usersAPI } from '@/api';
 import { useAuth } from '@/contexts/AuthContext';
+import { safeGetCurrentPosition, isSecureOrigin } from '@/hooks/use-geolocation';
 import SignatureCanvas from 'react-signature-canvas';
 import {
   Plus,
@@ -358,17 +359,18 @@ export default function ExtrajudicialNotifications() {
 
       let geoLat = signData.geoLat;
       let geoLng = signData.geoLng;
-      if (signData.geoConsent && navigator.geolocation) {
+      if (signData.geoConsent && isSecureOrigin()) {
         try {
           await new Promise<void>((resolve) => {
-            navigator.geolocation.getCurrentPosition(
+            safeGetCurrentPosition(
               (position) => {
-                geoLat = position.coords.latitude;
-                geoLng = position.coords.longitude;
+                if (position) {
+                  geoLat = position.coords.latitude;
+                  geoLng = position.coords.longitude;
+                }
                 resolve();
               },
-              (error) => {
-                console.warn('Geolocation unavailable:', error.message);
+              () => {
                 resolve();
               },
               { timeout: 10000 }

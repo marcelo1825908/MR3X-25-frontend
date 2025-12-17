@@ -30,6 +30,7 @@ import {
 } from 'recharts';
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { toast } from 'sonner';
+import { safeGetCurrentPosition, isSecureOrigin } from '../../hooks/use-geolocation';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
@@ -169,9 +170,19 @@ export function TenantDashboard() {
 
   // Get geolocation if consent given
   const requestGeolocation = useCallback(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
+    if (!isSecureOrigin()) {
+      toast.warning('Geolocalização requer HTTPS. Continuando sem localização.');
+      setGeoLocation(null);
+      setGeoConsent(true); // Allow to proceed without location
+      if (guideStep === 1) {
+        setGuideStep(2);
+      }
+      return;
+    }
+
+    safeGetCurrentPosition(
+      async (position) => {
+        if (position) {
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
           setGeoLocation({ lat, lng });
@@ -185,13 +196,21 @@ export function TenantDashboard() {
           if (guideStep === 1) {
             setGuideStep(2);
           }
-        },
-        () => {
-          toast.error('Não foi possível obter sua localização');
-          setGeoConsent(false);
+        } else {
+          // No location available but allow to proceed
+          setGeoLocation(null);
+          setGeoConsent(true);
+          if (guideStep === 1) {
+            setGuideStep(2);
+          }
+          toast.warning('Continuando sem localização.');
         }
-      );
-    }
+      },
+      () => {
+        toast.error('Não foi possível obter sua localização');
+        setGeoConsent(false);
+      }
+    );
   }, [guideStep]);
 
   // Acknowledgment mutation

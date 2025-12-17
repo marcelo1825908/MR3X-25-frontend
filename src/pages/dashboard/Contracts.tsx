@@ -27,6 +27,7 @@ import {
 import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
 import { formatCurrency, formatDate } from '../../lib/utils';
+import { safeGetCurrentPosition } from '../../hooks/use-geolocation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../components/ui/dialog';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -1153,21 +1154,16 @@ export function Contracts() {
       return;
     }
 
-    if (!navigator.geolocation) {
-      toast.error('Geolocalização não suportada neste navegador');
-      return;
-    }
-
     setSigning(true);
 
-    navigator.geolocation.getCurrentPosition(async (position) => {
+    safeGetCurrentPosition(async (position) => {
       try {
         await contractsAPI.signContractWithGeo(selectedContract.id.toString(), {
           signature: user.name || 'Assinatura eletrônica',
           signatureType,
-          geoLat: position.coords.latitude,
-          geoLng: position.coords.longitude,
-          geoConsent: true,
+          geoLat: position?.coords.latitude,
+          geoLng: position?.coords.longitude,
+          geoConsent: position !== null,
         });
 
         toast.success('Contrato assinado com sucesso');
@@ -1204,21 +1200,16 @@ export function Contracts() {
       return;
     }
 
-    if (!navigator.geolocation) {
-      toast.error('Geolocalização não suportada neste navegador');
-      return;
-    }
-
     setSigning(true);
 
-    navigator.geolocation.getCurrentPosition(async (position) => {
+    safeGetCurrentPosition(async (position) => {
       try {
         await contractsAPI.signContractWithGeo(contract.id.toString(), {
           signature: user.name || 'Assinatura eletrônica',
           signatureType,
-          geoLat: position.coords.latitude,
-          geoLng: position.coords.longitude,
-          geoConsent: true,
+          geoLat: position?.coords.latitude,
+          geoLng: position?.coords.longitude,
+          geoConsent: position !== null,
         });
 
         toast.success('Contrato assinado com sucesso');
