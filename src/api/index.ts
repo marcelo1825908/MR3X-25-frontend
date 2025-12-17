@@ -558,6 +558,11 @@ export const agenciesAPI = {
     const response = await apiClient.post(`/agencies/${id}/change-plan`, { newPlan });
     return response.data;
   },
+
+  createPlanPayment: async (id: string, newPlan: string) => {
+    const response = await apiClient.post(`/agencies/${id}/create-plan-payment`, { newPlan });
+    return response.data;
+  },
 };
 
 export const plansAPI = {

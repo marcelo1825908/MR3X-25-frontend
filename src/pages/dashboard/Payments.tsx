@@ -288,13 +288,8 @@ export function Payments() {
   return (
     <TooltipProvider>
       <div className="space-y-6">
-        {}
-        {isReadOnlyOwner && (
-          <ReadOnlyBadge
-            variant="banner"
-            message={ownerPermissions.restrictionMessage}
-          />
-        )}
+        { }
+
 
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -313,6 +308,7 @@ export function Payments() {
               </p>
             </div>
           </div>
+
           {canCreatePayments && (
             <Tooltip>
               <TooltipTrigger asChild>
@@ -330,6 +326,13 @@ export function Payments() {
             </Tooltip>
           )}
         </div>
+
+        {isReadOnlyOwner && (
+          <ReadOnlyBadge
+            variant="banner"
+            message={ownerPermissions.restrictionMessage}
+          />
+        )}
 
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex w-full sm:max-w-lg gap-2">
@@ -364,7 +367,7 @@ export function Payments() {
           </div>
         </div>
 
-        {}
+        { }
         {annualReport && (
           <div className="grid grid-cols-3 gap-2 sm:gap-4 md:gap-6">
             <Card>
@@ -414,11 +417,11 @@ export function Payments() {
                 <Card key={payment.id} className="transition-all hover:shadow-md overflow-hidden">
                   <CardContent className="p-0">
                     <div className="flex">
-                      {}
+                      { }
                       <div className="w-20 sm:w-28 min-w-[5rem] sm:min-w-[7rem] h-32 sm:h-36 bg-primary/10 flex items-center justify-center rounded-l-md">
                         <DollarSign className="w-10 h-10 sm:w-12 sm:h-12 text-primary" />
                       </div>
-                      {}
+                      { }
                       <div className="flex-1 flex flex-col justify-between p-3 sm:p-4 min-w-0">
                         <div>
                           <h3 className="text-base sm:text-lg font-bold truncate">
@@ -496,7 +499,7 @@ export function Payments() {
           </div>
         </div>
 
-        {}
+        { }
         <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -536,10 +539,10 @@ export function Payments() {
                       {contracts
                         .filter((c: any) => !newPayment.propertyId || c.propertyId === newPayment.propertyId)
                         .map((contract: any) => (
-                        <SelectItem key={contract.id} value={contract.id?.toString()}>
-                          {contract.property?.address || contract.property?.name || `Contrato #${contract.id}`} - {contract.tenantUser?.name || 'Inquilino'}
-                        </SelectItem>
-                      ))}
+                          <SelectItem key={contract.id} value={contract.id?.toString()}>
+                            {contract.property?.address || contract.property?.name || `Contrato #${contract.id}`} - {contract.tenantUser?.name || 'Inquilino'}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -602,7 +605,7 @@ export function Payments() {
           </DialogContent>
         </Dialog>
 
-        {}
+        { }
         <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -642,10 +645,10 @@ export function Payments() {
                       {contracts
                         .filter((c: any) => !editForm.propertyId || c.propertyId === editForm.propertyId)
                         .map((contract: any) => (
-                        <SelectItem key={contract.id} value={contract.id?.toString()}>
-                          {contract.property?.address || contract.property?.name || `Contrato #${contract.id}`} - {contract.tenantUser?.name || 'Inquilino'}
-                        </SelectItem>
-                      ))}
+                          <SelectItem key={contract.id} value={contract.id?.toString()}>
+                            {contract.property?.address || contract.property?.name || `Contrato #${contract.id}`} - {contract.tenantUser?.name || 'Inquilino'}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -708,7 +711,7 @@ export function Payments() {
           </DialogContent>
         </Dialog>
 
-        {}
+        { }
         <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
           <DialogContent>
             <DialogHeader>
@@ -735,7 +738,7 @@ export function Payments() {
           </DialogContent>
         </Dialog>
 
-        {}
+        { }
         <Dialog open={!!paymentToDelete} onOpenChange={() => setPaymentToDelete(null)}>
           <DialogContent className="w-[calc(100%-2rem)] sm:max-w-lg rounded-xl">
             <DialogHeader>

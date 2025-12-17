@@ -133,6 +133,12 @@ export function Notifications() {
         return 'bg-blue-100 text-blue-800'
       case 'agreement_rejected':
         return 'bg-red-100 text-red-800'
+      case 'contract':
+        return 'bg-indigo-100 text-indigo-800'
+      case 'contract_signed':
+        return 'bg-teal-100 text-teal-800'
+      case 'contract_completed':
+        return 'bg-cyan-100 text-cyan-800'
       default:
         return 'bg-gray-100 text-gray-800'
     }
@@ -156,6 +162,12 @@ export function Notifications() {
         return 'Acordo Concluído'
       case 'agreement_rejected':
         return 'Acordo Rejeitado'
+      case 'contract':
+        return 'Contrato'
+      case 'contract_signed':
+        return 'Contrato Assinado'
+      case 'contract_completed':
+        return 'Contrato Concluído'
       default:
         return type || 'Notificação'
     }

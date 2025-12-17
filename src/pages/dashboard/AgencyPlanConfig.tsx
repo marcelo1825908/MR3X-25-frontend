@@ -18,6 +18,10 @@ import {
   Crown,
   Zap,
   Star,
+  CreditCard,
+  QrCode,
+  Copy,
+  ExternalLink,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -42,6 +46,20 @@ interface PlanChangePreview {
   willFreeze: { properties: number; users: number };
   willUnfreeze: { properties: number; users: number };
   isUpgrade: boolean;
+}
+
+interface PaymentData {
+  requiresPayment: boolean;
+  paymentId?: string;
+  invoiceUrl?: string;
+  bankSlipUrl?: string;
+  pixQrCode?: string;
+  pixCopyPaste?: string;
+  value?: number;
+  dueDate?: string;
+  currentPlan?: string;
+  newPlan?: string;
+  message?: string;
 }
 
 const getPlanNameInPortuguese = (name?: string | null) => {
@@ -113,10 +131,13 @@ export function AgencyPlanConfig() {
   const queryClient = useQueryClient();
 
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
   const [previewData, setPreviewData] = useState<PlanChangePreview | null>(null);
+  const [paymentData, setPaymentData] = useState<PaymentData | null>(null);
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [changingPlan, setChangingPlan] = useState(false);
+  const [creatingPayment, setCreatingPayment] = useState(false);
 
   const canViewPlan = hasPermission('agencies:read') || user?.role === 'AGENCY_ADMIN';
   const agencyId = user?.agencyId;
@@ -198,6 +219,35 @@ export function AgencyPlanConfig() {
   const handleRequestPlanChange = async () => {
     if (!selectedPlan || !agencyId) return;
 
+    // For upgrades, we need to create a payment first
+    if (previewData?.isUpgrade) {
+      setCreatingPayment(true);
+      try {
+        const paymentResult = await agenciesAPI.createPlanPayment(agencyId, selectedPlan);
+
+        if (paymentResult.requiresPayment) {
+          // Show payment modal
+          setPaymentData(paymentResult);
+          setShowUpgradeModal(false);
+          setShowPaymentModal(true);
+        } else {
+          // No payment required (shouldn't happen for upgrades, but handle it)
+          await handleDirectPlanChange();
+        }
+      } catch (error: any) {
+        toast.error(error.response?.data?.message || error.message || 'Erro ao criar pagamento');
+      } finally {
+        setCreatingPayment(false);
+      }
+    } else {
+      // For downgrades, change plan directly
+      await handleDirectPlanChange();
+    }
+  };
+
+  const handleDirectPlanChange = async () => {
+    if (!selectedPlan || !agencyId) return;
+
     setChangingPlan(true);
     try {
       const result = await agenciesAPI.changePlan(agencyId, selectedPlan);
@@ -208,12 +258,27 @@ export function AgencyPlanConfig() {
 
       toast.success(result.message || 'Plano alterado com sucesso!');
       setShowUpgradeModal(false);
+      setShowPaymentModal(false);
       setSelectedPlan(null);
       setPreviewData(null);
+      setPaymentData(null);
     } catch (error: any) {
       toast.error(error.response?.data?.message || error.message || 'Erro ao alterar plano');
     } finally {
       setChangingPlan(false);
+    }
+  };
+
+  const handleCopyPixCode = () => {
+    if (paymentData?.pixCopyPaste) {
+      navigator.clipboard.writeText(paymentData.pixCopyPaste);
+      toast.success('Código PIX copiado para a área de transferência');
+    }
+  };
+
+  const handleOpenInvoice = () => {
+    if (paymentData?.invoiceUrl) {
+      window.open(paymentData.invoiceUrl, '_blank');
     }
   };
 
@@ -802,24 +867,148 @@ export function AgencyPlanConfig() {
             </div>
           )}
           <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setShowUpgradeModal(false)} disabled={changingPlan}>
+            <Button variant="outline" onClick={() => setShowUpgradeModal(false)} disabled={changingPlan || creatingPayment}>
               Cancelar
             </Button>
             <Button
               onClick={handleRequestPlanChange}
-              disabled={changingPlan}
+              disabled={changingPlan || creatingPayment}
               variant={previewData && !previewData.isUpgrade ? 'destructive' : 'default'}
             >
-              {changingPlan ? (
+              {changingPlan || creatingPayment ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Alterando...
+                  {creatingPayment ? 'Criando pagamento...' : 'Alterando...'}
                 </>
               ) : previewData && !previewData.isUpgrade ? (
                 'Confirmar Downgrade'
               ) : (
-                'Confirmar Upgrade'
+                <>
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  Continuar para Pagamento
+                </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Modal */}
+      <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="w-5 h-5 text-green-600" />
+              Pagamento do Plano
+            </DialogTitle>
+            <DialogDescription>
+              Complete o pagamento para ativar seu novo plano
+            </DialogDescription>
+          </DialogHeader>
+          {paymentData && (
+            <div className="space-y-4">
+              {/* Plan Change Summary */}
+              <div className="p-4 bg-gray-50 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Plano atual:</span>
+                  <span className="font-medium">{paymentData.currentPlan}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Novo plano:</span>
+                  <span className="font-medium text-green-600">{paymentData.newPlan}</span>
+                </div>
+                <div className="flex items-center justify-between border-t pt-2">
+                  <span className="text-sm font-semibold">Valor:</span>
+                  <span className="text-xl font-bold text-green-600">
+                    R$ {paymentData.value?.toFixed(2)}
+                  </span>
+                </div>
+                {paymentData.dueDate && (
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-muted-foreground">Vencimento:</span>
+                    <span>{new Date(paymentData.dueDate).toLocaleDateString('pt-BR')}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Payment Options */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold">Opções de Pagamento:</h4>
+
+                {/* PIX Option */}
+                {paymentData.pixQrCode && (
+                  <div className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <QrCode className="w-5 h-5 text-green-600" />
+                      <span className="font-semibold">PIX</span>
+                      <Badge className="bg-green-100 text-green-800 text-xs">Aprovação instantânea</Badge>
+                    </div>
+                    <div className="flex justify-center">
+                      <img
+                        src={`data:image/png;base64,${paymentData.pixQrCode}`}
+                        alt="QR Code PIX"
+                        className="w-40 h-40 border rounded"
+                      />
+                    </div>
+                    {paymentData.pixCopyPaste && (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={handleCopyPixCode}
+                      >
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copiar código PIX
+                      </Button>
+                    )}
+                  </div>
+                )}
+
+                {/* Invoice/Boleto Option */}
+                {paymentData.invoiceUrl && (
+                  <div className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <CreditCard className="w-5 h-5 text-blue-600" />
+                      <span className="font-semibold">Boleto ou Cartão</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Acesse a fatura para pagar via boleto bancário ou cartão de crédito.
+                    </p>
+                    <Button
+                      variant="default"
+                      className="w-full"
+                      onClick={handleOpenInvoice}
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Acessar Fatura
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Important Notice */}
+              <Alert className="border-blue-300 bg-blue-50">
+                <AlertTriangle className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-blue-800 text-sm">
+                  <p className="font-medium">Importante:</p>
+                  <ul className="list-disc list-inside mt-1 space-y-1 text-xs">
+                    <li>Seu plano será ativado automaticamente após a confirmação do pagamento</li>
+                    <li>Pagamentos via PIX são confirmados em segundos</li>
+                    <li>Pagamentos via boleto podem levar até 3 dias úteis</li>
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            </div>
+          )}
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowPaymentModal(false);
+                setPaymentData(null);
+                setSelectedPlan(null);
+              }}
+            >
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>

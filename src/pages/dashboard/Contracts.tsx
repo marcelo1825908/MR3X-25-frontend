@@ -21,7 +21,8 @@ import {
   Printer,
   Search,
   Send,
-  Lock
+  Lock,
+  PenLine
 } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
 import { formatCurrency, formatDate } from '../../lib/utils';
@@ -1061,17 +1062,23 @@ export function Contracts() {
 
   const getUserSignatureType = (contract: any): 'tenant' | 'owner' | 'agency' | null => {
     const userId = user?.id?.toString();
+    const userRole = user?.role;
     if (!userId) return null;
 
-    if (contract.tenantId?.toString() === userId) {
+    // Check if user is the tenant
+    if (contract.tenantId?.toString() === userId ||
+        (userRole === 'INQUILINO' && contract.tenantUser?.id?.toString() === userId)) {
       return 'tenant';
     }
 
-    if (contract.ownerId?.toString && contract.ownerId.toString() === userId) {
+    // Check if user is the owner
+    if (contract.ownerId?.toString() === userId ||
+        ((userRole === 'PROPRIETARIO' || userRole === 'INDEPENDENT_OWNER') && contract.ownerUser?.id?.toString() === userId)) {
       return 'owner';
     }
 
-    if (user?.agencyId && contract.agencyId?.toString && contract.agencyId.toString() === user.agencyId.toString()) {
+    // Check if user is from the agency
+    if (user?.agencyId && contract.agencyId?.toString() === user.agencyId.toString()) {
       return 'agency';
     }
 
@@ -1146,14 +1153,60 @@ export function Contracts() {
     }, { enableHighAccuracy: true });
   };
 
+  const handleSignContractFromList = async (contract: any) => {
+    if (!contract || !user) {
+      toast.error('Contrato não carregado');
+      return;
+    }
+
+    const signatureType = getUserSignatureType(contract);
+    if (!signatureType) {
+      toast.error('Você não pode assinar este contrato');
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      toast.error('Geolocalização não suportada neste navegador');
+      return;
+    }
+
+    setSigning(true);
+
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      try {
+        await contractsAPI.signContractWithGeo(contract.id.toString(), {
+          signature: user.name || 'Assinatura eletrônica',
+          signatureType,
+          geoLat: position.coords.latitude,
+          geoLng: position.coords.longitude,
+          geoConsent: true,
+        });
+
+        toast.success('Contrato assinado com sucesso');
+        queryClient.invalidateQueries({
+          queryKey: ['contracts', user?.id ?? 'anonymous', user?.role ?? 'unknown', user?.agencyId ?? 'none', user?.brokerId ?? 'none']
+        });
+      } catch (error: any) {
+        console.error('Error signing contract:', error);
+        toast.error(error?.response?.data?.message || error?.message || 'Erro ao assinar contrato');
+      } finally {
+        setSigning(false);
+      }
+    }, (error) => {
+      console.error('Geolocation error:', error);
+      toast.error('Não foi possível obter a localização para assinatura');
+      setSigning(false);
+    }, { enableHighAccuracy: true });
+  };
+
   const canEditContract = (_contract: any): boolean => {
     // Contracts cannot be edited once created
     return false;
   };
 
   const canDeleteContract = (contract: any): boolean => {
-    const nonDeletableStatuses = ['REVOGADO', 'ENCERRADO'];
-    return !nonDeletableStatuses.includes(contract.status);
+    // Only allow deletion when contract is in draft status (before sending for signing)
+    return contract.status === 'RASCUNHO';
   };
 
   const getImmutabilityMessage = (contract: any): string => {
@@ -1748,6 +1801,18 @@ export function Contracts() {
                                 <Send className="w-4 h-4" />
                               </Button>
                             )}
+                            {canUserSignContract(contract) && (
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                onClick={() => handleSignContractFromList(contract)}
+                                disabled={signing}
+                                className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                                title="Assinar contrato"
+                              >
+                                <PenLine className="w-4 h-4" />
+                              </Button>
+                            )}
                              {canUpdateContracts && !canEditContract(contract) && (
                               <Button
                                 size="icon"
@@ -1831,6 +1896,18 @@ export function Contracts() {
                            title="Enviar para assinatura"
                          >
                            <Send className="w-4 h-4" />
+                         </Button>
+                       )}
+                       {canUserSignContract(contract) && (
+                         <Button
+                           size="icon"
+                           variant="outline"
+                           onClick={() => handleSignContractFromList(contract)}
+                           disabled={signing}
+                           className="text-purple-600 border-purple-600 hover:bg-purple-50"
+                           title="Assinar contrato"
+                         >
+                           <PenLine className="w-4 h-4" />
                          </Button>
                        )}
                        {canUpdateContracts && !canEditContract(contract) && (
@@ -1928,6 +2005,12 @@ export function Contracts() {
                                 <Eye className="w-4 h-4 mr-2" />
                                 Visualizar
                               </DropdownMenuItem>
+                              {canUserSignContract(contract) && (
+                                <DropdownMenuItem onClick={() => handleSignContractFromList(contract)} disabled={signing}>
+                                  <PenLine className="w-4 h-4 mr-2" />
+                                  Assinar contrato
+                                </DropdownMenuItem>
+                              )}
                               {contract.pdfPath && (
                                 <DropdownMenuItem onClick={() => handleDownload(contract.id.toString())}>
                                   <Download className="w-4 h-4 mr-2" />
