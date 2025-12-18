@@ -4,6 +4,7 @@ import { Package, Edit, Crown, Star, Zap, Building2, Clock, CheckCircle, XCircle
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
+import { Skeleton } from '../../components/ui/skeleton'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../components/ui/dialog'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
@@ -70,6 +71,7 @@ export default function PlansPage() {
   const [planForm, setPlanForm] = useState({
     price: '',
     propertyLimit: '',
+    tenantLimit: '',
     userLimit: '',
     features: '',
     description: '',
@@ -109,6 +111,7 @@ export default function PlansPage() {
     setPlanForm({
       price: String(plan.price),
       propertyLimit: String(plan.propertyLimit),
+      tenantLimit: String(plan.tenantLimit || plan.maxTenants || plan.propertyLimit),
       userLimit: String(plan.userLimit),
       features: Array.isArray(plan.features) ? plan.features.join(', ') : plan.features || '',
       description: plan.description || '',
@@ -188,6 +191,8 @@ export default function PlansPage() {
       data: {
         price: parseFloat(planForm.price),
         propertyLimit: parseInt(planForm.propertyLimit),
+        contractLimit: parseInt(planForm.propertyLimit), // Contracts = Properties
+        tenantLimit: parseInt(planForm.tenantLimit),
         userLimit: parseInt(planForm.userLimit),
         features: featuresArray,
         description: planForm.description,
@@ -247,8 +252,55 @@ export default function PlansPage() {
 
   if (plansLoading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <p className="text-muted-foreground">Carregando planos...</p>
+      <div className="space-y-6">
+        {/* Header skeleton */}
+        <div className="flex justify-between items-center">
+          <div>
+            <Skeleton className="h-8 w-48 mb-2" />
+            <Skeleton className="h-4 w-64" />
+          </div>
+          <Skeleton className="h-10 w-40" />
+        </div>
+
+        {/* Plans grid skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <Card key={i} className="relative overflow-hidden flex flex-col">
+              <Skeleton className="absolute top-0 right-0 w-full h-2" />
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-start gap-3">
+                    <Skeleton className="w-12 h-12 rounded-lg" />
+                    <div>
+                      <Skeleton className="h-6 w-32 mb-2" />
+                      <Skeleton className="h-4 w-48" />
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 flex-1 flex flex-col">
+                <div>
+                  <Skeleton className="h-8 w-24 mb-2" />
+                  <Skeleton className="h-4 w-32" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-3/4" />
+                </div>
+                <div className="pt-2 border-t">
+                  <Skeleton className="h-4 w-20 mb-2" />
+                  <div className="space-y-1">
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-2/3" />
+                  </div>
+                </div>
+                <Skeleton className="h-10 w-full mt-auto" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     )
   }
@@ -343,9 +395,15 @@ export default function PlansPage() {
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-sm">Limite de Usuários:</span>
+                  <span className="text-sm">Limite de Inquilinos:</span>
                   <Badge variant="outline">
-                    {plan.userLimit}
+                    {plan.tenantLimit || plan.maxTenants || plan.propertyLimit}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Usuários Internos:</span>
+                  <Badge variant="secondary">
+                    {plan.userLimit === 9999 || plan.userLimit === -1 ? '∞' : plan.userLimit}
                   </Badge>
                 </div>
               </div>
@@ -452,13 +510,24 @@ export default function PlansPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="edit-plan-user-limit">Limite de Usuários</Label>
+                <Label htmlFor="edit-plan-tenant-limit">Limite de Inquilinos</Label>
+                <Input
+                  id="edit-plan-tenant-limit"
+                  type="number"
+                  value={planForm.tenantLimit}
+                  onChange={(e) => setPlanForm(prev => ({ ...prev, tenantLimit: e.target.value }))}
+                />
+                <p className="text-xs text-muted-foreground mt-1">1 contrato = 1 inquilino</p>
+              </div>
+              <div>
+                <Label htmlFor="edit-plan-user-limit">Limite de Usuários Internos</Label>
                 <Input
                   id="edit-plan-user-limit"
                   type="number"
                   value={planForm.userLimit}
                   onChange={(e) => setPlanForm(prev => ({ ...prev, userLimit: e.target.value }))}
                 />
+                <p className="text-xs text-muted-foreground mt-1">Funcionários da imobiliária</p>
               </div>
             </div>
 

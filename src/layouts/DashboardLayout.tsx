@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Home, Building2, Users, FileText, DollarSign, MessageSquare, Bell,
   LogOut, Menu, X, BarChart3, User, Shield, Building, Briefcase,
-  UserCheck, UserCog, ShieldCheck, Settings, FileDown,
+  UserCheck, UserCog, ShieldCheck, FileDown,
   Crown, Package, Mail, Receipt, ClipboardCheck, FileSignature,
   Code, KeyRound, Activity, Webhook, BookOpen, UserCog2,
   Award, Inbox, TrendingUp, Kanban,
@@ -59,7 +59,6 @@ const baseNavigation = [
   { name: 'Comunicação', href: '/dashboard/communications', icon: Mail, perm: undefined, roles: ['CEO'] },
   { name: 'Auditorias', href: '/dashboard/audit', icon: ShieldCheck, perm: 'audit:read', roles: ['CEO', 'ADMIN'] },
   { name: 'Documentos', href: '/dashboard/documents', icon: FileDown, perm: 'documents:read', roles: ['CEO', 'ADMIN', 'INDEPENDENT_OWNER'] },
-  { name: 'Configuracoes', href: '/dashboard/settings', icon: Settings, perm: 'settings:read', roles: ['CEO', 'ADMIN', 'INDEPENDENT_OWNER'] },
   { name: 'Chat', href: '/dashboard/chat', icon: MessageSquare, perm: 'chat:read' },
   { name: 'Notificacoes', href: '/dashboard/notifications', icon: Bell, perm: 'notifications:read' },
   { name: 'Minha Conta', href: '/dashboard/my-account', icon: UserCog, perm: undefined },
@@ -88,7 +87,6 @@ const baseNavigation = [
   { name: 'Usuários', href: '/dashboard/auditor-users', icon: Users, perm: undefined, roles: ['LEGAL_AUDITOR'] },
   { name: 'Documentos', href: '/dashboard/auditor-documents', icon: FileText, perm: undefined, roles: ['LEGAL_AUDITOR'] },
   { name: 'Ferramentas', href: '/dashboard/auditor-tools', icon: GitCompare, perm: undefined, roles: ['LEGAL_AUDITOR'] },
-  { name: 'Configurações', href: '/dashboard/auditor-settings', icon: Settings, perm: undefined, roles: ['LEGAL_AUDITOR'] },
   { name: 'Minha Conta', href: '/dashboard/my-account', icon: UserCog, perm: undefined, roles: ['LEGAL_AUDITOR'] },
   
   { name: 'Agências', href: '/dashboard/manager-agencies', icon: Building, perm: undefined, roles: ['PLATFORM_MANAGER'] },
@@ -96,7 +94,6 @@ const baseNavigation = [
   { name: 'Usuários Internos', href: '/dashboard/manager-users', icon: Users, perm: undefined, roles: ['PLATFORM_MANAGER'] },
   { name: 'Logs e Integridade', href: '/dashboard/manager-logs', icon: Activity, perm: undefined, roles: ['PLATFORM_MANAGER'] },
   { name: 'Planos e Cobrança', href: '/dashboard/manager-billing', icon: Receipt, perm: undefined, roles: ['PLATFORM_MANAGER'] },
-  { name: 'Configurações', href: '/dashboard/manager-settings', icon: Settings, perm: undefined, roles: ['PLATFORM_MANAGER'] },
   { name: 'Notificacoes', href: '/dashboard/notifications', icon: Bell, perm: undefined, roles: ['PLATFORM_MANAGER'] },
   { name: 'Minha Conta', href: '/dashboard/my-account', icon: UserCog, perm: undefined, roles: ['PLATFORM_MANAGER'] },
 ];
@@ -191,7 +188,6 @@ export function DashboardLayout() {
         '/dashboard/plans',
         '/dashboard/billing',
         '/dashboard/audit',
-        '/dashboard/settings',
         '/dashboard/chat',
         '/dashboard/notifications',
         '/dashboard/my-account',
@@ -227,7 +223,6 @@ export function DashboardLayout() {
         '/dashboard/communications',
         '/dashboard/audit',
         '/dashboard/documents',
-        '/dashboard/settings',
       ];
       if (excludeForAgencyAdmin.includes(item.href)) return false;
     }
@@ -240,7 +235,6 @@ export function DashboardLayout() {
         '/dashboard/manager-users',
         '/dashboard/manager-logs',
         '/dashboard/manager-billing',
-        '/dashboard/manager-settings',
         '/dashboard/notifications',
         '/dashboard/my-account',
       ];
@@ -263,7 +257,6 @@ export function DashboardLayout() {
         '/dashboard/billing', 
         '/dashboard/communications', 
         '/dashboard/audit', 
-        '/dashboard/settings', 
       ];
       if (excludeForAgencyManager.includes(item.href)) return false;
     }
@@ -365,7 +358,6 @@ export function DashboardLayout() {
         '/dashboard/communications',
         '/dashboard/audit',
         '/dashboard/documents',
-        '/dashboard/settings',
       ];
       if (excludeForBuildingManager.includes(item.href)) return false;
     }
@@ -382,7 +374,6 @@ export function DashboardLayout() {
         '/dashboard/auditor-users',
         '/dashboard/auditor-documents',
         '/dashboard/auditor-tools',
-        '/dashboard/auditor-settings',
         '/dashboard/extrajudicial-notifications',
         '/dashboard/my-account',
       ];

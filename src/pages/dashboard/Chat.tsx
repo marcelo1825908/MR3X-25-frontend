@@ -8,6 +8,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
 import { Card, CardContent } from '../../components/ui/card'
+import { Skeleton } from '../../components/ui/skeleton'
 
 interface Chat {
   id: string
@@ -242,7 +243,14 @@ export function Chat() {
                   </div>
                   <div className="overflow-y-auto flex-1">
                     {chatsLoading ? (
-                      <div className="text-center text-muted-foreground py-8 text-sm">Carregando...</div>
+                      <div className="space-y-2 p-2">
+                        {[...Array(5)].map((_, i) => (
+                          <div key={i} className="border rounded-lg p-3 space-y-2">
+                            <Skeleton className="h-4 w-3/4" />
+                            <Skeleton className="h-3 w-1/2" />
+                          </div>
+                        ))}
+                      </div>
                     ) : chats && chats.length === 0 ? (
                       <div className="text-center text-muted-foreground py-8 text-sm">Nenhum chat encontrado</div>
                     ) : (
@@ -295,7 +303,13 @@ export function Chat() {
                   </div>
                   <div className="flex-1 p-3 overflow-y-auto space-y-2 bg-gray-50">
                     {messagesLoading ? (
-                      <div className="text-center text-muted-foreground py-8 text-sm">Carregando mensagens...</div>
+                      <div className="space-y-3">
+                        {[...Array(5)].map((_, i) => (
+                          <div key={i} className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
+                            <Skeleton className={`h-16 w-48 rounded-lg ${i % 2 === 0 ? 'rounded-br-md' : 'rounded-bl-md'}`} />
+                          </div>
+                        ))}
+                      </div>
                     ) : messages && messages.length === 0 ? (
                       <div className="text-center text-muted-foreground py-8 text-sm">Nenhuma mensagem</div>
                     ) : (
@@ -351,7 +365,14 @@ export function Chat() {
                   </div>
                   <div className="overflow-y-auto flex-1 p-2">
                     {chatsLoading ? (
-                      <div className="text-center text-muted-foreground py-8 text-sm">Carregando...</div>
+                      <div className="space-y-2">
+                        {[...Array(5)].map((_, i) => (
+                          <div key={i} className="border rounded-lg p-3 space-y-2">
+                            <Skeleton className="h-4 w-3/4" />
+                            <Skeleton className="h-3 w-1/2" />
+                          </div>
+                        ))}
+                      </div>
                     ) : chats && chats.length === 0 ? (
                       <div className="text-center text-muted-foreground py-8 text-sm">Nenhum chat encontrado</div>
                     ) : (
@@ -409,7 +430,13 @@ export function Chat() {
                       </div>
                       <div className="flex-1 p-3 overflow-y-auto space-y-3 bg-gray-50 min-h-0">
                         {messagesLoading ? (
-                          <div className="text-center text-muted-foreground py-8 text-sm">Carregando mensagens...</div>
+                          <div className="space-y-3">
+                            {[...Array(5)].map((_, i) => (
+                              <div key={i} className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'} mb-1`}>
+                                <Skeleton className={`h-16 w-48 sm:w-64 rounded-2xl ${i % 2 === 0 ? 'rounded-br-md' : 'rounded-bl-md'}`} />
+                              </div>
+                            ))}
+                          </div>
                         ) : messages && messages.length === 0 ? (
                           <div className="text-center text-muted-foreground py-8 text-sm">
                             <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-50" />

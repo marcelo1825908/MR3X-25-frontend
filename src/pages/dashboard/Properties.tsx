@@ -133,6 +133,10 @@ export function Properties() {
   const [ownersLoading, setOwnersLoading] = useState(false);
   const [documentsLoading, setDocumentsLoading] = useState(false);
   const [editModalLoading, setEditModalLoading] = useState(false);
+  const [assignBrokerModalLoading, setAssignBrokerModalLoading] = useState(false);
+  const [assignTenantModalLoading, setAssignTenantModalLoading] = useState(false);
+  const [invoiceModalLoading, setInvoiceModalLoading] = useState(false);
+  const [receiptModalLoading, setReceiptModalLoading] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [propertyToAssign, setPropertyToAssign] = useState<any>(null);
   const [selectedBrokerId, setSelectedBrokerId] = useState<string>('none');
@@ -749,82 +753,124 @@ export function Properties() {
   const handleIssueInvoice = async (property: any) => {
     closeAllModals();
     setSelectedProperty(property);
+    setInvoiceModalLoading(true);
+    setShowInvoiceModal(true);
 
     try {
       const payments = await paymentsAPI.getPaymentsByProperty(property.id);
       const lastPendingPayment = payments.find((p: any) => p.status === 'PENDING');
 
       if (lastPendingPayment) {
-        
         setInvoiceData({
           amount: lastPendingPayment.valorPago ? String(lastPendingPayment.valorPago) : (property.monthlyRent ? String(property.monthlyRent) : ''),
           dueDate: lastPendingPayment.dueDate ? new Date(lastPendingPayment.dueDate).toISOString().split('T')[0] : '',
           description: lastPendingPayment.description || `Aluguel - ${property.name || property.address}`
         });
-        setShowInvoiceModal(true);
-        return;
+      } else {
+        let nextDueDate = '';
+        if (property.dueDay) {
+          const today = new Date();
+          const dueDay = parseInt(property.dueDay);
+          let dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+          
+          if (dueDate < today) {
+            dueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
+          }
+          nextDueDate = dueDate.toISOString().split('T')[0];
+        } else if (property.nextDueDate) {
+          nextDueDate = new Date(property.nextDueDate).toISOString().split('T')[0];
+        }
+
+        setInvoiceData({
+          amount: property.monthlyRent ? String(property.monthlyRent) : '',
+          dueDate: nextDueDate,
+          description: `Aluguel - ${property.name || property.address}`
+        });
       }
     } catch (error) {
       console.error('Error fetching payments:', error);
-    }
-
-    let nextDueDate = '';
-    if (property.dueDay) {
-      const today = new Date();
-      const dueDay = parseInt(property.dueDay);
-      let dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+      toast.error('Erro ao carregar pagamentos');
       
-      if (dueDate < today) {
-        dueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
+      let nextDueDate = '';
+      if (property.dueDay) {
+        const today = new Date();
+        const dueDay = parseInt(property.dueDay);
+        let dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
+        
+        if (dueDate < today) {
+          dueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
+        }
+        nextDueDate = dueDate.toISOString().split('T')[0];
+      } else if (property.nextDueDate) {
+        nextDueDate = new Date(property.nextDueDate).toISOString().split('T')[0];
       }
-      nextDueDate = dueDate.toISOString().split('T')[0];
-    } else if (property.nextDueDate) {
-      nextDueDate = new Date(property.nextDueDate).toISOString().split('T')[0];
-    }
 
-    setInvoiceData({
-      amount: property.monthlyRent ? String(property.monthlyRent) : '',
-      dueDate: nextDueDate,
-      description: `Aluguel - ${property.name || property.address}`
-    });
-    setShowInvoiceModal(true);
+      setInvoiceData({
+        amount: property.monthlyRent ? String(property.monthlyRent) : '',
+        dueDate: nextDueDate,
+        description: `Aluguel - ${property.name || property.address}`
+      });
+    } finally {
+      setInvoiceModalLoading(false);
+    }
   };
 
   const handleGenerateReceipt = async (property: any) => {
     closeAllModals();
     setSelectedProperty(property);
+    setReceiptModalLoading(true);
+    setShowReceiptModal(true);
 
     try {
       const payments = await paymentsAPI.getPaymentsByProperty(property.id);
       const lastPaidPayment = payments.find((p: any) => p.status === 'PAID');
 
       if (lastPaidPayment) {
-        
         setReceiptData({
           amount: lastPaidPayment.valorPago ? String(lastPaidPayment.valorPago) : (property.monthlyRent ? String(property.monthlyRent) : ''),
           paymentDate: lastPaidPayment.dataPagamento ? new Date(lastPaidPayment.dataPagamento).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
           paymentMethod: lastPaidPayment.paymentMethod || 'PIX'
         });
-        setShowReceiptModal(true);
-        return;
+      } else {
+        setReceiptData({
+          amount: property.monthlyRent ? String(property.monthlyRent) : '',
+          paymentDate: new Date().toISOString().split('T')[0],
+          paymentMethod: 'PIX'
+        });
       }
     } catch (error) {
       console.error('Error fetching payments:', error);
+      toast.error('Erro ao carregar pagamentos');
+      
+      // Fallback to default values on error
+      setReceiptData({
+        amount: property.monthlyRent ? String(property.monthlyRent) : '',
+        paymentDate: new Date().toISOString().split('T')[0],
+        paymentMethod: 'PIX'
+      });
+    } finally {
+      setReceiptModalLoading(false);
     }
-
-    setReceiptData({
-      amount: property.monthlyRent ? String(property.monthlyRent) : '',
-      paymentDate: new Date().toISOString().split('T')[0],
-      paymentMethod: 'PIX'
-    });
-    setShowReceiptModal(true);
   };
 
-  const handleOpenAssignModal = (property: any) => {
+  const handleOpenAssignModal = async (property: any) => {
     closeAllModals();
     setPropertyToAssign(property);
-    setSelectedBrokerId(property.broker?.id ? String(property.broker.id) : 'none');
+    setAssignBrokerModalLoading(true);
     setAssignModalOpen(true);
+    
+    try {
+      // Wait for brokers to load if they're not already loaded
+      if (brokersLoading) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+      setSelectedBrokerId(property.broker?.id ? String(property.broker.id) : 'none');
+    } catch (error) {
+      console.error('Error loading brokers:', error);
+      toast.error('Erro ao carregar corretores');
+    } finally {
+      setAssignBrokerModalLoading(false);
+    }
   };
 
   const handleAssignBrokerSubmit = () => {
@@ -839,15 +885,24 @@ export function Properties() {
   const handleOpenAssignTenantModal = async (property: any) => {
     closeAllModals();
     setPropertyToAssignTenant(property);
-    setSelectedTenantId(
-      property.tenantId
-        ? String(property.tenantId)
-        : property.tenant?.id
-          ? String(property.tenant.id)
-          : 'none'
-    );
-    await loadTenants();
+    setAssignTenantModalLoading(true);
     setAssignTenantModalOpen(true);
+    
+    try {
+      await loadTenants();
+      setSelectedTenantId(
+        property.tenantId
+          ? String(property.tenantId)
+          : property.tenant?.id
+            ? String(property.tenant.id)
+            : 'none'
+      );
+    } catch (error) {
+      console.error('Error loading tenants:', error);
+      toast.error('Erro ao carregar inquilinos');
+    } finally {
+      setAssignTenantModalLoading(false);
+    }
   };
 
   const handleAssignTenantSubmit = () => {
@@ -2318,7 +2373,27 @@ export function Properties() {
             <DialogHeader>
               <DialogTitle>Emitir Cobrança</DialogTitle>
             </DialogHeader>
-            {selectedProperty ? (
+            {invoiceModalLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-4 w-64" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Skeleton className="h-10 w-24" />
+                  <Skeleton className="h-10 w-32" />
+                </div>
+              </div>
+            ) : selectedProperty ? (
               <form className="space-y-4">
                 <div className="text-sm text-muted-foreground">
                   <strong>Imóvel:</strong> {selectedProperty.name || selectedProperty.address}
@@ -2402,7 +2477,27 @@ export function Properties() {
             <DialogHeader>
               <DialogTitle>Gerar Recibo</DialogTitle>
             </DialogHeader>
-            {selectedProperty ? (
+            {receiptModalLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-4 w-64" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-16" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Skeleton className="h-10 w-24" />
+                  <Skeleton className="h-10 w-32" />
+                </div>
+              </div>
+            ) : selectedProperty ? (
               <form className="space-y-4">
                 <div className="text-sm text-muted-foreground">
                   <strong>Imóvel:</strong> {selectedProperty.name || selectedProperty.address}
@@ -2494,7 +2589,19 @@ export function Properties() {
             <DialogHeader>
               <DialogTitle>Atribuir corretor ao imóvel</DialogTitle>
             </DialogHeader>
-            {propertyToAssign ? (
+            {assignBrokerModalLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-20 w-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-48" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Skeleton className="h-10 w-24" />
+                  <Skeleton className="h-10 w-32" />
+                </div>
+              </div>
+            ) : propertyToAssign ? (
               <div className="space-y-4">
                 <div className="bg-muted/40 p-3 rounded-md">
                   <p className="text-sm font-semibold">{propertyToAssign.name || propertyToAssign.address}</p>
@@ -2570,7 +2677,19 @@ export function Properties() {
             <DialogHeader>
               <DialogTitle>Atribuir inquilino ao imóvel</DialogTitle>
             </DialogHeader>
-            {propertyToAssignTenant ? (
+            {assignTenantModalLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-24 w-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Skeleton className="h-10 w-24" />
+                  <Skeleton className="h-10 w-32" />
+                </div>
+              </div>
+            ) : propertyToAssignTenant ? (
               <div className="space-y-4">
                 <div className="bg-muted/40 p-3 rounded-md">
                   <p className="text-sm font-semibold">{propertyToAssignTenant.name || propertyToAssignTenant.address}</p>

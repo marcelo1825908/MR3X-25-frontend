@@ -1,3 +1,20 @@
+// Platform-level roles that are NEVER subject to plan limits
+// These users manage the platform itself and should never be frozen or blocked
+export const PLATFORM_ROLES = ['CEO', 'ADMIN', 'PLATFORM_MANAGER'] as const;
+
+// Roles excluded from agency user counts (not counted against plan limits)
+export const EXCLUDED_FROM_USER_COUNT = ['CEO', 'ADMIN', 'PLATFORM_MANAGER', 'AGENCY_ADMIN'] as const;
+
+// Check if a role is a platform role (exempt from plan limits)
+export const isPlatformRole = (role: string): boolean => {
+  return PLATFORM_ROLES.includes(role as typeof PLATFORM_ROLES[number]);
+};
+
+// Check if a role should be excluded from user counts
+export const isExcludedFromUserCount = (role: string): boolean => {
+  return EXCLUDED_FROM_USER_COUNT.includes(role as typeof EXCLUDED_FROM_USER_COUNT[number]);
+};
+
 // Role label translations (English to Portuguese)
 export const roleLabels: Record<string, string> = {
   CEO: 'CEO',

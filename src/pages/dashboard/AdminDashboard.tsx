@@ -33,7 +33,11 @@ function ChartContainer({ children, height = 280 }: { children: React.ReactNode;
   }, []);
 
   if (!isMounted) {
-    return <div style={{ height }} className="flex items-center justify-center text-muted-foreground">Carregando...</div>;
+    return (
+      <div style={{ height }} className="flex items-center justify-center">
+        <Skeleton className="w-full h-full rounded" />
+      </div>
+    );
   }
 
   return (

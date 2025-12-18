@@ -149,18 +149,29 @@ export function OwnerPlanConfig() {
     enabled: canViewPlan,
   });
 
+  // Get plan limits from the fetched plans data (API is source of truth)
+  // This ensures limits are always in sync with backend
   function getPlanLimits(planName: string) {
+    const plan = plans.find((p: any) => p.name.toUpperCase() === planName.toUpperCase());
+    if (plan) {
+      return {
+        properties: plan.propertyLimit || plan.maxActiveContracts || 1,
+        // For contracts/tenants: 1 contract = 1 tenant, so use the same limit
+        users: plan.userLimit || plan.maxTenants || plan.maxActiveContracts || 1,
+      };
+    }
+    // Fallback defaults if plan not found
     switch (planName.toUpperCase()) {
       case 'FREE':
-        return { properties: 1, users: 5 };
-      case 'ESSENTIAL':
-        return { properties: 50, users: 10 };
+        return { properties: 1, users: 2 };
+      case 'BASIC':
+        return { properties: 20, users: 20 };
       case 'PROFESSIONAL':
-        return { properties: 100, users: 20 };
+        return { properties: 60, users: 60 };
       case 'ENTERPRISE':
-        return { properties: 500, users: 100 };
+        return { properties: 200, users: 9999 };
       default:
-        return { properties: 1, users: 5 };
+        return { properties: 1, users: 2 };
     }
   }
 
