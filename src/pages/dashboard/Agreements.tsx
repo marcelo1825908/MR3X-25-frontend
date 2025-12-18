@@ -29,6 +29,7 @@ import {
   ShieldAlert,
   Lock,
   Search,
+  Loader2,
 } from 'lucide-react';
 import { formatDate, formatCurrency } from '../../lib/utils';
 import { safeGetCurrentPosition, isSecureOrigin } from '../../hooks/use-geolocation';
@@ -1751,7 +1752,14 @@ export function Agreements() {
                     Cancelar
                   </Button>
                   <Button type="submit" className="w-full sm:w-auto bg-orange-600 hover:bg-orange-700 text-white" disabled={updating}>
-                    {updating ? 'Salvando...' : 'Salvar Alteracoes'}
+                    {updating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      'Salvar Alteracoes'
+                    )}
                   </Button>
                 </div>
               </form>
@@ -1995,9 +2003,17 @@ export function Agreements() {
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction
                 onClick={confirmDelete}
+                disabled={deleteAgreementMutation.isPending}
                 className="bg-destructive hover:bg-destructive/90"
               >
-                Excluir
+                {deleteAgreementMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  'Excluir'
+                )}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

@@ -1136,7 +1136,14 @@ export function Invoices() {
                   className="bg-green-600 hover:bg-green-700 text-white"
                   disabled={markAsPaidMutation.isPending}
                 >
-                  {markAsPaidMutation.isPending ? 'Salvando...' : 'Confirmar Pagamento'}
+                  {markAsPaidMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Confirmar Pagamento'
+                  )}
                 </Button>
               </div>
             </div>

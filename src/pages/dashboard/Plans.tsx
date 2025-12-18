@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Package, Edit, Crown, Star, Zap, Building2, Clock, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Package, Edit, Crown, Star, Zap, Building2, Clock, CheckCircle, XCircle, AlertCircle, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
@@ -658,7 +658,14 @@ export default function PlansPage() {
                 onClick={handleUpdatePlan}
                 disabled={updatePlanMutation.isPending}
               >
-                {updatePlanMutation.isPending ? 'Salvando...' : (isAdmin ? 'Enviar para Aprovação' : 'Salvar')}
+                {updatePlanMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  isAdmin ? 'Enviar para Aprovação' : 'Salvar'
+                )}
               </Button>
             </div>
           </div>

@@ -128,6 +128,7 @@ export function Tenants() {
   const [selectedTenant, setSelectedTenant] = useState<any>(null)
   const [tenantToDelete, setTenantToDelete] = useState<any>(null)
   const [tenantDetail, setTenantDetail] = useState<any>(null)
+  const [tenantDetailLoading, setTenantDetailLoading] = useState(false)
   const [whatsappMessage, setWhatsappMessage] = useState('')
   const [creating, setCreating] = useState(false)
   const [updating, setUpdating] = useState(false)
@@ -567,8 +568,20 @@ export function Tenants() {
   const handleViewTenant = async (tenant: any) => {
     closeAllModals()
     setSelectedTenant(tenant)
-    setTenantDetail(tenant)
+    setTenantDetail(null)
+    setTenantDetailLoading(true)
     setShowDetailModal(true)
+    
+    try {
+      const fullTenantDetails = await usersAPI.getUserById(tenant.id)
+      setTenantDetail(fullTenantDetails)
+    } catch (error) {
+      console.error('Error loading tenant details:', error)
+      toast.error('Erro ao carregar detalhes do inquilino')
+      setTenantDetail(tenant) // Fallback to basic tenant data
+    } finally {
+      setTenantDetailLoading(false)
+    }
   }
 
   const handleEditTenant = async (tenant: any) => {
@@ -1400,7 +1413,87 @@ export function Tenants() {
             <DialogHeader>
               <DialogTitle>Editar Locatario</DialogTitle>
             </DialogHeader>
-            <form className="space-y-6" onSubmit={handleUpdateTenant}>
+            {loadingEditId ? (
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Skeleton className="w-6 h-6 rounded-full" />
+                    <Skeleton className="h-6 w-48" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Skeleton className="w-6 h-6 rounded-full" />
+                    <Skeleton className="h-6 w-32" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-10 w-full" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-10 w-full" />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 pt-4 border-t">
+                  <Skeleton className="h-10 w-24" />
+                  <Skeleton className="h-10 w-24" />
+                </div>
+              </div>
+            ) : (
+              <form className="space-y-6" onSubmit={handleUpdateTenant}>
               {}
               <div className="space-y-4">
                 <div className="flex items-center gap-2 mb-4">
@@ -1634,10 +1727,18 @@ export function Tenants() {
                   className="bg-orange-600 hover:bg-orange-700 text-white"
                   disabled={updating || checkingEmail || !emailVerified}
                 >
-                  {updating ? 'Salvando...' : 'Salvar'}
+                  {updating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salvar'
+                  )}
                 </Button>
               </div>
             </form>
+            )}
           </DialogContent>
         </Dialog>
 
@@ -1647,7 +1748,82 @@ export function Tenants() {
             <DialogHeader>
               <DialogTitle>Detalhes do Locatário</DialogTitle>
             </DialogHeader>
-            {tenantDetail ? (
+            {tenantDetailLoading ? (
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Skeleton className="w-6 h-6 rounded-full" />
+                    <Skeleton className="h-6 w-48" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-6 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-6 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-6 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-6 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="h-6 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-16" />
+                      <Skeleton className="h-6 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-6 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-28" />
+                      <Skeleton className="h-6 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-6 w-full" />
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Skeleton className="w-6 h-6 rounded-full" />
+                    <Skeleton className="h-6 w-32" />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-6 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-6 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-6 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-6 w-full" />
+                    </div>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-6 w-full" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : tenantDetail ? (
               <div className="space-y-6">
                 {}
                 <div className="space-y-4">
@@ -2073,7 +2249,14 @@ export function Tenants() {
             <DialogHeader>
               <DialogTitle>Excluir inquilino</DialogTitle>
               <DialogDescription>
-                Tem certeza que deseja excluir o inquilino <b>{tenantToDelete?.name}</b>? Esta acao nao podera ser desfeita.
+                {deleteTenantMutation.isPending ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-3/4" />
+                  </div>
+                ) : (
+                  <>Tem certeza que deseja excluir o inquilino <b>{tenantToDelete?.name}</b>? Esta acao nao podera ser desfeita.</>
+                )}
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-row gap-2 mt-4">
@@ -2090,7 +2273,14 @@ export function Tenants() {
                 disabled={deleteTenantMutation.isPending}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white"
               >
-                {deleteTenantMutation.isPending ? 'Excluindo...' : 'Excluir'}
+                {deleteTenantMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  'Excluir'
+                )}
               </Button>
             </div>
           </DialogContent>

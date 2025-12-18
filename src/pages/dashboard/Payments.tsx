@@ -16,6 +16,7 @@ import {
   MoreHorizontal,
   User,
   Search,
+  Loader2,
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../lib/utils';
 import { ReadOnlyBadge } from '../../components/ui/read-only-badge';
@@ -757,7 +758,14 @@ export function Payments() {
                   Cancelar
                 </Button>
                 <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={updating}>
-                  {updating ? 'Salvando...' : 'Salvar'}
+                  {updating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salvar'
+                  )}
                 </Button>
               </div>
             </form>
@@ -814,7 +822,14 @@ export function Payments() {
                 disabled={deleting}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white"
               >
-                {deleting ? 'Excluindo...' : 'Excluir'}
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  'Excluir'
+                )}
               </Button>
             </div>
           </DialogContent>

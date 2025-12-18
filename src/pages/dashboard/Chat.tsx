@@ -3,7 +3,7 @@ import { chatAPI } from '../../api'
 import { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { useAuth } from '../../contexts/AuthContext'
-import { MessageSquare, Send, Menu, Trash2, Users } from 'lucide-react'
+import { MessageSquare, Send, Menu, Trash2, Users, Loader2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog'
 import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
@@ -575,7 +575,14 @@ export function Chat() {
               className="flex-1 bg-red-600 hover:bg-red-700 text-white"
               disabled={deleteChatMutation.isPending}
             >
-              {deleteChatMutation.isPending ? 'Excluindo...' : 'Excluir'}
+              {deleteChatMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                'Excluir'
+              )}
             </Button>
           </div>
         </DialogContent>

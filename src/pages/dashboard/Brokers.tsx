@@ -1084,7 +1084,14 @@ export function Brokers() {
                   Cancelar
                 </Button>
                 <Button type="submit" className="bg-orange-600 hover:bg-orange-700 text-white" disabled={updating}>
-                  {updating ? 'Salvando...' : 'Salvar'}
+                  {updating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Salvando...
+                    </>
+                  ) : (
+                    'Salvar'
+                  )}
                 </Button>
               </div>
             </form>
@@ -1200,9 +1207,17 @@ export function Brokers() {
               </Button>
               <Button
                 onClick={confirmDelete}
+                disabled={deleteBrokerMutation.isPending}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white"
               >
-                Excluir
+                {deleteBrokerMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  'Excluir'
+                )}
               </Button>
             </div>
           </DialogContent>

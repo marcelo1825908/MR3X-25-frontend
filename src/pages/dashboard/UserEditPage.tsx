@@ -544,8 +544,17 @@ export function UserEditPage() {
                 Cancelar
               </Button>
               <Button type="submit" disabled={saving} className="flex items-center justify-center gap-2 w-full sm:w-auto">
-                <Save className="w-4 h-4" />
-                {saving ? 'Salvando...' : 'Salvar Alterações'}
+                {saving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Salvar Alterações
+                  </>
+                )}
               </Button>
             </div>
           </form>

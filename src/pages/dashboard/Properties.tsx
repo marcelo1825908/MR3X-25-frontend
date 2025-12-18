@@ -293,7 +293,7 @@ export function Properties() {
   };
 
   const loadOwners = async () => {
-    
+
     if (user?.role === 'INDEPENDENT_OWNER') {
       setOwners([]);
       setOwnersLoading(false);
@@ -432,7 +432,7 @@ export function Properties() {
       toast.success('Imóvel criado com sucesso');
     },
     onError: (error: any) => {
-      
+
       const errorMessage = error?.response?.data?.message || error?.data?.message || error?.message || '';
       const isPlanLimitError = error?.response?.status === 403 ||
         errorMessage.toLowerCase().includes('plano') ||
@@ -523,7 +523,7 @@ export function Properties() {
         setCreating(false);
         return;
       }
-      
+
       const isIndependentOwner = user?.role === 'INDEPENDENT_OWNER';
       const ownerIdToUse = isIndependentOwner ? user?.id : newProperty.ownerId;
 
@@ -571,7 +571,7 @@ export function Properties() {
         setUpdating(false);
         return;
       }
-      
+
       const isIndependentOwner = user?.role === 'INDEPENDENT_OWNER';
       const ownerIdToUse = isIndependentOwner ? user?.id : editForm.ownerId;
 
@@ -655,7 +655,7 @@ export function Properties() {
     setPropertyDetailLoading(true);
     setPropertyDetail(null);
     setShowDetailModal(true);
-    
+
     try {
       // Simulate loading or fetch additional data if needed
       // For now, we'll use the property data directly but show loading state
@@ -675,11 +675,11 @@ export function Properties() {
     setExistingImageCount(0);
     setEditModalLoading(true);
     setShowEditModal(true);
-    
+
     try {
       // Load tenants and owners in parallel
       await Promise.all([loadTenants(), loadOwners()]);
-      
+
       setEditForm({
         name: property.name || '',
         address: property.address || '',
@@ -728,7 +728,7 @@ export function Properties() {
     setSelectedProperty(property);
     setDocumentsLoading(true);
     setShowDocumentsModal(true);
-    
+
     try {
       // Simulate loading documents - replace with actual API call if needed
       await new Promise(resolve => setTimeout(resolve, 300));
@@ -772,7 +772,7 @@ export function Properties() {
           const today = new Date();
           const dueDay = parseInt(property.dueDay);
           let dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
-          
+
           if (dueDate < today) {
             dueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
           }
@@ -790,13 +790,13 @@ export function Properties() {
     } catch (error) {
       console.error('Error fetching payments:', error);
       toast.error('Erro ao carregar pagamentos');
-      
+
       let nextDueDate = '';
       if (property.dueDay) {
         const today = new Date();
         const dueDay = parseInt(property.dueDay);
         let dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
-        
+
         if (dueDate < today) {
           dueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
         }
@@ -841,7 +841,7 @@ export function Properties() {
     } catch (error) {
       console.error('Error fetching payments:', error);
       toast.error('Erro ao carregar pagamentos');
-      
+
       // Fallback to default values on error
       setReceiptData({
         amount: property.monthlyRent ? String(property.monthlyRent) : '',
@@ -858,7 +858,7 @@ export function Properties() {
     setPropertyToAssign(property);
     setAssignBrokerModalLoading(true);
     setAssignModalOpen(true);
-    
+
     try {
       // Wait for brokers to load if they're not already loaded
       if (brokersLoading) {
@@ -887,7 +887,7 @@ export function Properties() {
     setPropertyToAssignTenant(property);
     setAssignTenantModalLoading(true);
     setAssignTenantModalOpen(true);
-    
+
     try {
       await loadTenants();
       setSelectedTenantId(
@@ -1036,9 +1036,8 @@ export function Properties() {
               <button
                 key={image.id}
                 type="button"
-                className={`flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 ${
-                  index === currentIndex ? 'border-blue-500' : 'border-gray-200'
-                }`}
+                className={`flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 ${index === currentIndex ? 'border-blue-500' : 'border-gray-200'
+                  }`}
                 onClick={() => setCurrentIndex(index)}
               >
                 <img
@@ -1341,30 +1340,76 @@ export function Properties() {
                 <Card key={property.id} className="transition-all hover:shadow-md flex flex-col w-[400px] mx-auto overflow-hidden">
                   <CardContent className="p-0 h-full flex flex-col overflow-hidden min-w-0">
                     <div className="flex h-full min-w-0">
-                      {}
+                      { }
                       <div className="w-40 min-w-40 h-full bg-gray-100 flex items-center justify-center rounded-l-md overflow-hidden">
                         <PropertyImage propertyId={property.id} propertyName={property.name} />
                       </div>
-                      {}
+                      { }
                       <div className="flex-1 flex flex-col justify-between p-4 min-w-0 overflow-hidden">
                         <div className="min-w-0 space-y-1">
-                          <h3 className="text-lg font-bold truncate" title={property.name}>{property.name}</h3>
                           {property.token && (
-                            <p className="text-[10px] text-muted-foreground font-mono truncate" title={property.token}>{property.token}</p>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <p className="text-[12px] text-muted-foreground font-mono truncate w-full justify-end flex">
+                                  <div className='border border-gray-300 rounded-md px-2 py-1'>
+                                    {property.token}
+                                  </div>
+                                </p>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{property.token}</p>
+                              </TooltipContent>
+                            </Tooltip>
                           )}
-                          <p className="text-sm font-semibold text-gray-700 truncate" title={property.address}>
-                            {property.address}
-                          </p>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <h3 className="text-lg font-bold truncate">{property.name}</h3>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{property.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <p className="text-sm font-semibold text-gray-700 truncate">
+                                {property.address}
+                              </p>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{property.address}</p>
+                            </TooltipContent>
+                          </Tooltip>
                           <p className="text-xs text-gray-600 truncate">Estado: {property.stateNumber || '-'}</p>
-                          <p className="text-xs text-gray-600 truncate" title={property.owner?.name || property.owner?.email || 'Sem proprietário'}>
-                            Proprietário: {property.owner?.name || property.owner?.email || 'Sem proprietário'}
-                          </p>
-                          <p className="text-xs text-gray-600 truncate" title={property.broker?.name || property.broker?.email || 'Sem corretor'}>
-                            Corretor: {property.broker?.name || property.broker?.email || 'Sem corretor'}
-                          </p>
-                          <p className="text-xs text-gray-600 truncate" title={property.tenant?.name || property.tenant?.email || 'Sem inquilino'}>
-                            Locatário: {property.tenant?.name || property.tenant?.email || 'Sem inquilino'}
-                          </p>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <p className="text-xs text-gray-600 truncate">
+                                Proprietário: {property.owner?.name || property.owner?.email || 'Sem proprietário'}
+                              </p>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{property.owner?.name || property.owner?.email || 'Sem proprietário'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <p className="text-xs text-gray-600 truncate">
+                                Corretor: {property.broker?.name || property.broker?.email || 'Sem corretor'}
+                              </p>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{property.broker?.name || property.broker?.email || 'Sem corretor'}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <p className="text-xs text-gray-600 truncate">
+                                Locatário: {property.tenant?.name || property.tenant?.email || 'Sem inquilino'}
+                              </p>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{property.tenant?.name || property.tenant?.email || 'Sem inquilino'}</p>
+                            </TooltipContent>
+                          </Tooltip>
                           <p className="text-xs text-blue-700 font-medium mt-1 truncate">
                             Próx. vencimento: {property.nextDueDate ? new Date(property.nextDueDate).toLocaleDateString('pt-BR') : '-'}
                           </p>
@@ -1517,7 +1562,7 @@ export function Properties() {
           </div>
         </div>
 
-        {}
+        { }
         <Dialog open={showCreateModal} onOpenChange={setShowCreateModal}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -1546,7 +1591,7 @@ export function Properties() {
                 </div>
               </div>
 
-              {}
+              { }
               {user?.role !== 'INDEPENDENT_OWNER' ? (
                 <div>
                   <Label htmlFor="ownerId">Proprietário</Label>
@@ -1783,7 +1828,7 @@ export function Properties() {
                 </div>
               </div>
 
-              {}
+              { }
               <ImageUpload
                 onImagesChange={setSelectedImages}
                 maxImages={20}
@@ -1802,7 +1847,7 @@ export function Properties() {
           </DialogContent>
         </Dialog>
 
-        {}
+        { }
         <Dialog open={showEditModal} onOpenChange={setShowEditModal}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -1838,294 +1883,306 @@ export function Properties() {
                 </div>
               </div>
             ) : (
-            <form className="space-y-4" onSubmit={handleUpdateProperty}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-name">Nome do imóvel</Label>
-                  <Input
-                    id="edit-name"
-                    name="name"
-                    value={editForm.name}
-                    onChange={handleEditInputChange}
-                    placeholder="Ex: Apartamento 101"
-                  />
-                </div>
-                <div>
-                  <CEPInput
-                    value={editForm.cep}
-                    onChange={(value) => setEditForm(prev => ({ ...prev, cep: value }))}
-                    onCEPData={handleEditCEPData}
-                    label="CEP"
-                    placeholder="00000-000"
-                  />
-                </div>
-              </div>
-
-              {}
-              {user?.role === 'INDEPENDENT_OWNER' ? (
-                <div>
-                  <Label>Proprietário</Label>
-                  <div className="border rounded-md px-3 py-2 w-full bg-muted text-muted-foreground">
-                    {user?.name || user?.email} (Você)
-                  </div>
-                </div>
-              ) : user?.role === 'AGENCY_MANAGER' && !selectedProperty?.brokerId ? (
-                <div>
-                  <Label htmlFor="edit-ownerId">Proprietário</Label>
-                  <Select
-                    value={editForm.ownerId}
-                    onValueChange={(value) => setEditForm({ ...editForm, ownerId: value })}
-                    disabled={ownersLoading}
-                  >
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder={ownersLoading ? 'Carregando proprietários...' : 'Selecione um proprietário'} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {owners.map((owner: any) => (
-                        <SelectItem
-                          key={owner.id}
-                          value={String(owner.id)}
-                          disabled={owner.isFrozen}
-                          className={owner.isFrozen ? 'opacity-50' : ''}
-                        >
-                          {owner.name || owner.email}
-                          {owner.isFrozen && <span className="ml-2 text-xs text-red-500">(Congelado)</span>}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {owners.length === 0 && !ownersLoading && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Cadastre proprietários na área de usuários antes de vincular um imóvel.
-                    </p>
-                  )}
-                </div>
-              ) : null}
-
-              <div>
-                <Label htmlFor="edit-address">Endereço</Label>
-                <Input
-                  id="edit-address"
-                  name="address"
-                  value={editForm.address}
-                  onChange={handleEditInputChange}
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="edit-neighborhood">Bairro</Label>
-                <Input
-                  id="edit-neighborhood"
-                  name="neighborhood"
-                  value={editForm.neighborhood}
-                  onChange={handleEditInputChange}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-city">Cidade</Label>
-                  <Input
-                    id="edit-city"
-                    name="city"
-                    value={editForm.city}
-                    onChange={handleEditInputChange}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-state">Estado</Label>
-                  <Input
-                    id="edit-state"
-                    name="state"
-                    value={editForm.state}
-                    onChange={handleEditInputChange}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="edit-monthlyRent">Aluguel mensal</Label>
-                  <Input
-                    id="edit-monthlyRent"
-                    name="monthlyRent"
-                    type="text"
-                    value={editForm.monthlyRent}
-                    onChange={e => {
-                      const formatted = formatCurrencyInput(e.target.value);
-                      setEditForm(prev => ({ ...prev, monthlyRent: formatted }));
-                    }}
-                    placeholder="0,00"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-dueDay">Dia do vencimento</Label>
-                  <Input
-                    id="edit-dueDay"
-                    name="dueDay"
-                    type="number"
-                    min="1"
-                    max="31"
-                    value={editForm.dueDay}
-                    onChange={handleEditInputChange}
-                    placeholder="5"
-                    required
-                  />
-                </div>
-                {user?.role === 'AGENCY_MANAGER' && (
-                  <div>
-                    <Label htmlFor="edit-agencyFee">
-                      Taxa da Agência (%) - Específica do Imóvel
-                      <span className="text-xs text-muted-foreground ml-2">(opcional - sobrescreve a taxa global)</span>
-                    </Label>
-                    <Input
-                      id="edit-agencyFee"
-                      name="agencyFee"
-                      type="number"
-                      min="0"
-                      max="100"
-                      step="0.01"
-                      value={editForm.agencyFee}
-                      onChange={handleEditInputChange}
-                      placeholder="Deixe vazio para usar a taxa global da agência"
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="border-t pt-4 mt-4">
-                <h4 className="text-sm font-medium mb-3">Detalhes Adicionais (para contratos)</h4>
+              <form className="space-y-4" onSubmit={handleUpdateProperty}>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="edit-registrationNumber">Matrícula / Registro</Label>
+                    <Label htmlFor="edit-name">Nome do imóvel</Label>
                     <Input
-                      id="edit-registrationNumber"
-                      name="registrationNumber"
-                      value={editForm.registrationNumber}
+                      id="edit-name"
+                      name="name"
+                      value={editForm.name}
                       onChange={handleEditInputChange}
-                      placeholder="Ex: 12345"
+                      placeholder="Ex: Apartamento 101"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="edit-condominiumName">Nome do Condomínio</Label>
-                    <Input
-                      id="edit-condominiumName"
-                      name="condominiumName"
-                      value={editForm.condominiumName}
-                      onChange={handleEditInputChange}
-                      placeholder="Ex: Condomínio Residencial Sol"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-builtArea">Área Construída (m²)</Label>
-                    <Input
-                      id="edit-builtArea"
-                      name="builtArea"
-                      value={editForm.builtArea}
-                      onChange={e => {
-                        const formatted = formatCurrencyInput(e.target.value);
-                        setEditForm(prev => ({ ...prev, builtArea: formatted }));
-                      }}
-                      placeholder="0,00"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-totalArea">Área Total (m²)</Label>
-                    <Input
-                      id="edit-totalArea"
-                      name="totalArea"
-                      value={editForm.totalArea}
-                      onChange={e => {
-                        const formatted = formatCurrencyInput(e.target.value);
-                        setEditForm(prev => ({ ...prev, totalArea: formatted }));
-                      }}
-                      placeholder="0,00"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-condominiumFee">Taxa de Condomínio (R$)</Label>
-                    <Input
-                      id="edit-condominiumFee"
-                      name="condominiumFee"
-                      value={editForm.condominiumFee}
-                      onChange={e => {
-                        const formatted = formatCurrencyInput(e.target.value);
-                        setEditForm(prev => ({ ...prev, condominiumFee: formatted }));
-                      }}
-                      placeholder="0,00"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="edit-iptuValue">IPTU (R$)</Label>
-                    <Input
-                      id="edit-iptuValue"
-                      name="iptuValue"
-                      value={editForm.iptuValue}
-                      onChange={e => {
-                        const formatted = formatCurrencyInput(e.target.value);
-                        setEditForm(prev => ({ ...prev, iptuValue: formatted }));
-                      }}
-                      placeholder="0,00"
+                    <CEPInput
+                      value={editForm.cep}
+                      onChange={(value) => setEditForm(prev => ({ ...prev, cep: value }))}
+                      onCEPData={handleEditCEPData}
+                      label="CEP"
+                      placeholder="00000-000"
                     />
                   </div>
                 </div>
-                <div className="mt-4">
-                  <Label htmlFor="edit-description">Descrição do Imóvel</Label>
-                  <textarea
-                    id="edit-description"
-                    name="description"
-                    value={editForm.description}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Descreva as características do imóvel..."
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+
+                { }
+                {user?.role === 'INDEPENDENT_OWNER' ? (
+                  <div>
+                    <Label>Proprietário</Label>
+                    <div className="border rounded-md px-3 py-2 w-full bg-muted text-muted-foreground">
+                      {user?.name || user?.email} (Você)
+                    </div>
+                  </div>
+                ) : user?.role === 'AGENCY_MANAGER' && !selectedProperty?.brokerId ? (
+                  <div>
+                    <Label htmlFor="edit-ownerId">Proprietário</Label>
+                    <Select
+                      value={editForm.ownerId}
+                      onValueChange={(value) => setEditForm({ ...editForm, ownerId: value })}
+                      disabled={ownersLoading}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder={ownersLoading ? 'Carregando proprietários...' : 'Selecione um proprietário'} />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {owners.map((owner: any) => (
+                          <SelectItem
+                            key={owner.id}
+                            value={String(owner.id)}
+                            disabled={owner.isFrozen}
+                            className={owner.isFrozen ? 'opacity-50' : ''}
+                          >
+                            {owner.name || owner.email}
+                            {owner.isFrozen && <span className="ml-2 text-xs text-red-500">(Congelado)</span>}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {owners.length === 0 && !ownersLoading && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Cadastre proprietários na área de usuários antes de vincular um imóvel.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
+
+                <div>
+                  <Label htmlFor="edit-address">Endereço</Label>
+                  <Input
+                    id="edit-address"
+                    name="address"
+                    value={editForm.address}
+                    onChange={handleEditInputChange}
+                    required
                   />
                 </div>
-                <div className="mt-4">
-                  <Label htmlFor="edit-furnitureList">Mobílias / Itens Inclusos</Label>
-                  <textarea
-                    id="edit-furnitureList"
-                    name="furnitureList"
-                    value={editForm.furnitureList}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, furnitureList: e.target.value }))}
-                    placeholder="Liste os móveis e itens inclusos no imóvel..."
-                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+
+                <div>
+                  <Label htmlFor="edit-neighborhood">Bairro</Label>
+                  <Input
+                    id="edit-neighborhood"
+                    name="neighborhood"
+                    value={editForm.neighborhood}
+                    onChange={handleEditInputChange}
+                    required
                   />
                 </div>
-              </div>
 
-              {}
-              {selectedProperty && <ExistingImages
-                propertyId={selectedProperty.id}
-                onImageCountChange={setExistingImageCount}
-                onImageDeleted={refreshProperties}
-              />}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-city">Cidade</Label>
+                    <Input
+                      id="edit-city"
+                      name="city"
+                      value={editForm.city}
+                      onChange={handleEditInputChange}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-state">Estado</Label>
+                    <Input
+                      id="edit-state"
+                      name="state"
+                      value={editForm.state}
+                      onChange={handleEditInputChange}
+                      required
+                    />
+                  </div>
+                </div>
 
-              {}
-              <ImageUpload
-                onImagesChange={setEditSelectedImages}
-                maxImages={Math.max(0, 20 - existingImageCount)}
-                className="mt-4"
-              />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit-monthlyRent">Aluguel mensal</Label>
+                    <Input
+                      id="edit-monthlyRent"
+                      name="monthlyRent"
+                      type="text"
+                      value={editForm.monthlyRent}
+                      onChange={e => {
+                        const formatted = formatCurrencyInput(e.target.value);
+                        setEditForm(prev => ({ ...prev, monthlyRent: formatted }));
+                      }}
+                      placeholder="0,00"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit-dueDay">Dia do vencimento</Label>
+                    <Input
+                      id="edit-dueDay"
+                      name="dueDay"
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={editForm.dueDay}
+                      onChange={handleEditInputChange}
+                      placeholder="5"
+                      required
+                    />
+                  </div>
+                  {user?.role === 'AGENCY_MANAGER' && (
+                    <div>
+                      <Label htmlFor="edit-agencyFee">
+                        Taxa da Agência (%) - Específica do Imóvel
+                        <span className="text-xs text-muted-foreground ml-2">(opcional - sobrescreve a taxa global)</span>
+                      </Label>
+                      <Input
+                        id="edit-agencyFee"
+                        name="agencyFee"
+                        type="number"
+                        min="0"
+                        max="100"
+                        step="0.01"
+                        value={editForm.agencyFee}
+                        onChange={handleEditInputChange}
+                        placeholder="Deixe vazio para usar a taxa global da agência"
+                      />
+                    </div>
+                  )}
+                </div>
 
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={() => setShowEditModal(false)} disabled={updating || editUploadingImages}>
-                  Cancelar
-                </Button>
-                <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={updating || editUploadingImages}>
-                  {updating ? 'Salvando...' : editUploadingImages ? 'Enviando imagens...' : 'Salvar'}
-                </Button>
-              </div>
-            </form>
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="text-sm font-medium mb-3">Detalhes Adicionais (para contratos)</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit-registrationNumber">Matrícula / Registro</Label>
+                      <Input
+                        id="edit-registrationNumber"
+                        name="registrationNumber"
+                        value={editForm.registrationNumber}
+                        onChange={handleEditInputChange}
+                        placeholder="Ex: 12345"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-condominiumName">Nome do Condomínio</Label>
+                      <Input
+                        id="edit-condominiumName"
+                        name="condominiumName"
+                        value={editForm.condominiumName}
+                        onChange={handleEditInputChange}
+                        placeholder="Ex: Condomínio Residencial Sol"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-builtArea">Área Construída (m²)</Label>
+                      <Input
+                        id="edit-builtArea"
+                        name="builtArea"
+                        value={editForm.builtArea}
+                        onChange={e => {
+                          const formatted = formatCurrencyInput(e.target.value);
+                          setEditForm(prev => ({ ...prev, builtArea: formatted }));
+                        }}
+                        placeholder="0,00"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-totalArea">Área Total (m²)</Label>
+                      <Input
+                        id="edit-totalArea"
+                        name="totalArea"
+                        value={editForm.totalArea}
+                        onChange={e => {
+                          const formatted = formatCurrencyInput(e.target.value);
+                          setEditForm(prev => ({ ...prev, totalArea: formatted }));
+                        }}
+                        placeholder="0,00"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-condominiumFee">Taxa de Condomínio (R$)</Label>
+                      <Input
+                        id="edit-condominiumFee"
+                        name="condominiumFee"
+                        value={editForm.condominiumFee}
+                        onChange={e => {
+                          const formatted = formatCurrencyInput(e.target.value);
+                          setEditForm(prev => ({ ...prev, condominiumFee: formatted }));
+                        }}
+                        placeholder="0,00"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit-iptuValue">IPTU (R$)</Label>
+                      <Input
+                        id="edit-iptuValue"
+                        name="iptuValue"
+                        value={editForm.iptuValue}
+                        onChange={e => {
+                          const formatted = formatCurrencyInput(e.target.value);
+                          setEditForm(prev => ({ ...prev, iptuValue: formatted }));
+                        }}
+                        placeholder="0,00"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Label htmlFor="edit-description">Descrição do Imóvel</Label>
+                    <textarea
+                      id="edit-description"
+                      name="description"
+                      value={editForm.description}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Descreva as características do imóvel..."
+                      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                  </div>
+                  <div className="mt-4">
+                    <Label htmlFor="edit-furnitureList">Mobílias / Itens Inclusos</Label>
+                    <textarea
+                      id="edit-furnitureList"
+                      name="furnitureList"
+                      value={editForm.furnitureList}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, furnitureList: e.target.value }))}
+                      placeholder="Liste os móveis e itens inclusos no imóvel..."
+                      className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    />
+                  </div>
+                </div>
+
+                { }
+                {selectedProperty && <ExistingImages
+                  propertyId={selectedProperty.id}
+                  onImageCountChange={setExistingImageCount}
+                  onImageDeleted={refreshProperties}
+                />}
+
+                { }
+                <ImageUpload
+                  onImagesChange={setEditSelectedImages}
+                  maxImages={Math.max(0, 20 - existingImageCount)}
+                  className="mt-4"
+                />
+
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setShowEditModal(false)} disabled={updating || editUploadingImages}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={updating || editUploadingImages}>
+                    {updating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : editUploadingImages ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Enviando imagens...
+                      </>
+                    ) : (
+                      'Salvar'
+                    )}
+                  </Button>
+                </div>
+              </form>
             )}
           </DialogContent>
         </Dialog>
 
-        {}
+        { }
         <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
           <DialogContent>
             <DialogHeader>
@@ -2205,7 +2262,7 @@ export function Properties() {
           </DialogContent>
         </Dialog>
 
-        {}
+        { }
         <Dialog open={showSettingsModal} onOpenChange={setShowSettingsModal}>
           <DialogContent>
             <DialogHeader>
@@ -2251,7 +2308,7 @@ export function Properties() {
           </DialogContent>
         </Dialog>
 
-        {}
+        { }
         <Dialog open={showDocumentsModal} onOpenChange={setShowDocumentsModal}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
@@ -2322,7 +2379,7 @@ export function Properties() {
           </DialogContent>
         </Dialog>
 
-        {}
+        { }
         <Dialog open={showWhatsAppModal} onOpenChange={setShowWhatsAppModal}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
@@ -2367,7 +2424,7 @@ export function Properties() {
           </DialogContent>
         </Dialog>
 
-        {}
+        { }
         <Dialog open={showInvoiceModal} onOpenChange={setShowInvoiceModal}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
@@ -2471,7 +2528,7 @@ export function Properties() {
           </DialogContent>
         </Dialog>
 
-        {}
+        { }
         <Dialog open={showReceiptModal} onOpenChange={setShowReceiptModal}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
@@ -2583,7 +2640,7 @@ export function Properties() {
           </DialogContent>
         </Dialog>
 
-        {}
+        { }
         <Dialog open={assignModalOpen} onOpenChange={setAssignModalOpen}>
           <DialogContent className="max-w-xl">
             <DialogHeader>
@@ -2671,7 +2728,7 @@ export function Properties() {
           </DialogContent>
         </Dialog>
 
-        {}
+        { }
         <Dialog open={assignTenantModalOpen} onOpenChange={setAssignTenantModalOpen} modal={true}>
           <DialogContent className="max-w-xl">
             <DialogHeader>
@@ -2762,7 +2819,7 @@ export function Properties() {
           </DialogContent>
         </Dialog>
 
-        {}
+        { }
         <Dialog open={!!propertyToDelete} onOpenChange={() => setPropertyToDelete(null)}>
           <DialogContent className="w-[calc(100%-2rem)] sm:max-w-lg rounded-xl">
             <DialogHeader>
@@ -2785,13 +2842,20 @@ export function Properties() {
                 disabled={deleting}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white"
               >
-                {deleting ? 'Excluindo...' : 'Excluir'}
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  'Excluir'
+                )}
               </Button>
             </div>
           </DialogContent>
         </Dialog>
 
-        {}
+        { }
         <Dialog open={showUpgradeModal} onOpenChange={setShowUpgradeModal}>
           <DialogContent className="max-w-md">
             <DialogHeader>
@@ -2876,7 +2940,7 @@ export function Properties() {
                 className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white"
                 onClick={() => {
                   setShowUpgradeModal(false);
-                  
+
                   if (user?.role === 'AGENCY_ADMIN' || user?.role === 'AGENCY_MANAGER') {
                     navigate('/dashboard/agency-plan-config');
                   } else if (user?.role === 'INDEPENDENT_OWNER') {

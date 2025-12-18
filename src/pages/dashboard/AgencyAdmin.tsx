@@ -599,7 +599,14 @@ export function AgencyAdmin() {
                 <div className="flex justify-end gap-2 pt-2">
                   <Button variant="outline" onClick={closeAllModals}>Cancelar</Button>
                   <Button onClick={handleEditAgencyAdmin} disabled={updating} className="bg-orange-600 hover:bg-orange-700 text-white">
-                    {updating ? 'Salvando...' : 'Salvar alteracoes'}
+                    {updating ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      'Salvar alteracoes'
+                    )}
                   </Button>
                 </div>
               </div>
@@ -630,7 +637,14 @@ export function AgencyAdmin() {
                 disabled={deleting}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white"
               >
-                {deleting ? 'Excluindo...' : 'Excluir'}
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  'Excluir'
+                )}
               </Button>
             </div>
           </DialogContent>

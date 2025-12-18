@@ -3076,7 +3076,14 @@ export function Contracts() {
                 disabled={deleting}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white"
               >
-                {deleting ? 'Excluindo...' : 'Excluir'}
+                {deleting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  'Excluir'
+                )}
               </Button>
             </div>
           </DialogContent>
