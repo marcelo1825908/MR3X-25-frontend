@@ -23,7 +23,8 @@ import {
   Send,
   Lock,
   PenLine,
-  CheckCircle
+  CheckCircle,
+  Loader2
 } from 'lucide-react';
 import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
@@ -130,7 +131,7 @@ export function Contracts() {
   const [contractDetail, setContractDetail] = useState<any>(null);
   const [properties, setProperties] = useState<any[]>([]);
   const [tenants, setTenants] = useState<any[]>([]);
-  const [, setLoading] = useState(false);
+  // Removed unused setLoading state
   const [creating, setCreating] = useState(false);
   const [deleting] = useState(false);
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
@@ -146,6 +147,11 @@ export function Contracts() {
   const [signature, setSignature] = useState<string | null>(null);
   const [geoConsent, setGeoConsent] = useState(false);
   const [geoLocation, setGeoLocation] = useState<{ lat: number; lng: number } | null>(null);
+
+  // Loading states for better UX
+  const [loadingDetail, setLoadingDetail] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [printing, setPrinting] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -272,9 +278,12 @@ export function Contracts() {
   };
 
   const handleDownloadPreviewPDF = async () => {
+    setDownloadingPdf(true);
+
     const element = document.getElementById('contract-preview-content');
     if (!element) {
       toast.error('Erro ao gerar PDF');
+      setDownloadingPdf(false);
       return;
     }
 
@@ -455,13 +464,18 @@ export function Contracts() {
     } catch (error) {
       console.error('PDF generation error:', error);
       toast.error('Erro ao gerar PDF. Tente novamente.');
+    } finally {
+      setDownloadingPdf(false);
     }
   };
 
   const handlePrintPreview = async () => {
+    setPrinting(true);
+
     const element = document.getElementById('contract-preview-content');
     if (!element) {
       toast.error('Erro ao imprimir');
+      setPrinting(false);
       return;
     }
 
@@ -470,6 +484,7 @@ export function Contracts() {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
       toast.error('Erro ao abrir janela de impressão. Verifique se pop-ups estão permitidos.');
+      setPrinting(false);
       return;
     }
 
@@ -566,6 +581,7 @@ export function Contracts() {
     setTimeout(() => {
       printWindow.print();
       printWindow.close();
+      setPrinting(false);
     }, 500);
   };
 
@@ -786,7 +802,7 @@ export function Contracts() {
 
   const handleViewContract = async (contract: any) => {
     closeAllModals();
-    setLoading(true);
+    setLoadingDetail(true);
 
     try {
       const fullContract = await contractsAPI.getContractById(contract.id.toString());
@@ -831,7 +847,7 @@ export function Contracts() {
       setContractDetail(contract);
       setShowDetailModal(true);
     } finally {
-      setLoading(false);
+      setLoadingDetail(false);
     }
   };
 
@@ -1987,19 +2003,21 @@ export function Contracts() {
                               size="icon"
                               variant="outline"
                               onClick={() => handleViewContract(contract)}
+                              disabled={loadingDetail}
                               className="text-orange-600 border-orange-600 hover:bg-orange-50"
                             >
-                              <Eye className="w-4 h-4" />
+                              {loadingDetail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
                             </Button>
                              {canUpdateContracts && contract.status === 'PENDENTE' && (
                               <Button
                                 size="icon"
                                 variant="outline"
                                 onClick={() => handlePrepareForSigning(contract)}
+                                disabled={prepareForSigningMutation.isPending}
                                 className="text-green-600 border-green-600 hover:bg-green-50"
                                 title="Enviar para assinatura"
                               >
-                                <Send className="w-4 h-4" />
+                                {prepareForSigningMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                               </Button>
                             )}
                             {canUserSignContract(contract) && (
@@ -2011,7 +2029,7 @@ export function Contracts() {
                                 className="text-purple-600 border-purple-600 hover:bg-purple-50"
                                 title="Assinar contrato"
                               >
-                                <PenLine className="w-4 h-4" />
+                                {signing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PenLine className="w-4 h-4" />}
                               </Button>
                             )}
                              {canUpdateContracts && !canEditContract(contract) && (
@@ -2084,19 +2102,21 @@ export function Contracts() {
                         size="icon"
                         variant="outline"
                         onClick={() => handleViewContract(contract)}
+                        disabled={loadingDetail}
                         className="text-orange-600 border-orange-600 hover:bg-orange-50"
                       >
-                        <Eye className="w-4 h-4" />
+                        {loadingDetail ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
                       </Button>
                        {canUpdateContracts && contract.status === 'PENDENTE' && (
                          <Button
                            size="icon"
                            variant="outline"
                            onClick={() => handlePrepareForSigning(contract)}
+                           disabled={prepareForSigningMutation.isPending}
                            className="text-green-600 border-green-600 hover:bg-green-50"
                            title="Enviar para assinatura"
                          >
-                           <Send className="w-4 h-4" />
+                           {prepareForSigningMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                          </Button>
                        )}
                        {canUserSignContract(contract) && (
@@ -2108,7 +2128,7 @@ export function Contracts() {
                            className="text-purple-600 border-purple-600 hover:bg-purple-50"
                            title="Assinar contrato"
                          >
-                           <PenLine className="w-4 h-4" />
+                           {signing ? <Loader2 className="w-4 h-4 animate-spin" /> : <PenLine className="w-4 h-4" />}
                          </Button>
                        )}
                        {canUpdateContracts && !canEditContract(contract) && (
@@ -2202,14 +2222,14 @@ export function Contracts() {
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => handleViewContract(contract)}>
-                                <Eye className="w-4 h-4 mr-2" />
-                                Visualizar
+                              <DropdownMenuItem onClick={() => handleViewContract(contract)} disabled={loadingDetail}>
+                                {loadingDetail ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Eye className="w-4 h-4 mr-2" />}
+                                {loadingDetail ? 'Carregando...' : 'Visualizar'}
                               </DropdownMenuItem>
                               {canUserSignContract(contract) && (
                                 <DropdownMenuItem onClick={() => handleSignContractFromList(contract)} disabled={signing}>
-                                  <PenLine className="w-4 h-4 mr-2" />
-                                  Assinar contrato
+                                  {signing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <PenLine className="w-4 h-4 mr-2" />}
+                                  {signing ? 'Assinando...' : 'Assinar contrato'}
                                 </DropdownMenuItem>
                               )}
                               {contract.pdfPath && (
@@ -2787,11 +2807,11 @@ export function Contracts() {
                       {signing ? 'Assinando...' : 'Assinar digitalmente'}
                     </Button>
                   )}
-                  <Button variant="ghost" size="icon" onClick={handleDownloadPreviewPDF} title="Baixar PDF">
-                    <Download className="w-5 h-5" />
+                  <Button variant="ghost" size="icon" onClick={handleDownloadPreviewPDF} disabled={downloadingPdf} title="Baixar PDF">
+                    {downloadingPdf ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
                   </Button>
-                  <Button variant="ghost" size="icon" onClick={handlePrintPreview} title="Imprimir">
-                    <Printer className="w-5 h-5" />
+                  <Button variant="ghost" size="icon" onClick={handlePrintPreview} disabled={printing} title="Imprimir">
+                    {printing ? <Loader2 className="w-5 h-5 animate-spin" /> : <Printer className="w-5 h-5" />}
                   </Button>
                 </div>
               )}
