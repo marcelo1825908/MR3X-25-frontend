@@ -1,8 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { agenciesAPI, plansAPI } from '../../api';
+
+// Storage key for pending payment
+const PENDING_PAYMENT_KEY = 'pending_plan_payment';
 import { getRoleLabel } from '../../lib/role-utils';
 import {
   Package,
@@ -22,6 +25,7 @@ import {
   QrCode,
   Copy,
   ExternalLink,
+  RefreshCw,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -141,9 +145,84 @@ export function AgencyPlanConfig() {
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [changingPlan, setChangingPlan] = useState(false);
   const [creatingPayment, setCreatingPayment] = useState(false);
+  const [checkingPayment, setCheckingPayment] = useState(false);
 
   const canViewPlan = hasPermission('agencies:read') || user?.role === 'AGENCY_ADMIN';
   const agencyId = user?.agencyId;
+
+  // Function to check payment status and confirm plan upgrade
+  const checkPaymentStatus = useCallback(async (paymentId: string, newPlan: string, showToast = true) => {
+    if (!agencyId) return false;
+
+    setCheckingPayment(true);
+    try {
+      // Call the confirm endpoint which will check Asaas and update the plan
+      const result = await agenciesAPI.confirmPlanPayment(agencyId, paymentId, newPlan);
+
+      if (result.success) {
+        // Clear pending payment from storage
+        localStorage.removeItem(PENDING_PAYMENT_KEY);
+
+        // Refresh data
+        queryClient.invalidateQueries({ queryKey: ['agency', agencyId] });
+        queryClient.invalidateQueries({ queryKey: ['agency-plan-usage', agencyId] });
+
+        // Close modals and reset state
+        setShowPaymentModal(false);
+        setPaymentData(null);
+        setSelectedPlan(null);
+
+        toast.success(`Plano atualizado para ${getPlanNameInPortuguese(newPlan)} com sucesso!`);
+        return true;
+      } else {
+        if (showToast) {
+          toast.error('Pagamento ainda não confirmado. Tente novamente em alguns instantes.');
+        }
+        return false;
+      }
+    } catch (error: any) {
+      console.error('Error checking payment:', error);
+      if (showToast) {
+        toast.error(error.response?.data?.message || 'Erro ao verificar pagamento');
+      }
+      return false;
+    } finally {
+      setCheckingPayment(false);
+    }
+  }, [agencyId, queryClient]);
+
+  // Check for pending payment on component mount
+  useEffect(() => {
+    const checkPendingPayment = async () => {
+      const pendingPaymentStr = localStorage.getItem(PENDING_PAYMENT_KEY);
+      if (!pendingPaymentStr || !agencyId) return;
+
+      try {
+        const pendingPayment = JSON.parse(pendingPaymentStr);
+        if (pendingPayment.agencyId === agencyId && pendingPayment.paymentId && pendingPayment.newPlan) {
+          // Auto-check payment status
+          const success = await checkPaymentStatus(pendingPayment.paymentId, pendingPayment.newPlan, false);
+          if (!success) {
+            // Show payment modal again if payment not confirmed
+            setPaymentData({
+              requiresPayment: true,
+              paymentId: pendingPayment.paymentId,
+              invoiceUrl: pendingPayment.invoiceUrl,
+              newPlan: pendingPayment.newPlan,
+              value: pendingPayment.value,
+            });
+            setSelectedPlan(pendingPayment.newPlan);
+            // Don't show modal automatically, just keep the data ready
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing pending payment:', error);
+        localStorage.removeItem(PENDING_PAYMENT_KEY);
+      }
+    };
+
+    checkPendingPayment();
+  }, [agencyId, checkPaymentStatus]);
 
   const { data: agency, isLoading: agencyLoading } = useQuery({
     queryKey: ['agency', agencyId],
@@ -273,6 +352,16 @@ export function AgencyPlanConfig() {
         const paymentResult = await agenciesAPI.createPlanPayment(agencyId, selectedPlan);
 
         if (paymentResult.requiresPayment) {
+          // Save pending payment to localStorage for recovery after payment
+          localStorage.setItem(PENDING_PAYMENT_KEY, JSON.stringify({
+            agencyId,
+            paymentId: paymentResult.paymentId,
+            newPlan: selectedPlan,
+            invoiceUrl: paymentResult.invoiceUrl,
+            value: paymentResult.value,
+            createdAt: new Date().toISOString(),
+          }));
+
           // Show payment modal
           setPaymentData(paymentResult);
           setShowUpgradeModal(false);
@@ -351,6 +440,47 @@ export function AgencyPlanConfig() {
           </p>
         </div>
       </div>
+
+      {/* Pending Payment Banner */}
+      {paymentData && paymentData.paymentId && selectedPlan && !showPaymentModal && (
+        <Alert className="border-yellow-400 bg-yellow-50">
+          <CreditCard className="h-4 w-4 text-yellow-600" />
+          <AlertDescription className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="text-yellow-800">
+              <span className="font-medium">Pagamento pendente: </span>
+              Upgrade para plano {getPlanNameInPortuguese(selectedPlan)}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-yellow-400 text-yellow-800 hover:bg-yellow-100"
+                onClick={() => setShowPaymentModal(true)}
+              >
+                Ver Detalhes
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => checkPaymentStatus(paymentData.paymentId!, selectedPlan)}
+                disabled={checkingPayment}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {checkingPayment ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                    Verificando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-1" />
+                    Verificar Pagamento
+                  </>
+                )}
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {}
       <Card className="relative overflow-visible">
@@ -1082,7 +1212,7 @@ export function AgencyPlanConfig() {
               </Alert>
             </div>
           )}
-          <DialogFooter>
+          <DialogFooter className="flex flex-col sm:flex-row gap-2">
             <Button
               variant="outline"
               onClick={() => {
@@ -1093,6 +1223,25 @@ export function AgencyPlanConfig() {
             >
               Fechar
             </Button>
+            {paymentData?.paymentId && selectedPlan && (
+              <Button
+                onClick={() => checkPaymentStatus(paymentData.paymentId!, selectedPlan)}
+                disabled={checkingPayment}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {checkingPayment ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Verificando...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Já Paguei - Verificar Pagamento
+                  </>
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
