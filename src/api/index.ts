@@ -1923,7 +1923,7 @@ export const apiClientDashboardAPI = {
 
 export const tenantAnalysisAPI = {
 
-  analyze: async (data: { document: string; name?: string; analysisType?: 'FULL' | 'FINANCIAL' | 'BACKGROUND' | 'QUICK'; lgpdAccepted: boolean }) => {
+  analyze: async (data: { document: string; name?: string; analysisType?: 'FULL' | 'FINANCIAL' | 'BACKGROUND' | 'QUICK'; lgpdAccepted: boolean; forceRefresh?: boolean }) => {
     const response = await apiClient.post('/tenant-analysis/analyze', data);
     return response.data;
   },

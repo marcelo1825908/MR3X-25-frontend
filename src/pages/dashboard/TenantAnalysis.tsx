@@ -819,6 +819,7 @@ export function TenantAnalysis() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [forceRefresh, setForceRefresh] = useState(false);
 
   const handleSearch = useCallback(() => {
     setSearchQuery(searchTerm.trim());
@@ -851,7 +852,7 @@ export function TenantAnalysis() {
   });
 
   const analyzeMutation = useMutation({
-    mutationFn: (data: { document: string; name?: string; lgpdAccepted: boolean }) =>
+    mutationFn: (data: { document: string; name?: string; lgpdAccepted: boolean; forceRefresh?: boolean }) =>
       tenantAnalysisAPI.analyze({ ...data, analysisType: 'FULL' }),
     onSuccess: (data) => {
       toast.success('Análise concluída com sucesso!');
@@ -860,6 +861,7 @@ export function TenantAnalysis() {
       setShowLGPDModal(false);
       setDocument('');
       setName('');
+      setForceRefresh(false);
       queryClient.invalidateQueries({ queryKey: ['tenant-analysis-history'] });
       queryClient.invalidateQueries({ queryKey: ['tenant-analysis-stats'] });
     },
@@ -880,7 +882,7 @@ export function TenantAnalysis() {
 
   const handleLGPDAccept = () => {
     const cleanDocument = document.replace(/\D/g, '');
-    analyzeMutation.mutate({ document: cleanDocument, name: name || undefined, lgpdAccepted: true });
+    analyzeMutation.mutate({ document: cleanDocument, name: name || undefined, lgpdAccepted: true, forceRefresh });
   };
 
   const handleViewAnalysis = async (id: string) => {
@@ -977,37 +979,47 @@ export function TenantAnalysis() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleAnalyzeClick} className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-              <div className="flex-1">
-                <Input
-                  placeholder="CPF ou CNPJ"
-                  value={document}
-                  onChange={(e) => setDocument(formatCPFCNPJ(e.target.value))}
-                  maxLength={18}
-                  className="text-sm sm:text-base"
-                />
+            <form onSubmit={handleAnalyzeClick} className="space-y-3">
+              <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                <div className="flex-1">
+                  <Input
+                    placeholder="CPF ou CNPJ"
+                    value={document}
+                    onChange={(e) => setDocument(formatCPFCNPJ(e.target.value))}
+                    maxLength={18}
+                    className="text-sm sm:text-base"
+                  />
+                </div>
+                <div className="flex-1">
+                  <Input
+                    placeholder="Nome (opcional)"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="text-sm sm:text-base"
+                  />
+                </div>
+                <Button type="submit" disabled={analyzeMutation.isPending} className="w-full sm:w-auto">
+                  {analyzeMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      <span className="sm:inline">Analisando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Search className="w-4 h-4 mr-2" />
+                      <span>Analisar</span>
+                    </>
+                  )}
+                </Button>
               </div>
-              <div className="flex-1">
-                <Input
-                  placeholder="Nome (opcional)"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="text-sm sm:text-base"
+              <label htmlFor="force-refresh" className="flex items-center gap-2 cursor-pointer">
+                <Checkbox
+                  id="force-refresh"
+                  checked={forceRefresh}
+                  onCheckedChange={(checked) => setForceRefresh(checked as boolean)}
                 />
-              </div>
-              <Button type="submit" disabled={analyzeMutation.isPending} className="w-full sm:w-auto">
-                {analyzeMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    <span className="sm:inline">Analisando...</span>
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-4 h-4 mr-2" />
-                    <span>Analisar</span>
-                  </>
-                )}
-              </Button>
+                <span className="text-sm text-muted-foreground">Forçar nova análise (ignorar cache)</span>
+              </label>
             </form>
           </CardContent>
         </Card>
