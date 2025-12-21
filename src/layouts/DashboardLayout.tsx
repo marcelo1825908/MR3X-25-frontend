@@ -58,7 +58,7 @@ const baseNavigation = [
   { name: 'Split Configuration', href: '/dashboard/split-configuration', icon: Handshake, perm: undefined, roles: ['CEO', 'ADMIN', 'AGENCY_ADMIN', 'AGENCY_MANAGER', 'INDEPENDENT_OWNER'] },
   { name: 'Comunicação', href: '/dashboard/communications', icon: Mail, perm: undefined, roles: ['CEO'] },
   { name: 'Auditorias', href: '/dashboard/audit', icon: ShieldCheck, perm: 'audit:read', roles: ['CEO', 'ADMIN'] },
-  { name: 'Documentos', href: '/dashboard/documents', icon: FileDown, perm: 'documents:read', roles: ['CEO', 'ADMIN', 'INDEPENDENT_OWNER'] },
+  { name: 'Cobranças e Recibos', href: '/dashboard/documents', icon: FileDown, perm: 'documents:read', roles: ['CEO', 'ADMIN', 'INDEPENDENT_OWNER'] },
   { name: 'Chat', href: '/dashboard/chat', icon: MessageSquare, perm: 'chat:read' },
   { name: 'Notificacoes', href: '/dashboard/notifications', icon: Bell, perm: 'notifications:read' },
   { name: 'Minha Conta', href: '/dashboard/my-account', icon: UserCog, perm: undefined },

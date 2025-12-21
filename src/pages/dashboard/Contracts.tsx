@@ -85,9 +85,9 @@ export function Contracts() {
   const isCEO = user?.role === 'CEO';
   const isProprietario = user?.role === 'PROPRIETARIO';
   const canViewContracts = hasPermission('contracts:read') || ['CEO', 'AGENCY_ADMIN', 'AGENCY_MANAGER', 'BROKER', 'INDEPENDENT_OWNER', 'PROPRIETARIO'].includes(user?.role || '');
-  const canCreateContracts = hasPermission('contracts:create') && !isCEO && !isProprietario;
-  const canUpdateContracts = hasPermission('contracts:update') && !isCEO && !isProprietario;
-  const canDeleteContracts = hasPermission('contracts:delete') && !isCEO && !isProprietario;
+  const canCreateContracts = (hasPermission('contracts:create') || ['AGENCY_ADMIN', 'AGENCY_MANAGER', 'BROKER', 'INDEPENDENT_OWNER'].includes(user?.role || '')) && !isCEO && !isProprietario;
+  const canUpdateContracts = (hasPermission('contracts:update') || ['AGENCY_ADMIN', 'AGENCY_MANAGER', 'BROKER', 'INDEPENDENT_OWNER'].includes(user?.role || '')) && !isCEO && !isProprietario;
+  const canDeleteContracts = (hasPermission('contracts:delete') || ['AGENCY_ADMIN', 'AGENCY_MANAGER', 'INDEPENDENT_OWNER'].includes(user?.role || '')) && !isCEO && !isProprietario;
 
   const allowedUserTypes = getUserTypeFromRole(user?.role || '');
 
