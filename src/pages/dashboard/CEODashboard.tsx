@@ -1,51 +1,12 @@
-import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Skeleton } from '../../components/ui/skeleton';
 import { dashboardAPI } from '../../api';
 import { formatCurrency } from '../../lib/utils';
 import {
-  Building2, Users, FileText, DollarSign, TrendingUp,
-  AlertCircle, CheckCircle, Clock, Briefcase, Award,
-  PieChart as PieChartIcon, Inbox, Percent
+  Building2, Users, FileText, DollarSign,
+  AlertCircle, CheckCircle, Clock, Briefcase, Award, Inbox
 } from 'lucide-react';
-import {
-  ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip, Legend
-} from 'recharts';
-
-const COLORS = {
-  primary: '#3b82f6',
-  success: '#22c55e',
-  warning: '#f59e0b',
-  danger: '#ef4444',
-  purple: '#8b5cf6',
-  cyan: '#06b6d4',
-  pink: '#ec4899',
-  indigo: '#6366f1',
-  gray: '#64748b',
-};
-
-function ChartContainer({ children, height = 280 }: { children: React.ReactNode; height?: number }) {
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsMounted(true), 200);
-    return () => clearTimeout(timer);
-  }, []);
-
-  if (!isMounted) {
-    return <div style={{ height: `${height}px`, width: '100%' }} className="flex items-center justify-center text-muted-foreground">Carregando...</div>;
-  }
-
-  return (
-    <div style={{ width: '100%', height: `${height}px` }}>
-      <ResponsiveContainer width="100%" height={height}>
-        {children}
-      </ResponsiveContainer>
-    </div>
-  );
-}
 
 export function CEODashboard() {
   const { data: dashboard, isLoading } = useQuery({
@@ -114,34 +75,6 @@ export function CEODashboard() {
   }
 
   const overview = dashboard?.overview || {};
-
-  const revenueDistributionData = [
-    { name: 'Recebido', value: overview.receivedRevenue ?? 0, color: COLORS.success },
-    { name: 'Pendente', value: Math.max(0, (overview.monthlyRevenue ?? 0) - (overview.receivedRevenue ?? 0) - (overview.overdueRevenue ?? 0)), color: COLORS.warning },
-    { name: 'Vencido', value: overview.overdueRevenue ?? 0, color: COLORS.danger },
-  ];
-
-
-  const topAgenciesData = dashboard?.topAgencies?.map((agency: any) => ({
-    name: agency.name?.substring(0, 15) + (agency.name?.length > 15 ? '...' : ''),
-    imoveis: agency.propertyCount || 0,
-    usuarios: agency.userCount || 0,
-    contratos: agency.contractCount || 0,
-  })) || [];
-
-  const planDistribution = dashboard?.topAgencies?.reduce((acc: any, agency: any) => {
-    const plan = agency.plan || 'starter';
-    acc[plan] = (acc[plan] || 0) + 1;
-    return acc;
-  }, {}) || {};
-
-  const planDistributionData = Object.entries(planDistribution).map(([name, value]) => ({
-    name: name.charAt(0).toUpperCase() + name.slice(1),
-    value: value as number,
-    color: name === 'enterprise' ? COLORS.purple : name === 'professional' ? COLORS.primary : COLORS.gray,
-  }));
-
-  const totalProperties = overview.totalProperties ?? 0;
   const defaultRate = overview.defaultRate ?? 0;
 
   const getStatusBadge = (status: string) => {
@@ -184,7 +117,7 @@ export function CEODashboard() {
         />
         <KPICard
           title="Total de Imóveis"
-          value={totalProperties}
+          value={overview.totalProperties ?? 0}
           icon={Building2}
           color="blue"
         />
@@ -226,205 +159,6 @@ export function CEODashboard() {
           color="red"
           subtitle={formatCurrency(overview.overdueRevenue ?? 0)}
         />
-      </div>
-
-      {}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-start gap-2">
-              <PieChartIcon className="w-5 h-7 text-green-500" />
-              Distribuição da Receita Mensal
-            </CardTitle>
-            <CardDescription>Recebido, Pendente e Vencido</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {revenueDistributionData.some(d => d.value > 0) ? (
-              <ChartContainer height={280}>
-                <PieChart>
-                  <Pie
-                    data={revenueDistributionData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={90}
-                    label={(props: any) => props.value > 0 ? `${props.name}` : ''}
-                  >
-                    {revenueDistributionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                  <Legend />
-                </PieChart>
-              </ChartContainer>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-[280px] text-muted-foreground">
-                <Inbox className="w-12 h-12 mb-2 opacity-50" />
-                <p>Nenhum dado disponível</p>
-              </div>
-            )}
-            <div className="text-center mt-2 font-semibold text-sm">
-              Total: {formatCurrency(overview.monthlyRevenue ?? 0)}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Platform Metrics Summary */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-cyan-500" />
-              Métricas da Plataforma
-            </CardTitle>
-            <CardDescription>Indicadores de desempenho</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Building2 className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Média de Imóveis/Agência</p>
-                    <p className="text-xl font-bold text-blue-600">
-                      {overview.totalAgencies && overview.totalAgencies > 0
-                        ? (totalProperties / overview.totalAgencies).toFixed(1)
-                        : '0'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg">
-                    <FileText className="w-5 h-5 text-green-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Média de Contratos/Agência</p>
-                    <p className="text-xl font-bold text-green-600">
-                      {overview.totalAgencies && overview.totalAgencies > 0
-                        ? ((overview.activeContracts ?? 0) / overview.totalAgencies).toFixed(1)
-                        : '0'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-purple-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <Users className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Média de Usuários/Agência</p>
-                    <p className="text-xl font-bold text-purple-600">
-                      {overview.totalAgencies && overview.totalAgencies > 0
-                        ? ((overview.totalUsers ?? 0) / overview.totalAgencies).toFixed(1)
-                        : '0'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between p-4 bg-amber-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-amber-100 rounded-lg">
-                    <DollarSign className="w-5 h-5 text-amber-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Receita Média/Agência</p>
-                    <p className="text-xl font-bold text-amber-600">
-                      {overview.totalAgencies && overview.totalAgencies > 0
-                        ? formatCurrency((overview.monthlyRevenue ?? 0) / overview.totalAgencies)
-                        : formatCurrency(0)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-indigo-500" />
-              Desempenho das Agências
-            </CardTitle>
-            <CardDescription>Top agências por métricas</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {topAgenciesData.length > 0 ? (
-              <ChartContainer height={280}>
-                <BarChart data={topAgenciesData} layout="vertical" margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis
-                    dataKey="name"
-                    type="category"
-                    width={80}
-                    tick={{ fontSize: 10 }}
-                    tickFormatter={(value) => value.length > 12 ? `${value.substring(0, 12)}...` : value}
-                  />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="imoveis" name="Imóveis" fill={COLORS.primary} radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="contratos" name="Contratos" fill={COLORS.success} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ChartContainer>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-[280px] text-muted-foreground">
-                <Inbox className="w-12 h-12 mb-2 opacity-50" />
-                <p>Nenhuma agência encontrada</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Percent className="w-5 h-5 text-purple-500" />
-              Distribuição por Plano
-            </CardTitle>
-            <CardDescription>Agências por tipo de plano</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {planDistributionData.length > 0 ? (
-              <ChartContainer height={280}>
-                <PieChart>
-                  <Pie
-                    data={planDistributionData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={90}
-                    label={(props: any) => props.value > 0 ? `${props.name}: ${props.value}` : ''}
-                  >
-                    {planDistributionData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ChartContainer>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-[280px] text-muted-foreground">
-                <Inbox className="w-12 h-12 mb-2 opacity-50" />
-                <p>Nenhum dado disponível</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
       {}
