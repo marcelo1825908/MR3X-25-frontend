@@ -150,8 +150,6 @@ export function CEODashboard() {
   }));
 
   const totalProperties = overview.totalProperties ?? 0;
-  const occupiedProperties = overview.occupiedProperties ?? 0;
-  const occupancyRate = totalProperties > 0 ? Math.round((occupiedProperties / totalProperties) * 100) : 0;
   const defaultRate = overview.defaultRate ?? 0;
 
   const getStatusBadge = (status: string) => {
@@ -235,37 +233,6 @@ export function CEODashboard() {
           icon={Clock}
           color="red"
           subtitle={formatCurrency(overview.overdueRevenue ?? 0)}
-        />
-      </div>
-
-      {}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
-        <KPICard
-          title="Imóveis Ocupados"
-          value={occupiedProperties}
-          icon={Building2}
-          color="blue"
-          subtitle={`${occupancyRate}% de ocupação`}
-        />
-        <KPICard
-          title="Imóveis Disponíveis"
-          value={overview.availableProperties ?? 0}
-          icon={Building2}
-          color="cyan"
-        />
-        <KPICard
-          title="Receita Recebida"
-          value={formatCurrency(overview.receivedRevenue ?? 0)}
-          icon={CheckCircle}
-          color="green"
-          subtitle="Este mês"
-          isAmount
-        />
-        <KPICard
-          title="Pagamentos Pendentes"
-          value={overview.pendingPayments ?? 0}
-          icon={AlertCircle}
-          color="yellow"
         />
       </div>
 
