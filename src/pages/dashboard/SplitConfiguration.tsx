@@ -46,6 +46,7 @@ export function SplitConfiguration() {
     ['AGENCY_ADMIN', 'AGENCY_MANAGER', 'INDEPENDENT_OWNER', 'CEO', 'ADMIN'].includes(user?.role || '');
   const isCeoOrAdmin = ['CEO', 'ADMIN'].includes(user?.role || '');
   const isAgencyAdmin = user?.role === 'AGENCY_ADMIN';
+  const isIndependentOwner = user?.role === 'INDEPENDENT_OWNER';
   const canUpdateSplit = hasPermission('agencies:update') ||
     ['AGENCY_ADMIN', 'INDEPENDENT_OWNER', 'CEO', 'ADMIN'].includes(user?.role || '');
 
@@ -65,8 +66,8 @@ export function SplitConfiguration() {
     enabled: !!agencyId && canViewSplit,
   });
 
-  // CEO, ADMIN, and AGENCY_ADMIN can access payment config (Agency Admin needs it to show platform fee)
-  const canAccessPaymentConfig = user?.role === 'CEO' || user?.role === 'ADMIN' || user?.role === 'AGENCY_ADMIN';
+  // CEO, ADMIN, AGENCY_ADMIN, and INDEPENDENT_OWNER can access payment config (to show platform fee)
+  const canAccessPaymentConfig = user?.role === 'CEO' || user?.role === 'ADMIN' || user?.role === 'AGENCY_ADMIN' || user?.role === 'INDEPENDENT_OWNER';
   const { data: paymentConfig, isLoading: configLoading } = useQuery({
     queryKey: ['paymentConfig'],
     queryFn: () => settingsAPI.getPaymentConfig(),
@@ -103,7 +104,7 @@ export function SplitConfiguration() {
     }
   }, [paymentConfig, savingPlatformFee]);
 
-  // Set owner fee when an owner is selected
+  // Set owner fee when an owner is selected (for AGENCY_ADMIN)
   useEffect(() => {
     if (selectedOwnerId && ownersList) {
       const selectedOwner = ownersList.find((o: any) => o.id === selectedOwnerId);
@@ -112,6 +113,8 @@ export function SplitConfiguration() {
       }
     }
   }, [selectedOwnerId, ownersList]);
+
+  // For independent owners, owner fee is calculated (100% - platform fee), no need to fetch from profile
 
   const isCeo = user?.role === 'CEO';
 
@@ -257,6 +260,11 @@ export function SplitConfiguration() {
   };
 
   const handleSaveOwnerFee = async () => {
+    // Independent owners don't need to save - their fee is calculated automatically
+    if (isIndependentOwner) {
+      return;
+    }
+
     if (!selectedOwnerId) {
       toast.error('Selecione um proprietário');
       return;
@@ -397,8 +405,8 @@ export function SplitConfiguration() {
         </Alert>
       )}
 
-      {/* Only show the rest if an agency is selected or user has agencyId (for non-agency-admin) OR owner is selected (for agency admin) */}
-      {((agencyId && !isAgencyAdmin) || (isAgencyAdmin && selectedOwnerId)) && (
+      {/* Only show the rest if an agency is selected or user has agencyId (for non-agency-admin) OR owner is selected (for agency admin) OR user is independent owner */}
+      {((agencyId && !isAgencyAdmin && !isIndependentOwner) || (isAgencyAdmin && selectedOwnerId) || isIndependentOwner) && (
         <>
       {/* Info Alert */}
       <Alert className="border-blue-200 bg-blue-50">
@@ -411,6 +419,8 @@ export function SplitConfiguration() {
               ' Como CEO, você pode ajustar tanto a taxa da plataforma quanto a comissão da agência.'
             ) : isAgencyAdmin ? (
               ' Como Administrador da Agência, você pode ajustar a porcentagem que cada proprietário recebe.'
+            ) : isIndependentOwner ? (
+              ' Como Proprietário Independente, você pode ajustar a porcentagem que você recebe nos pagamentos de aluguel.'
             ) : (
               ' Você pode ajustar a comissão da agência. A taxa da plataforma é definida pelo CEO.'
             )}
@@ -426,81 +436,108 @@ export function SplitConfiguration() {
             Configuração de Taxas
           </CardTitle>
           <CardDescription>
-            {isAgencyAdmin
+            {isAgencyAdmin || isIndependentOwner
               ? 'Gerencie a porcentagem que o proprietário recebe nos pagamentos de aluguel'
               : 'Gerencie a comissão da agência nos pagamentos de aluguel'
             }
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Agency Admin - Owner Fee Configuration */}
-          {isAgencyAdmin ? (
+          {/* Agency Admin or Independent Owner - Owner Fee Configuration */}
+          {(isAgencyAdmin || isIndependentOwner) ? (
             <>
-              {/* Owner Fee - Editable */}
-              <div className="p-4 border rounded-lg bg-blue-50 border-blue-200">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <User className="w-5 h-5 text-blue-600" />
-                    <Label className="text-base font-medium">Taxa do Proprietário (%) - Editável</Label>
+              {/* Owner Fee - Editable for Agency Admin, Calculated for Independent Owner */}
+              {isIndependentOwner ? (
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <User className="w-5 h-5 text-gray-600" />
+                      <Label className="text-base font-medium">Sua Taxa (%) - Calculado</Label>
+                    </div>
+                    <span className="text-xl font-bold">
+                      {formatCurrency((exampleRent * (100 - platformFee)) / 100)}
+                    </span>
                   </div>
-                  <span className="text-xl font-bold text-blue-700">
-                    {formatCurrency((exampleRent * selectedOwnerFee) / 100)}
-                  </span>
+
+                  <Input
+                    type="number"
+                    value={(100 - platformFee).toFixed(1)}
+                    disabled
+                    className="bg-muted cursor-not-allowed"
+                  />
+
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Calculado automaticamente: 100% - Taxa da Plataforma
+                  </p>
                 </div>
+              ) : (
+                <div className="p-4 border rounded-lg bg-blue-50 border-blue-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <User className="w-5 h-5 text-blue-600" />
+                      <Label className="text-base font-medium">Taxa do Proprietário (%) - Editável</Label>
+                    </div>
+                    <span className="text-xl font-bold text-blue-700">
+                      {formatCurrency((exampleRent * selectedOwnerFee) / 100)}
+                    </span>
+                  </div>
 
-                <div className="flex items-center gap-4">
-                  <div className="flex-1">
-                    <Slider
-                      value={[selectedOwnerFee]}
-                      onValueChange={(value) => setSelectedOwnerFee(value[0])}
-                      max={100 - platformFee}
-                      min={0}
-                      step={0.5}
-                      className="cursor-pointer"
-                    />
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1">
+                      <Slider
+                        value={[selectedOwnerFee]}
+                        onValueChange={(value) => setSelectedOwnerFee(value[0])}
+                        max={100 - platformFee}
+                        min={0}
+                        step={0.5}
+                        className="cursor-pointer"
+                      />
+                    </div>
+                    <div className="w-20">
+                      <Input
+                        type="number"
+                        value={selectedOwnerFee}
+                        onChange={(e) => setSelectedOwnerFee(parseFloat(e.target.value) || 0)}
+                        min={0}
+                        max={100 - platformFee}
+                        step={0.5}
+                        className="text-center"
+                      />
+                    </div>
                   </div>
-                  <div className="w-20">
-                    <Input
-                      type="number"
-                      value={selectedOwnerFee}
-                      onChange={(e) => setSelectedOwnerFee(parseFloat(e.target.value) || 0)}
-                      min={0}
-                      max={100 - platformFee}
-                      step={0.5}
-                      className="text-center"
-                    />
-                  </div>
+
+                  <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
+                    <span className="inline-block w-3 h-3">&#10003;</span>
+                    Defina quanto do aluguel irá para este proprietário
+                  </p>
                 </div>
+              )}
 
-                <p className="text-xs text-blue-600 mt-2 flex items-center gap-1">
-                  <span className="inline-block w-3 h-3">&#10003;</span>
-                  Defina quanto do aluguel irá para este proprietário
-                </p>
-              </div>
-
-              {/* Agency Commission - Calculated */}
-              <div className="p-4 border rounded-lg">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-5 h-5 text-gray-600" />
-                    <Label className="text-base font-medium">Comissão da Agência (%) - Calculado</Label>
+              {/* Agency Commission - Calculated (only for agency admin, not for independent owners) */}
+              {isAgencyAdmin && (
+                <div className="p-4 border rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-5 h-5 text-gray-600" />
+                      <Label className="text-base font-medium">Comissão da Agência (%) - Calculado</Label>
+                    </div>
+                    <span className="text-xl font-bold">
+                      {formatCurrency((exampleRent * Math.max(0, 100 - selectedOwnerFee - platformFee)) / 100)}
+                    </span>
                   </div>
-                  <span className="text-xl font-bold">
-                    {formatCurrency((exampleRent * Math.max(0, 100 - selectedOwnerFee - platformFee)) / 100)}
-                  </span>
+
+                  <Input
+                    type="number"
+                    value={Math.max(0, 100 - selectedOwnerFee - platformFee).toFixed(1)}
+                    disabled
+                    className="bg-muted cursor-not-allowed"
+                  />
+
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Calculado automaticamente: 100% - Taxa do Proprietário - Taxa da Plataforma
+                  </p>
                 </div>
-
-                <Input
-                  type="number"
-                  value={Math.max(0, 100 - selectedOwnerFee - platformFee).toFixed(1)}
-                  disabled
-                  className="bg-muted cursor-not-allowed"
-                />
-
-                <p className="text-xs text-muted-foreground mt-2">
-                  Calculado automaticamente: 100% - Taxa do Proprietário - Taxa da Plataforma
-                </p>
-              </div>
+              )}
 
               {/* Platform Fee - Read-only */}
               <div className="p-4 border rounded-lg">
@@ -530,13 +567,18 @@ export function SplitConfiguration() {
               <div className="flex items-center justify-between pt-4 border-t">
                 <span className="text-lg font-semibold">Porcentagem Total</span>
                 <span className={`text-2xl font-bold ${
-                  selectedOwnerFee + Math.max(0, 100 - selectedOwnerFee - platformFee) + platformFee === 100 ? 'text-green-600' : 'text-red-600'
+                  isIndependentOwner 
+                    ? 'text-green-600' // Always 100% for independent owners (calculated)
+                    : (selectedOwnerFee + Math.max(0, 100 - selectedOwnerFee - platformFee) + platformFee === 100 ? 'text-green-600' : 'text-red-600')
                 }`}>
-                  {(selectedOwnerFee + Math.max(0, 100 - selectedOwnerFee - platformFee) + platformFee).toFixed(0)}%
+                  {isIndependentOwner
+                    ? '100%' // Always 100% for independent owners
+                    : (selectedOwnerFee + Math.max(0, 100 - selectedOwnerFee - platformFee) + platformFee).toFixed(0)
+                  }%
                 </span>
               </div>
 
-              {(100 - selectedOwnerFee - platformFee) < 0 && (
+              {!isIndependentOwner && (100 - selectedOwnerFee - platformFee) < 0 && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
@@ -551,16 +593,18 @@ export function SplitConfiguration() {
                 <div className="h-10 rounded-lg overflow-hidden flex shadow-inner">
                   <div
                     className="bg-blue-500 flex items-center justify-center text-white text-sm font-medium transition-all"
-                    style={{ width: `${selectedOwnerFee}%` }}
+                    style={{ width: `${isIndependentOwner ? (100 - platformFee) : selectedOwnerFee}%` }}
                   >
-                    {selectedOwnerFee > 15 && `${selectedOwnerFee}%`}
+                    {(isIndependentOwner ? (100 - platformFee) : selectedOwnerFee) > 15 && `${isIndependentOwner ? (100 - platformFee).toFixed(1) : selectedOwnerFee}%`}
                   </div>
-                  <div
-                    className="bg-green-500 flex items-center justify-center text-white text-sm font-medium transition-all"
-                    style={{ width: `${Math.max(0, 100 - selectedOwnerFee - platformFee)}%` }}
-                  >
-                    {(100 - selectedOwnerFee - platformFee) > 15 && `${(100 - selectedOwnerFee - platformFee).toFixed(1)}%`}
-                  </div>
+                  {isAgencyAdmin && (
+                    <div
+                      className="bg-green-500 flex items-center justify-center text-white text-sm font-medium transition-all"
+                      style={{ width: `${Math.max(0, 100 - selectedOwnerFee - platformFee)}%` }}
+                    >
+                      {(100 - selectedOwnerFee - platformFee) > 15 && `${(100 - selectedOwnerFee - platformFee).toFixed(1)}%`}
+                    </div>
+                  )}
                   <div
                     className="bg-orange-500 flex items-center justify-center text-white text-sm font-medium transition-all"
                     style={{ width: `${platformFee}%` }}
@@ -568,15 +612,17 @@ export function SplitConfiguration() {
                     {platformFee > 5 && `${platformFee}%`}
                   </div>
                 </div>
-                <div className="flex justify-between text-xs text-muted-foreground">
+                <div className={`flex ${isAgencyAdmin ? 'justify-between' : 'justify-around'} text-xs text-muted-foreground`}>
                   <span className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded-full bg-blue-500" />
-                    Proprietário ({selectedOwnerFee}%)
+                    {isIndependentOwner ? 'Você' : 'Proprietário'} ({isIndependentOwner ? (100 - platformFee).toFixed(1) : selectedOwnerFee}%)
                   </span>
-                  <span className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded-full bg-green-500" />
-                    Agência ({Math.max(0, 100 - selectedOwnerFee - platformFee).toFixed(1)}%)
-                  </span>
+                  {isAgencyAdmin && (
+                    <span className="flex items-center gap-1">
+                      <div className="w-3 h-3 rounded-full bg-green-500" />
+                      Agência ({Math.max(0, 100 - selectedOwnerFee - platformFee).toFixed(1)}%)
+                    </span>
+                  )}
                   <span className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded-full bg-orange-500" />
                     Plataforma ({platformFee}%)
@@ -584,20 +630,23 @@ export function SplitConfiguration() {
                 </div>
               </div>
 
-              <div className="flex justify-end">
-                <Button
-                  onClick={handleSaveOwnerFee}
-                  disabled={savingOwnerFee || (100 - selectedOwnerFee - platformFee) < 0}
-                  className="gap-2"
-                >
-                  {savingOwnerFee ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4" />
-                  )}
-                  {savingOwnerFee ? 'Salvando...' : 'Salvar Alterações'}
-                </Button>
-              </div>
+              {/* Save button only for Agency Admin, not for Independent Owner */}
+              {isAgencyAdmin && (
+                <div className="flex justify-end">
+                  <Button
+                    onClick={handleSaveOwnerFee}
+                    disabled={savingOwnerFee || (100 - selectedOwnerFee - platformFee) < 0}
+                    className="gap-2"
+                  >
+                    {savingOwnerFee ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    {savingOwnerFee ? 'Salvando...' : 'Salvar Alterações'}
+                  </Button>
+                </div>
+              )}
             </>
           ) : (
             <>
