@@ -29,7 +29,6 @@ import { OwnerPlanConfig } from './pages/dashboard/OwnerPlanConfig';
 import { TenantDashboard } from './pages/dashboard/TenantDashboard';
 import { TenantContract } from './pages/dashboard/TenantContract';
 import { TenantPayments } from './pages/dashboard/TenantPayments';
-import { TenantProfile } from './pages/dashboard/TenantProfile';
 import { ExtrajudicialAcknowledgment } from './pages/dashboard/ExtrajudicialAcknowledgment';
 import { BrokerDashboard } from './pages/dashboard/BrokerDashboard';
 import { ApiClientDashboard } from './pages/dashboard/ApiClientDashboard';
@@ -234,7 +233,6 @@ function App() {
               <Route path="tenant-dashboard" element={<TenantDashboard />} />
               <Route path="tenant-contract" element={<TenantContract />} />
               <Route path="tenant-payments" element={<TenantPayments />} />
-              <Route path="tenant-profile" element={<TenantProfile />} />
               <Route path="extrajudicial-acknowledgment/:notificationId" element={<ExtrajudicialAcknowledgment />} />
 
               {}

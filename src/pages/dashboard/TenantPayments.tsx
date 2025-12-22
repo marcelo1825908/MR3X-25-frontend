@@ -122,7 +122,9 @@ export function TenantPayments() {
               <div className="text-center p-4 bg-gray-50 rounded-lg">
                 <FileText className="w-8 h-8 mx-auto mb-2 text-purple-500" />
                 <p className="text-sm text-muted-foreground">Dia de Vencimento</p>
-                <p className="text-xl font-bold">Todo dia {property.dueDay || '-'}</p>
+                <p className="text-xl font-bold">
+                  Todo dia {property.dueDay || (property.nextDueDate ? new Date(property.nextDueDate).getDate() : '-')}
+                </p>
               </div>
             </div>
 

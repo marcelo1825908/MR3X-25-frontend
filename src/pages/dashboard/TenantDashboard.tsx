@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { dashboardAPI, extrajudicialNotificationsAPI, agreementsAPI } from '../../api';
 import { formatCurrency } from '../../lib/utils';
 import {
-  FileText, DollarSign, Bell, Clock,
+  FileText, DollarSign, Clock,
   CheckCircle, AlertTriangle, User, Phone, Mail,
   CreditCard, Receipt, TrendingUp, Calendar, Building2,
   Scale, Handshake, AlertOctagon, Shield, MapPin, ArrowDown
@@ -947,49 +947,6 @@ export function TenantDashboard() {
           </Card>
         </div>
       )}
-
-      {}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card
-          className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => navigate('/dashboard/tenant-contract')}
-        >
-          <CardContent className="p-4 text-center">
-            <FileText className="w-8 h-8 mx-auto mb-2 text-blue-500" />
-            <p className="font-medium text-sm">Meu Contrato</p>
-          </CardContent>
-        </Card>
-
-        <Card
-          className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => navigate('/dashboard/tenant-payments')}
-        >
-          <CardContent className="p-4 text-center">
-            <DollarSign className="w-8 h-8 mx-auto mb-2 text-green-500" />
-            <p className="font-medium text-sm">Pagamentos</p>
-          </CardContent>
-        </Card>
-
-        <Card
-          className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => navigate('/dashboard/notifications')}
-        >
-          <CardContent className="p-4 text-center">
-            <Bell className="w-8 h-8 mx-auto mb-2 text-orange-500" />
-            <p className="font-medium text-sm">Notificações</p>
-          </CardContent>
-        </Card>
-
-        <Card
-          className="cursor-pointer hover:shadow-md transition-shadow"
-          onClick={() => navigate('/dashboard/tenant-profile')}
-        >
-          <CardContent className="p-4 text-center">
-            <User className="w-8 h-8 mx-auto mb-2 text-purple-500" />
-            <p className="font-medium text-sm">Meu Perfil</p>
-          </CardContent>
-        </Card>
-      </div>
 
       {}
       <Card>
