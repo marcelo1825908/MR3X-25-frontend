@@ -3,19 +3,17 @@ import { dashboardAPI } from '../../api';
 import { formatCurrency } from '../../lib/utils';
 import {
   DollarSign, Calendar, Download, CheckCircle, Clock,
-  AlertTriangle, CreditCard, Receipt, ArrowLeft, FileText,
+  AlertTriangle, CreditCard, Receipt, FileText,
   Wallet, TrendingUp
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 export function TenantPayments() {
   const { user } = useAuth();
-  const navigate = useNavigate();
 
   const { data: dashboard, isLoading } = useQuery({
     queryKey: ['tenant-dashboard', user?.id],
@@ -66,10 +64,10 @@ export function TenantPayments() {
   return (
     <div className="space-y-6">
       {}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
+      <div className="flex items-center gap-3">
+        <div className="p-3 bg-green-100 rounded-lg">
+          <DollarSign className="w-6 h-6 text-green-700" />
+        </div>
         <div>
           <h1 className="text-2xl font-bold">Meus Pagamentos</h1>
           <p className="text-muted-foreground">Acompanhe seus pagamentos e faturas</p>

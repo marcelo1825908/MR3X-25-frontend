@@ -280,45 +280,6 @@ export function OwnerPlanConfig() {
     enabled: !!userId && canViewPlan,
   });
 
-  // Fetch owners (PROPRIETARIO) managed by this independent owner
-  const { data: owners = [] } = useQuery({
-    queryKey: ['owner-proprietarios-count', userId],
-    queryFn: async () => {
-      const response = await usersAPI.listUsers({ role: 'PROPRIETARIO', pageSize: 100 });
-      const ownerIdStr = userId?.toString();
-      return (response.items || []).filter((owner: any) =>
-        !owner.isFrozen && !owner.deleted && owner.ownerId?.toString() === ownerIdStr
-      );
-    },
-    enabled: !!userId && canViewPlan,
-  });
-
-  // Fetch brokers managed by this independent owner
-  const { data: brokers = [] } = useQuery({
-    queryKey: ['owner-brokers-count', userId],
-    queryFn: async () => {
-      const response = await usersAPI.listUsers({ role: 'BROKER', pageSize: 100 });
-      const ownerIdStr = userId?.toString();
-      return (response.items || []).filter((broker: any) =>
-        !broker.isFrozen && !broker.deleted && broker.ownerId?.toString() === ownerIdStr
-      );
-    },
-    enabled: !!userId && canViewPlan,
-  });
-
-  // Fetch managers managed by this independent owner
-  const { data: managers = [] } = useQuery({
-    queryKey: ['owner-managers-count', userId],
-    queryFn: async () => {
-      const response = await usersAPI.listUsers({ role: 'AGENCY_MANAGER', pageSize: 100 });
-      const ownerIdStr = userId?.toString();
-      return (response.items || []).filter((manager: any) =>
-        !manager.isFrozen && !manager.deleted && manager.ownerId?.toString() === ownerIdStr
-      );
-    },
-    enabled: !!userId && canViewPlan,
-  });
-
   const { data: plans = [], isLoading: plansLoading } = useQuery({
     queryKey: ['plans'],
     queryFn: async () => {
@@ -556,12 +517,6 @@ export function OwnerPlanConfig() {
                   {currentPlanData?.tenantLimit || currentPlanData?.maxTenants || currentPlanData?.propertyLimit || 1}
                 </Badge>
               </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Proprietarios:</span>
-                <Badge variant="outline">
-                  {currentPlanData?.ownerLimit || currentPlanData?.maxOwners || currentPlanData?.propertyLimit || 1}
-                </Badge>
-              </div>
             </div>
 
             {/* Free Usage Limits Display */}
@@ -598,7 +553,16 @@ export function OwnerPlanConfig() {
             <div className="pt-2 border-t">
               <h4 className="text-sm font-semibold mb-2">Recursos:</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {(currentPlanData?.features || []).map((feature: string, index: number) => (
+                {(currentPlanData?.features || [])
+                  .filter((feature: string) => {
+                    // Hide proprietário, corretor, gerente features for INDEPENDENT_OWNER
+                    const lowerFeature = feature.toLowerCase();
+                    return !lowerFeature.includes('proprietário') &&
+                           !lowerFeature.includes('proprietario') &&
+                           !lowerFeature.includes('corretor') &&
+                           !lowerFeature.includes('gerente');
+                  })
+                  .map((feature: string, index: number) => (
                   <div key={index} className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-green-600" />
                     <span>{feature}</span>
@@ -664,53 +628,7 @@ export function OwnerPlanConfig() {
                   )}
                 </div>
 
-                {/* Proprietários */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Proprietários</span>
-                    <span className="font-medium">
-                      {owners.length} / {currentPlanData?.ownerLimit === -1 ? 'Ilimitado' : currentPlanData?.ownerLimit || currentPlanData?.maxOwners || currentPlanData?.propertyLimit || 0}
-                    </span>
-                  </div>
-                  {currentPlanData?.ownerLimit !== -1 && (currentPlanData?.ownerLimit || currentPlanData?.maxOwners || currentPlanData?.propertyLimit) && (
-                    <Progress
-                      value={currentPlanData?.ownerLimit ? Math.min(100, (owners.length / (currentPlanData.ownerLimit || 1)) * 100) : 0}
-                      className="h-2"
-                    />
-                  )}
-                </div>
-
-                {/* Corretores */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Corretores</span>
-                    <span className="font-medium">
-                      {brokers.length} / {currentPlanData?.brokerLimit === -1 ? 'Ilimitado' : currentPlanData?.brokerLimit || currentPlanData?.maxBrokers || 1}
-                    </span>
-                  </div>
-                  {currentPlanData?.brokerLimit !== -1 && currentPlanData?.brokerLimit && (
-                    <Progress
-                      value={currentPlanData?.brokerLimit ? Math.min(100, (brokers.length / (currentPlanData.brokerLimit || 1)) * 100) : 0}
-                      className="h-2"
-                    />
-                  )}
-                </div>
-
-                {/* Gerentes */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span>Gerentes</span>
-                    <span className="font-medium">
-                      {managers.length} / {currentPlanData?.managerLimit === -1 ? 'Ilimitado' : currentPlanData?.managerLimit || currentPlanData?.maxManagers || 1}
-                    </span>
-                  </div>
-                  {currentPlanData?.managerLimit !== -1 && currentPlanData?.managerLimit && (
-                    <Progress
-                      value={currentPlanData?.managerLimit ? Math.min(100, (managers.length / (currentPlanData.managerLimit || 1)) * 100) : 0}
-                      className="h-2"
-                    />
-                  )}
-                </div>
+                {/* Proprietários, Corretores, and Gerentes are not shown for INDEPENDENT_OWNER */}
               </div>
 
               {planUsage?.users?.frozen > 0 && (
@@ -860,12 +778,6 @@ export function OwnerPlanConfig() {
                           {plan.tenantLimit || plan.maxTenants || plan.propertyLimit}
                         </Badge>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Proprietarios:</span>
-                        <Badge variant="outline">
-                          {plan.ownerLimit || plan.maxOwners || plan.propertyLimit}
-                        </Badge>
-                      </div>
                     </div>
 
                     {/* Free Usage Limits Display */}
@@ -902,7 +814,16 @@ export function OwnerPlanConfig() {
                     <div className="pt-2 border-t flex-1">
                       <h4 className="text-sm font-semibold mb-2">Recursos:</h4>
                       <ul className="space-y-1">
-                        {(plan.features || []).map((feature: any, idx: number) => (
+                        {(plan.features || [])
+                          .filter((feature: any) => {
+                            // Hide proprietário, corretor, gerente features for INDEPENDENT_OWNER
+                            const lowerFeature = String(feature).toLowerCase();
+                            return !lowerFeature.includes('proprietário') &&
+                                   !lowerFeature.includes('proprietario') &&
+                                   !lowerFeature.includes('corretor') &&
+                                   !lowerFeature.includes('gerente');
+                          })
+                          .map((feature: any, idx: number) => (
                           <li key={idx} className="text-sm text-muted-foreground flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-primary" />
                             {feature}

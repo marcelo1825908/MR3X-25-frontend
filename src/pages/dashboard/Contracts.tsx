@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { contractsAPI, propertiesAPI, usersAPI, contractTemplatesAPI, agenciesAPI, profileAPI } from '../../api';
+import { contractsAPI, propertiesAPI, usersAPI, contractTemplatesAPI, agenciesAPI, profileAPI, plansAPI } from '../../api';
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { QRCodeSVG } from 'qrcode.react';
@@ -24,7 +25,9 @@ import {
   Lock,
   PenLine,
   CheckCircle,
-  Loader2
+  Loader2,
+  AlertTriangle,
+  Crown
 } from 'lucide-react';
 import html2canvas from 'html2canvas-pro';
 import { jsPDF } from 'jspdf';
@@ -81,8 +84,16 @@ const formatCreci = (creci?: string | null): string => {
 export function Contracts() {
   const { user, hasPermission } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  // Plan limit states
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [upgradeErrorMessage, setUpgradeErrorMessage] = useState('');
+  const [checkingPlanLimit, setCheckingPlanLimit] = useState(false);
 
   const isCEO = user?.role === 'CEO';
+  const isIndependentOwner = user?.role === 'INDEPENDENT_OWNER';
+  const isAgencyUser = ['AGENCY_ADMIN', 'AGENCY_MANAGER'].includes(user?.role || '');
   const isProprietario = user?.role === 'PROPRIETARIO';
   const canViewContracts = hasPermission('contracts:read') || ['CEO', 'AGENCY_ADMIN', 'AGENCY_MANAGER', 'BROKER', 'INDEPENDENT_OWNER', 'PROPRIETARIO'].includes(user?.role || '');
   const canCreateContracts = (hasPermission('contracts:create') || ['AGENCY_ADMIN', 'AGENCY_MANAGER', 'BROKER', 'INDEPENDENT_OWNER'].includes(user?.role || '')) && !isCEO && !isProprietario;
@@ -710,6 +721,41 @@ export function Contracts() {
     setSelectedContract(null);
     setContractToDelete(null);
     setPdfFile(null);
+  };
+
+  const handleCreateContractClick = async () => {
+    setCheckingPlanLimit(true);
+    try {
+      let result: { allowed: boolean; message?: string };
+
+      if (isIndependentOwner && user?.id) {
+        // INDEPENDENT_OWNER uses userId-based check
+        result = await plansAPI.canCreateContractForOwner(user.id.toString());
+      } else if (isAgencyUser && user?.agencyId) {
+        // Agency users use agencyId-based check
+        result = await plansAPI.canCreateContract(user.agencyId.toString());
+      } else {
+        // For other roles (like BROKER), allow creating
+        closeAllModals();
+        setShowCreateModal(true);
+        return;
+      }
+
+      if (result.allowed) {
+        closeAllModals();
+        setShowCreateModal(true);
+      } else {
+        setUpgradeErrorMessage(result.message || 'Você atingiu o limite de contratos do seu plano.');
+        setShowUpgradeModal(true);
+      }
+    } catch (error) {
+      console.error('Error checking plan limit:', error);
+      // On error, allow creating (fail open)
+      closeAllModals();
+      setShowCreateModal(true);
+    } finally {
+      setCheckingPlanLimit(false);
+    }
   };
 
   const deleteContractMutation = useMutation({
@@ -1843,12 +1889,14 @@ export function Contracts() {
     }
   };
 
-  const isPartyRole = ['INQUILINO', 'PROPRIETARIO', 'INDEPENDENT_OWNER'].includes(user?.role || '');
+  // INQUILINO and PROPRIETARIO should only see contracts after they are sent for signing
+  // INDEPENDENT_OWNER manages their own contracts, so they should see all statuses including PENDENTE
+  const isPartyRole = ['INQUILINO', 'PROPRIETARIO'].includes(user?.role || '');
 
   const visibleContracts = useMemo(() => {
     if (!contracts) return [];
     if (!isPartyRole) return contracts;
-    // Tenants / owners should only see contracts after they are sent for signing
+    // Tenants / agency-managed owners should only see contracts after they are sent for signing
     return contracts.filter((c: any) => c.status !== 'PENDENTE');
   }, [contracts, isPartyRole]);
 
@@ -1965,12 +2013,14 @@ export function Contracts() {
                 <TooltipTrigger asChild>
                   <Button
                     className="bg-orange-600 hover:bg-orange-700 text-white w-full"
-                    onClick={() => {
-                      closeAllModals();
-                      setShowCreateModal(true);
-                    }}
+                    onClick={handleCreateContractClick}
+                    disabled={checkingPlanLimit}
                   >
-                    <Plus className="w-4 h-4 mr-2" />
+                    {checkingPlanLimit ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Plus className="w-4 h-4 mr-2" />
+                    )}
                     <span className="hidden sm:inline">Criar Contrato</span>
                     <span className="sm:hidden">Adicionar</span>
                   </Button>
@@ -2328,13 +2378,15 @@ export function Contracts() {
             </p>
             {canCreateContracts && (
               <Button
-                onClick={() => {
-                  closeAllModals();
-                  setShowCreateModal(true);
-                }}
+                onClick={handleCreateContractClick}
+                disabled={checkingPlanLimit}
                 className="bg-orange-600 hover:bg-orange-700 text-white"
               >
-                <Plus className="w-4 h-4 mr-2" />
+                {checkingPlanLimit ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4 mr-2" />
+                )}
                 Criar Contrato
               </Button>
             )}
@@ -3170,6 +3222,87 @@ export function Contracts() {
                 </div>
               </div>
             )}
+          </DialogContent>
+        </Dialog>
+
+        {/* Upgrade Plan Modal */}
+        <Dialog open={showUpgradeModal} onOpenChange={setShowUpgradeModal}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-amber-600">
+                <AlertTriangle className="w-6 h-6" />
+                Limite do Plano Atingido
+              </DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div className="flex items-center justify-center py-4">
+                <div className="w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
+                  <Crown className="w-8 h-8 text-amber-600" />
+                </div>
+              </div>
+
+              <div className="text-center space-y-2">
+                <p className="text-lg font-semibold text-gray-900">
+                  Você atingiu o limite do plano
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {upgradeErrorMessage || 'Você atingiu o limite de contratos do seu plano atual.'}
+                </p>
+              </div>
+
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+                <p className="text-sm font-medium text-green-800">
+                  Faça upgrade para desbloquear:
+                </p>
+                <ul className="text-sm text-green-700 space-y-1">
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    Mais contratos
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    Mais imóveis
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    Mais inquilinos
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                    Recursos avançados
+                  </li>
+                </ul>
+              </div>
+
+              <p className="text-center text-sm text-muted-foreground">
+                Deseja fazer upgrade do seu plano agora?
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowUpgradeModal(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white"
+                onClick={() => {
+                  setShowUpgradeModal(false);
+                  if (isAgencyUser) {
+                    navigate('/dashboard/agency-plan-config');
+                  } else if (isIndependentOwner) {
+                    navigate('/dashboard/owner-plan-config');
+                  } else {
+                    navigate('/dashboard/plans');
+                  }
+                }}
+              >
+                <Crown className="w-4 h-4 mr-2" />
+                Fazer Upgrade
+              </Button>
+            </div>
           </DialogContent>
         </Dialog>
       </div>

@@ -2353,14 +2353,7 @@ export function Tenants() {
             <DialogHeader>
               <DialogTitle>Excluir inquilino</DialogTitle>
               <DialogDescription>
-                {deleteTenantMutation.isPending ? (
-                  <div className="space-y-2">
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="h-4 w-3/4" />
-                  </div>
-                ) : (
-                  <>Tem certeza que deseja excluir o inquilino <b>{tenantToDelete?.name}</b>? Esta acao nao podera ser desfeita.</>
-                )}
+                Tem certeza que deseja excluir o inquilino <strong>{tenantToDelete?.name}</strong>? Esta acao nao podera ser desfeita.
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-row gap-2 mt-4">

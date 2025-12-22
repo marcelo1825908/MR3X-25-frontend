@@ -4,14 +4,13 @@ import { formatCurrency } from '../../lib/utils';
 import { useState, useRef, useEffect } from 'react';
 import {
   FileText, Calendar, DollarSign, Download, CheckCircle,
-  Clock, AlertCircle, User, Home, FileSignature, ArrowLeft,
+  Clock, AlertCircle, User, Home, FileSignature,
   PenTool, X, RotateCcw
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../components/ui/dialog';
 import { Checkbox } from '../../components/ui/checkbox';
@@ -156,7 +155,6 @@ function SignaturePad({
 
 export function TenantContract() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const [showSignatureModal, setShowSignatureModal] = useState(false);
@@ -277,10 +275,10 @@ export function TenantContract() {
   return (
     <div className="space-y-6">
       {}
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
+      <div className="flex items-center gap-3">
+        <div className="p-3 bg-purple-100 rounded-lg">
+          <FileText className="w-6 h-6 text-purple-700" />
+        </div>
         <div>
           <h1 className="text-2xl font-bold">Meu Contrato</h1>
           <p className="text-muted-foreground">Visualize os detalhes do seu contrato de locacao</p>
@@ -540,9 +538,6 @@ export function TenantContract() {
             <p className="text-muted-foreground mb-4">
               Voce ainda nao possui um contrato ativo vinculado a sua conta.
             </p>
-            <Button variant="outline" onClick={() => navigate('/dashboard')}>
-              Voltar ao Dashboard
-            </Button>
           </CardContent>
         </Card>
       )}

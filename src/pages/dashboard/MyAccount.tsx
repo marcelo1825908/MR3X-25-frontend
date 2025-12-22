@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
 } from '../../components/ui/alert-dialog';
 import {
-  User, Mail, Phone, FileText, MapPin, Shield, Camera, Trash2, Lock, Eye, EyeOff, Save, Loader2, Building2, Award, Users, BadgeCheck
+  User,UserCog, Mail, Phone, FileText, MapPin, Shield, Camera, Trash2, Lock, Eye, EyeOff, Save, Loader2, Building2, Award, Users, BadgeCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
@@ -286,9 +286,14 @@ export default function MyAccount() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Minha Conta</h1>
-        <p className="text-muted-foreground">Gerencie suas informações pessoais e configurações</p>
+      <div className="flex items-center gap-3">
+        <div className="p-3 bg-blue-100 rounded-lg">
+          <UserCog className="w-6 h-6 text-blue-700" />
+        </div>
+        <div>
+          <h1 className="text-2xl font-bold">Minha Conta</h1>
+          <p className="text-muted-foreground">Gerencie suas informações pessoais e configurações</p>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

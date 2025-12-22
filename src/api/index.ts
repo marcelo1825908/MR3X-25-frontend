@@ -689,6 +689,11 @@ export const plansAPI = {
     return response.data;
   },
 
+  canCreateContractForOwner: async (userId: string) => {
+    const response = await apiClient.get(`/plans/user/${userId}/limits?type=contract`);
+    return response.data;
+  },
+
   getScreeningPrice: async (agencyId: string) => {
     const response = await apiClient.get(`/plans/agency/${agencyId}/screening-price`);
     return response.data;

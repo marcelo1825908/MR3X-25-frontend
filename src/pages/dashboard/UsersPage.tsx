@@ -1,13 +1,15 @@
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { usersAPI } from '../../api';
-import { Plus, Search, Eye, Edit, UserCheck, UserX, Users } from 'lucide-react';
+import { Plus, Search, Eye, UserCheck, UserX, Users, Loader2, Mail, Phone, Shield, Calendar, Activity, User, MapPin, CreditCard } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
+import { Label } from '../../components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { Avatar, AvatarFallback, AvatarImage } from '../../components/ui/avatar';
 import { Skeleton } from '../../components/ui/skeleton';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { FrozenUserBadge } from '../../components/ui/FrozenBadge';
@@ -28,11 +30,63 @@ const getPhotoUrl = (photoUrl: string | null | undefined) => {
 
 type UserItem = { id: string; name: string | null; email: string; role: string; status: string; plan?: string; createdAt?: string; isFrozen?: boolean; frozenReason?: string; photoUrl?: string | null; token?: string | null };
 
+interface UserDetails {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  document?: string;
+  token?: string | null;
+  role: string;
+  status: string;
+  plan: string;
+  createdAt: string;
+  lastLogin?: string;
+  photoUrl?: string | null;
+  birthDate?: string;
+  rg?: string;
+  nationality?: string;
+  maritalStatus?: string;
+  profession?: string;
+  creci?: string;
+  cep?: string;
+  address?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  bankName?: string;
+  bankBranch?: string;
+  bankAccount?: string;
+  pixKey?: string;
+  ownedProperties?: Array<{ id: string; name: string; address?: string }>;
+  contracts?: Array<{ id: string; status: string }>;
+  _count?: {
+    ownedProperties: number;
+    contracts: number;
+  };
+  audit?: Array<{
+    timestamp: string;
+    event: string;
+    userId: string;
+  }>;
+  notificationPreferences?: {
+    email: boolean;
+    whatsapp: boolean;
+    push: boolean;
+  };
+  plainPassword?: string;
+}
+
 export function UsersPage() {
   const { user, hasPermission } = useAuth();
   const [items, setItems] = useState<UserItem[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+
+  // Modal states
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [userDetail, setUserDetail] = useState<UserDetails | null>(null);
+  const [loadingDetailsId, setLoadingDetailsId] = useState<string | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,7 +110,6 @@ export function UsersPage() {
 
   const canViewUsers = hasPermission('users:read');
   const canCreateUsers = hasPermission('users:create');
-  const canEditUsers = hasPermission('users:update');
   const canDeleteUsers = hasPermission('users:delete');
   const isAllowedRole = ['CEO', 'ADMIN', 'AGENCY_ADMIN', 'AGENCY_MANAGER', 'BROKER', 'PROPRIETARIO', 'INDEPENDENT_OWNER'].includes(user?.role || '');
   const allowAccess = canViewUsers && isAllowedRole;
@@ -108,6 +161,23 @@ export function UsersPage() {
       load();
     } catch (error: any) {
       toast.error(error.message || 'Falha ao alterar status do usuário');
+    }
+  };
+
+  // View modal handler
+  const handleViewUser = async (userData: UserItem) => {
+    const userId = userData.id.toString();
+    setLoadingDetailsId(userId);
+    setUserDetail(null);
+    setShowDetailModal(true);
+    try {
+      const fullUserDetails = await usersAPI.getUserById(userData.id);
+      setUserDetail(fullUserDetails);
+    } catch {
+      toast.error('Erro ao carregar detalhes do usuário');
+      setShowDetailModal(false);
+    } finally {
+      setLoadingDetailsId(null);
     }
   };
 
@@ -408,18 +478,16 @@ export function UsersPage() {
                 {u.isFrozen && <FrozenUserBadge reason={u.frozenReason} />}
               </div>
               <div className="flex items-center gap-2">
-                <Button asChild variant="outline" size="sm" className="w-full">
-                  <Link to={`/dashboard/users/${u.id}`}>
-                    <Eye className="w-4 h-4 mr-2" /> Detalhes
-                  </Link>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => handleViewUser(u)}
+                  disabled={loadingDetailsId === u.id}
+                >
+                  {loadingDetailsId === u.id ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Eye className="w-4 h-4 mr-2" />}
+                  Detalhes
                 </Button>
-                {canEditUsers && !u.isFrozen && (
-                  <Button asChild variant="outline" size="sm" className="w-full">
-                    <Link to={`/dashboard/users/${u.id}/edit`}>
-                      <Edit className="w-4 h-4 mr-2" /> Editar
-                    </Link>
-                  </Button>
-                )}
               </div>
               {canDeleteUsers && !u.isFrozen && (
                 <div className="flex gap-2">
@@ -525,18 +593,14 @@ export function UsersPage() {
                     </td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2">
-                        <Button asChild variant="ghost" size="sm">
-                          <Link to={`/dashboard/users/${u.id}`}>
-                            <Eye className="w-4 h-4" />
-                          </Link>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleViewUser(u)}
+                          disabled={loadingDetailsId === u.id}
+                        >
+                          {loadingDetailsId === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
                         </Button>
-                        {canEditUsers && !u.isFrozen && (
-                          <Button asChild variant="ghost" size="sm">
-                            <Link to={`/dashboard/users/${u.id}/edit`}>
-                              <Edit className="w-4 h-4" />
-                            </Link>
-                          </Button>
-                        )}
                         {canDeleteUsers && !u.isFrozen &&
                           (u.status === 'ACTIVE' ? (
                             <Button
@@ -581,6 +645,259 @@ export function UsersPage() {
           </Button>
         </div>
       </div>
+
+      {/* View User Detail Modal */}
+      <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="w-5 h-5" />
+              {userDetail ? `Detalhes de ${userDetail.name || 'Usuário'}` : 'Carregando...'}
+            </DialogTitle>
+          </DialogHeader>
+          {loadingDetailsId && !userDetail ? (
+            <div className="space-y-6">
+              {/* Skeleton for user info */}
+              <div className="flex items-center gap-4">
+                <Skeleton className="w-16 h-16 rounded-full" />
+                <div className="space-y-2">
+                  <Skeleton className="h-6 w-40" />
+                  <Skeleton className="h-4 w-60" />
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i}>
+                    <Skeleton className="h-4 w-24 mb-2" />
+                    <Skeleton className="h-5 w-full" />
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : userDetail ? (
+            <div className="space-y-6">
+              {/* User Header */}
+              <div className="flex items-center gap-4 pb-4 border-b">
+                <Avatar className="h-16 w-16">
+                  <AvatarImage src={getPhotoUrl(userDetail.photoUrl)} alt={userDetail.name || 'Usuário'} />
+                  <AvatarFallback className="text-xl bg-orange-100 text-orange-700">
+                    {(userDetail.name || userDetail.email || 'U').charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="text-lg font-semibold">{userDetail.name || 'Sem nome'}</h3>
+                  {userDetail.token && (
+                    <p className="text-xs text-muted-foreground font-mono bg-muted px-2 py-0.5 rounded inline-block">{userDetail.token}</p>
+                  )}
+                  <p className="text-sm text-muted-foreground">{userDetail.email}</p>
+                  <div className="flex gap-2 mt-2">
+                    <Badge className={getRoleColor(userDetail.role)}>{getRoleLabel(userDetail.role)}</Badge>
+                    <Badge className={getStatusColor(userDetail.status)}>{userDetail.status}</Badge>
+                    <Badge variant="outline">{userDetail.plan}</Badge>
+                  </div>
+                </div>
+              </div>
+
+              {/* Personal Information */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Shield className="w-4 h-4 text-primary" />
+                  </div>
+                  <h4 className="text-base font-semibold">Informações Pessoais</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Nome</Label>
+                    <p className="text-sm">{userDetail.name || '-'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                    <p className="text-sm flex items-center gap-2">
+                      <Mail className="w-4 h-4" />
+                      {userDetail.email}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Telefone</Label>
+                    <p className="text-sm flex items-center gap-2">
+                      <Phone className="w-4 h-4" />
+                      {userDetail.phone || 'Não informado'}
+                    </p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Documento</Label>
+                    <p className="text-sm">{userDetail.document || 'Não informado'}</p>
+                  </div>
+                  {userDetail.birthDate && (
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Data de Nascimento</Label>
+                      <p className="text-sm">{new Date(userDetail.birthDate).toLocaleDateString('pt-BR')}</p>
+                    </div>
+                  )}
+                  {userDetail.creci && (
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">CRECI</Label>
+                      <p className="text-sm">{userDetail.creci}</p>
+                    </div>
+                  )}
+                  {userDetail.rg && (
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">RG</Label>
+                      <p className="text-sm">{userDetail.rg}</p>
+                    </div>
+                  )}
+                  {userDetail.nationality && (
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Nacionalidade</Label>
+                      <p className="text-sm">{userDetail.nationality}</p>
+                    </div>
+                  )}
+                  {userDetail.maritalStatus && (
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Estado Civil</Label>
+                      <p className="text-sm">{userDetail.maritalStatus}</p>
+                    </div>
+                  )}
+                  {userDetail.profession && (
+                    <div>
+                      <Label className="text-sm font-medium text-muted-foreground">Profissão</Label>
+                      <p className="text-sm">{userDetail.profession}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Address Section */}
+              {(userDetail.address || userDetail.city || userDetail.cep) && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                      <MapPin className="w-4 h-4 text-primary" />
+                    </div>
+                    <h4 className="text-base font-semibold">Endereço</h4>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {userDetail.cep && (
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">CEP</Label>
+                        <p className="text-sm">{userDetail.cep}</p>
+                      </div>
+                    )}
+                    {userDetail.address && (
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Endereço</Label>
+                        <p className="text-sm">{userDetail.address}</p>
+                      </div>
+                    )}
+                    {userDetail.neighborhood && (
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Bairro</Label>
+                        <p className="text-sm">{userDetail.neighborhood}</p>
+                      </div>
+                    )}
+                    {userDetail.city && (
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Cidade</Label>
+                        <p className="text-sm">{userDetail.city}</p>
+                      </div>
+                    )}
+                    {userDetail.state && (
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Estado</Label>
+                        <p className="text-sm">{userDetail.state}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Bank Data Section */}
+              {(userDetail.bankName || userDetail.pixKey) && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                      <CreditCard className="w-4 h-4 text-primary" />
+                    </div>
+                    <h4 className="text-base font-semibold">Dados Bancários</h4>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {userDetail.bankName && (
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Banco</Label>
+                        <p className="text-sm">{userDetail.bankName}</p>
+                      </div>
+                    )}
+                    {userDetail.bankBranch && (
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Agência</Label>
+                        <p className="text-sm">{userDetail.bankBranch}</p>
+                      </div>
+                    )}
+                    {userDetail.bankAccount && (
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Conta</Label>
+                        <p className="text-sm">{userDetail.bankAccount}</p>
+                      </div>
+                    )}
+                    {userDetail.pixKey && (
+                      <div>
+                        <Label className="text-sm font-medium text-muted-foreground">Chave PIX</Label>
+                        <p className="text-sm">{userDetail.pixKey}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Account Info */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Calendar className="w-4 h-4 text-primary" />
+                  </div>
+                  <h4 className="text-base font-semibold">Informações da Conta</h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Criado em</Label>
+                    <p className="text-sm">{userDetail.createdAt ? new Date(userDetail.createdAt).toLocaleDateString('pt-BR') : '-'}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Último login</Label>
+                    <p className="text-sm">{userDetail.lastLogin ? new Date(userDetail.lastLogin).toLocaleDateString('pt-BR') : 'Nunca'}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Activity */}
+              {userDetail.audit && userDetail.audit.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 bg-primary/10 rounded-full flex items-center justify-center">
+                      <Activity className="w-4 h-4 text-primary" />
+                    </div>
+                    <h4 className="text-base font-semibold">Atividade Recente</h4>
+                  </div>
+                  <div className="space-y-2">
+                    {userDetail.audit.slice(0, 5).map((log, index) => (
+                      <div key={index} className="flex items-center justify-between text-sm p-2 bg-muted rounded">
+                        <span>{log.event}</span>
+                        <span className="text-xs text-muted-foreground">{new Date(log.timestamp).toLocaleDateString('pt-BR')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              Não foi possível carregar os detalhes do usuário.
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
