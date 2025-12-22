@@ -2479,25 +2479,33 @@ export function Contracts() {
                       <SelectValue placeholder="Selecione um imóvel" />
                     </SelectTrigger>
                     <SelectContent>
-                      {properties.filter(p => !p.isFrozen).map((property) => {
-                        const propId = property.id?.toString() || String(property.id);
-                        const hasActiveContract = contracts?.some((c: any) => {
-                          const contractPropId = c.propertyId?.toString() || c.property?.id?.toString();
-                          const status = c.status?.toUpperCase();
-                          return contractPropId === propId && !['REVOGADO', 'ENCERRADO'].includes(status);
-                        });
-                        return (
-                          <SelectItem
-                            key={propId}
-                            value={propId}
-                            disabled={hasActiveContract}
-                            className={hasActiveContract ? 'text-muted-foreground' : ''}
-                          >
-                            {property.name || property.address}
-                            {hasActiveContract && ' (Já possui contrato)'}
-                          </SelectItem>
-                        );
-                      })}
+                      {properties
+                        .filter(p => !p.isFrozen)
+                        .filter((property) => {
+                          // Only show properties with status DISPONIVEL
+                          if (!property || !property.status) return false;
+                          const status = String(property.status).toUpperCase().trim();
+                          return status === 'DISPONIVEL' || status === 'AVAILABLE';
+                        })
+                        .map((property) => {
+                          const propId = property.id?.toString() || String(property.id);
+                          const hasActiveContract = contracts?.some((c: any) => {
+                            const contractPropId = c.propertyId?.toString() || c.property?.id?.toString();
+                            const status = c.status?.toUpperCase();
+                            return contractPropId === propId && !['REVOGADO', 'ENCERRADO'].includes(status);
+                          });
+                          return (
+                            <SelectItem
+                              key={propId}
+                              value={propId}
+                              disabled={hasActiveContract}
+                              className={hasActiveContract ? 'text-muted-foreground' : ''}
+                            >
+                              {property.name || property.address}
+                              {hasActiveContract && ' (Já possui contrato)'}
+                            </SelectItem>
+                          );
+                        })}
                     </SelectContent>
                   </Select>
                   {properties.some(p => p.isFrozen) && (

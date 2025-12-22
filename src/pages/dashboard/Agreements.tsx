@@ -1359,11 +1359,18 @@ export function Agreements() {
                       <SelectValue placeholder="Selecione um imóvel" />
                     </SelectTrigger>
                     <SelectContent>
-                      {properties.map((property) => (
-                        <SelectItem key={property.id} value={property.id?.toString()}>
-                          {property.name || property.address}
-                        </SelectItem>
-                      ))}
+                      {properties
+                        .filter((property) => {
+                          // Only show properties with status DISPONIVEL
+                          if (!property || !property.status) return false;
+                          const status = String(property.status).toUpperCase().trim();
+                          return status === 'DISPONIVEL' || status === 'AVAILABLE';
+                        })
+                        .map((property) => (
+                          <SelectItem key={property.id} value={property.id?.toString()}>
+                            {property.name || property.address}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -1377,7 +1384,7 @@ export function Agreements() {
                       <SelectValue placeholder="Selecione um contrato" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Nenhum</SelectItem>
+                      <SelectItem value="none" hidden>Nenhum</SelectItem>
                       {contracts.filter((c: any) => c.propertyId?.toString() === newAgreement.propertyId).map((contract: any) => (
                         <SelectItem key={contract.id} value={contract.id?.toString()}>
                           {contract.tenantUser?.name || 'Contrato'} - {formatDate(contract.startDate)}
@@ -1415,7 +1422,7 @@ export function Agreements() {
                       <SelectValue placeholder="Selecione o inquilino" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Nenhum</SelectItem>
+                      <SelectItem value="none" hidden>Nenhum</SelectItem>
                       {tenants.map((tenant: any) => (
                         <SelectItem
                           key={tenant.id}

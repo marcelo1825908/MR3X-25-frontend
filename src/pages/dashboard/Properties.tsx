@@ -60,6 +60,7 @@ export function Properties() {
 
   const isCEO = user?.role === 'CEO';
   const isProprietario = user?.role === 'PROPRIETARIO';
+  const isIndependentOwner = user?.role === 'INDEPENDENT_OWNER';
   const canViewProperties = hasPermission('properties:read') || ['CEO', 'AGENCY_ADMIN', 'AGENCY_MANAGER', 'BROKER', 'INDEPENDENT_OWNER', 'PROPRIETARIO'].includes(user?.role || '');
   const canCreateProperties = hasPermission('properties:create') && !isCEO && !isProprietario;
   const canUpdateProperties = hasPermission('properties:update') && !isCEO && !isProprietario;
@@ -595,11 +596,14 @@ export function Properties() {
         setCreating(false);
         return;
       }
+      // For INDEPENDENT_OWNER, new properties should start as INCOMPLETO since they don't have tenant or nextDueDate
+      const initialStatus: 'INCOMPLETO' | 'DISPONIVEL' = isIndependentOwner ? 'INCOMPLETO' : 'DISPONIVEL';
+      
       const propertyToSend = {
         name: newProperty.name,
         address: newProperty.address,
         monthlyRent: Number(newProperty.monthlyRent.replace(/\D/g, '')) / 100,
-        status: 'DISPONIVEL' as const,
+        status: initialStatus,
         neighborhood: newProperty.neighborhood,
         city: newProperty.city,
         cep: newProperty.cep,
@@ -991,9 +995,22 @@ export function Properties() {
         return <Badge className="bg-green-500 text-white">Alugado</Badge>;
       case 'DISPONIVEL':
         return <Badge className="bg-blue-500 text-white">Disponível</Badge>;
+      case 'INCOMPLETO':
+        return <Badge className="bg-orange-500 text-white">Incompleto</Badge>;
       default:
         return <Badge variant="secondary">Status desconhecido</Badge>;
     }
+  };
+
+  const getDisplayStatus = (propertyData: any) => {
+    if (isIndependentOwner) {
+      const missingTenant = !propertyData?.tenant;
+      const missingNextDue = !propertyData?.nextDueDate;
+      if (missingTenant || missingNextDue) {
+        return 'INCOMPLETO';
+      }
+    }
+    return propertyData?.status || 'PENDENTE';
   };
 
   const PropertyImagesCarousel = ({ propertyId, propertyName }: { propertyId: string, propertyName?: string }) => {
@@ -1453,16 +1470,18 @@ export function Properties() {
                               <p>{property.owner?.name || property.owner?.email || 'Sem proprietário'}</p>
                             </TooltipContent>
                           </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <p className="text-xs text-gray-600 truncate">
-                                Corretor: {property.broker?.name || property.broker?.email || 'Sem corretor'}
-                              </p>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>{property.broker?.name || property.broker?.email || 'Sem corretor'}</p>
-                            </TooltipContent>
-                          </Tooltip>
+                          {!isIndependentOwner && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <p className="text-xs text-gray-600 truncate">
+                                  Corretor: {property.broker?.name || property.broker?.email || 'Sem corretor'}
+                                </p>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{property.broker?.name || property.broker?.email || 'Sem corretor'}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <p className="text-xs text-gray-600 truncate">
@@ -1490,7 +1509,7 @@ export function Properties() {
                             {property.isFrozen ? (
                               <FrozenBadge reason={property.frozenReason} />
                             ) : (
-                              getStatusBadge(property.status)
+                              getStatusBadge(getDisplayStatus(property))
                             )}
                           </div>
                           <DropdownMenu>
@@ -2291,7 +2310,9 @@ export function Properties() {
                   <div><b>Cidade:</b> {propertyDetail.city || '-'}</div>
                   <div><b>Estado:</b> {propertyDetail.stateNumber || '-'}</div>
                   <div><b>Proprietário:</b> {propertyDetail.owner?.name || propertyDetail.owner?.email || '-'}</div>
-                  <div><b>Corretor:</b> {propertyDetail.broker?.name || propertyDetail.broker?.email || '-'}</div>
+                  {!isIndependentOwner && (
+                    <div><b>Corretor:</b> {propertyDetail.broker?.name || propertyDetail.broker?.email || '-'}</div>
+                  )}
                   <div><b>Locatário:</b> {propertyDetail.tenant?.name || propertyDetail.tenant?.email || propertyDetail.tenantName || '-'}</div>
                   <div><b>Próx. vencimento:</b> {propertyDetail.nextDueDate ? new Date(propertyDetail.nextDueDate).toLocaleDateString('pt-BR') : '-'}</div>
                   <div><b>Aluguel mensal:</b> R$ {propertyDetail.monthlyRent?.toLocaleString('pt-BR') || '-'}</div>
@@ -2303,7 +2324,7 @@ export function Properties() {
                     <b>Status:</b> {propertyDetail.isFrozen ? (
                       <FrozenBadge reason={propertyDetail.frozenReason} />
                     ) : (
-                      getStatusBadge(propertyDetail.status)
+                      getStatusBadge(getDisplayStatus(propertyDetail))
                     )}
                   </div>
                   {propertyDetail.isFrozen && (
@@ -2816,9 +2837,11 @@ export function Properties() {
                   <p className="text-xs text-muted-foreground">
                     Proprietário: {propertyToAssignTenant.owner?.name || propertyToAssignTenant.owner?.email || 'Sem proprietário'}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Corretor: {propertyToAssignTenant.broker?.name || propertyToAssignTenant.broker?.email || 'Sem corretor'}
-                  </p>
+                  {!isIndependentOwner && (
+                    <p className="text-xs text-muted-foreground">
+                      Corretor: {propertyToAssignTenant.broker?.name || propertyToAssignTenant.broker?.email || 'Sem corretor'}
+                    </p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     Inquilino atual: {propertyToAssignTenant.tenantName || 'Sem inquilino'}
                   </p>
