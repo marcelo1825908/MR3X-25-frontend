@@ -181,6 +181,23 @@ export function UsersPage() {
     }
   };
 
+  const planLabelMap: Record<string, string> = {
+    FREE: 'Gratuito',
+    STARTER: 'Gratuito',
+    BASIC: 'Básico',
+    BUSINESS: 'Básico',
+    PRO: 'Profissional',
+    PREMIUM: 'Profissional',
+    ENTERPRISE: 'Empresarial',
+    ENTERPRISES: 'Empresarial',
+  };
+
+  const getPlanLabel = (plan?: string) => {
+    if (!plan) return '-';
+    const key = plan.toUpperCase();
+    return planLabelMap[key] || plan;
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'ACTIVE':
@@ -470,12 +487,15 @@ export function UsersPage() {
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium text-muted-foreground">Plano:</span>
-                <Badge variant="outline">{u.plan || '-'}</Badge>
+                <Badge variant="outline">{getPlanLabel(u.plan)}</Badge>
               </div>
               <div className="flex items-center gap-2 text-sm">
                 <span className="font-medium text-muted-foreground">Status:</span>
-                <Badge className={getStatusColor(u.status)}>{u.status}</Badge>
-                {u.isFrozen && <FrozenUserBadge reason={u.frozenReason} />}
+                {u.isFrozen ? (
+                  <FrozenUserBadge reason={u.frozenReason} />
+                ) : (
+                  <Badge className={getStatusColor(u.status)}>{u.status}</Badge>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -583,12 +603,15 @@ export function UsersPage() {
                       <Badge className={getRoleColor(u.role)}>{getRoleLabel(u.role)}</Badge>
                     </td>
                     <td className="px-4 py-2">
-                      <Badge variant="outline">{u.plan || '-'}</Badge>
+                      <Badge variant="outline">{getPlanLabel(u.plan)}</Badge>
                     </td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-2">
-                        <Badge className={getStatusColor(u.status)}>{u.status}</Badge>
-                        {u.isFrozen && <FrozenUserBadge reason={u.frozenReason} />}
+                        {u.isFrozen ? (
+                          <FrozenUserBadge reason={u.frozenReason} />
+                        ) : (
+                          <Badge className={getStatusColor(u.status)}>{u.status}</Badge>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-2">

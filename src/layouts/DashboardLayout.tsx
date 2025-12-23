@@ -7,8 +7,8 @@ import {
   UserCheck, UserCog, ShieldCheck, FileDown,
   Crown, Package, Mail, Receipt, ClipboardCheck, FileSignature,
   Code, KeyRound, Activity, Webhook, BookOpen, UserCog2,
-  Award, Inbox, TrendingUp, Kanban,
-  Database, GitCompare, Headphones, UserSearch, Gavel, UsersRound, Handshake
+  Database, GitCompare, Headphones, UserSearch, Gavel, UsersRound, Handshake,
+  Target
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { chatAPI, notificationsAPI, extrajudicialNotificationsAPI, profileAPI } from '../api';
@@ -71,9 +71,9 @@ const baseNavigation = [
   { name: 'Account Settings', href: '/dashboard/api-settings', icon: UserCog2, perm: undefined, roles: ['API_CLIENT'] },
   
   { name: 'Dashboard', href: '/dashboard/sales-dashboard', icon: Home, perm: undefined, roles: ['REPRESENTATIVE'] },
-  { name: 'Prospects', href: '/dashboard/sales-prospects', icon: Building2, perm: undefined, roles: ['REPRESENTATIVE'] },
+  { name: 'Pistas', href: '/dashboard/sales-leads', icon: Target, perm: undefined, roles: ['REPRESENTATIVE'] },
   { name: 'Propostas', href: '/dashboard/sales-proposals', icon: FileText, perm: undefined, roles: ['REPRESENTATIVE'] },
-  { name: 'Agências', href: '/dashboard/sales-agencies', icon: Building, perm: undefined, roles: ['REPRESENTATIVE'] },
+  { name: 'Agencies', href: '/dashboard/sales-agencies', icon: Building, perm: undefined, roles: ['REPRESENTATIVE'] },
   { name: 'Relatórios', href: '/dashboard/sales-reports', icon: BarChart3, perm: undefined, roles: ['REPRESENTATIVE'] },
   { name: 'Chat', href: '/dashboard/chat', icon: MessageSquare, perm: undefined, roles: ['REPRESENTATIVE'] },
   { name: 'Minha Conta', href: '/dashboard/my-account', icon: UserCog, perm: undefined, roles: ['REPRESENTATIVE'] },
@@ -387,7 +387,7 @@ export function DashboardLayout() {
 
       const allowForRepresentative = [
         '/dashboard/sales-dashboard',
-        '/dashboard/sales-prospects',
+        '/dashboard/sales-leads',
         '/dashboard/sales-proposals',
         '/dashboard/sales-agencies',
         '/dashboard/sales-reports',
