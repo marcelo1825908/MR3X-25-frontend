@@ -728,12 +728,6 @@ export function Inspections() {
     });
   };
 
-  const refreshInspectionMedia = async () => {
-    if (selectedInspection?.id) {
-      await loadInspectionMedia(selectedInspection.id);
-    }
-  };
-
   const getMediaUrl = (media: ServerMedia): string => {
     const apiUrl = import.meta.env.VITE_API_URL || '';
     const baseUrl = apiUrl.replace(/\/api\/?$/, '');
