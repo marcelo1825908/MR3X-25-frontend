@@ -145,7 +145,7 @@ export function Contracts() {
   const [tenants, setTenants] = useState<any[]>([]);
   // Removed unused setLoading state
   const [creating, setCreating] = useState(false);
-  const [deleting] = useState(false);
+  // Removed unused deleting state - using deleteContractMutation.isPending instead
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [isCreatePreview, setIsCreatePreview] = useState(false);
@@ -1477,8 +1477,8 @@ export function Contracts() {
   };
 
   const canDeleteContract = (contract: any): boolean => {
-    // Only allow deletion when contract is in draft status (before sending for signing)
-    return contract.status === 'RASCUNHO';
+    // Allow deletion for users with delete permission - backend will handle validation
+    return true;
   };
 
   const getImmutabilityMessage = (contract: any): string => {
@@ -3125,21 +3125,38 @@ export function Contracts() {
                 Tem certeza que deseja excluir este contrato? Esta ação não poderá ser desfeita.
               </DialogDescription>
             </DialogHeader>
+            {contractToDelete && (
+              <div className="mt-4 space-y-2">
+                {contractToDelete.status && contractToDelete.status !== 'RASCUNHO' && contractToDelete.status !== 'PENDENTE' && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+                    <p className="font-medium">Atenção: Contrato com status "{contractToDelete.status}"</p>
+                    <p className="text-xs mt-1">
+                      Este contrato possui histórico importante. Ao excluir, todos os dados relacionados (pagamentos, faturas, vistorias) serão desvinculados.
+                    </p>
+                  </div>
+                )}
+                {contractToDelete.token && (
+                  <div className="text-sm text-muted-foreground">
+                    <strong>Token:</strong> {contractToDelete.token}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="flex flex-row gap-2 mt-4">
               <Button
                 variant="outline"
                 className="flex-1"
                 onClick={() => setContractToDelete(null)}
-                disabled={deleting}
+                disabled={deleteContractMutation.isPending}
               >
                 Cancelar
               </Button>
               <Button
                 onClick={confirmDelete}
-                disabled={deleting}
+                disabled={deleteContractMutation.isPending}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white"
               >
-                {deleting ? (
+                {deleteContractMutation.isPending ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Excluindo...

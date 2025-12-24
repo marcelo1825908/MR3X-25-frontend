@@ -1731,7 +1731,7 @@ export function Inspections() {
                                 </Button>
                               </>
                             )}
-                            {canDeleteInspections && inspection.status !== 'APROVADA' && (
+                            {canDeleteInspections && (
                               <Button
                                 size="icon"
                                 variant="outline"
@@ -1791,7 +1791,7 @@ export function Inspections() {
                           <Lock className="w-4 h-4" />
                         </Button>
                       )}
-                      {canDeleteInspections && inspection.status !== 'APROVADA' && !inspection.hasSignatures && (
+                      {canDeleteInspections && (
                         <Button size="icon" variant="outline" className="text-red-600 border-red-600 hover:bg-red-50" onClick={() => handleDeleteInspection(inspection)}>
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -1869,7 +1869,7 @@ export function Inspections() {
                               </DropdownMenuItem>
                             </>
                           )}
-                          {canDeleteInspections && inspection.status !== 'APROVADA' && !inspection.hasSignatures && (
+                          {canDeleteInspections && (
                             <DropdownMenuItem
                               onClick={() => handleDeleteInspection(inspection)}
                               className="text-red-600"
@@ -3218,6 +3218,31 @@ export function Inspections() {
                 Tem certeza que deseja excluir esta vistoria? Esta ação não pode ser desfeita.
               </DialogDescription>
             </DialogHeader>
+            {inspectionToDelete && (
+              <div className="mt-4 space-y-2">
+                {inspectionToDelete.status === 'APROVADA' && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+                    <p className="font-medium">Atenção: Vistoria Aprovada</p>
+                    <p className="text-xs mt-1">
+                      Esta vistoria foi aprovada e possui histórico importante. Ao excluir, todos os dados relacionados (mídia, itens) serão permanentemente removidos.
+                    </p>
+                  </div>
+                )}
+                {inspectionToDelete.hasSignatures && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
+                    <p className="font-medium">Atenção: Vistoria com Assinaturas</p>
+                    <p className="text-xs mt-1">
+                      Esta vistoria possui assinaturas. Ao excluir, todos os dados serão permanentemente removidos.
+                    </p>
+                  </div>
+                )}
+                {inspectionToDelete.token && (
+                  <div className="text-sm text-muted-foreground">
+                    <strong>Token:</strong> {inspectionToDelete.token}
+                  </div>
+                )}
+              </div>
+            )}
             <div className="flex flex-row gap-2 mt-4">
               <Button
                 variant="outline"
