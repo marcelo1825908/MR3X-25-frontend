@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
-import { profileAPI } from '../../api';
+import { profileAPI, agenciesAPI } from '../../api';
 import { useAuthStore } from '../../stores/authStore';
 import { CEPInput } from '../../components/ui/cep-input';
 import { PasswordInput } from '../../components/ui/password-input';
@@ -79,6 +79,12 @@ export default function MyAccount() {
   const { data: profile, isLoading } = useQuery({
     queryKey: ['profile'],
     queryFn: profileAPI.getProfile,
+  });
+
+  const { data: agency } = useQuery({
+    queryKey: ['agency', user?.agencyId],
+    queryFn: () => agenciesAPI.getAgencyById(user!.agencyId!),
+    enabled: !!user?.agencyId && ['AGENCY_ADMIN', 'AGENCY_MANAGER', 'BROKER'].includes(user?.role || ''),
   });
 
   useEffect(() => {
@@ -395,12 +401,10 @@ export default function MyAccount() {
                   <span>CRECI: {profile.creci}</span>
                 </div>
               )}
-              {profile?.plan && 
-               !['CEO', 'ADMIN', 'PLATFORM_MANAGER', 'PROPRIETARIO', 'INQUILINO'].includes(user?.role || '') && 
-               profile.plan !== 'FREE' && (
+              {!['CEO', 'ADMIN', 'PLATFORM_MANAGER', 'PROPRIETARIO', 'INQUILINO'].includes(user?.role || '') && (
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <FileText className="h-4 w-4" />
-                  <span>Plano: {profile.plan}</span>
+                  <span>Plano atual: <span className="font-medium capitalize">{(agency?.plan || profile?.plan || user?.plan || 'FREE')}</span></span>
                 </div>
               )}
             </div>
@@ -506,6 +510,12 @@ export default function MyAccount() {
                           <p className="text-xs text-muted-foreground">
                             Formato: 123456/SP ou 123456/SP-F
                           </p>
+                          {!['CEO', 'ADMIN', 'PLATFORM_MANAGER', 'PROPRIETARIO', 'INQUILINO'].includes(user?.role || '') && (
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground pt-1">
+                              <FileText className="h-4 w-4" />
+                              <span>Plano atual: <span className="font-medium capitalize">{(agency?.plan || profile?.plan || user?.plan || 'FREE')}</span></span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

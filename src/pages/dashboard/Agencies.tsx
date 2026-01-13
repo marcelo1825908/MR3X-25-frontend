@@ -4,8 +4,6 @@ import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import { usersAPI } from '@/api'
 import {
-  Edit,
-  Trash2,
   Eye,
   MoreHorizontal,
   MapPin,
@@ -231,17 +229,6 @@ export function Agencies() {
     setShowDetailModal(true)
   }
 
-  const handleEditOwnerClick = (owner: any) => {
-    setSelectedOwner(owner)
-    setEmailError('')
-    setEmailVerified(true)
-    setCheckingEmail(false)
-    setShowEditModal(true)
-  }
-
-  const handleDeleteOwnerClick = (owner: any) => {
-    setOwnerToDelete(owner)
-  }
 
   const getPlanColor = (plan: string) => {
     switch (plan) {
@@ -349,21 +336,6 @@ export function Agencies() {
                           <Eye className="w-4 h-4 mr-2" />
                           Visualizar
                         </DropdownMenuItem>
-                        {canUpdate && (
-                          <DropdownMenuItem onClick={() => handleEditOwnerClick(owner)}>
-                            <Edit className="w-4 h-4 mr-2" />
-                            Editar
-                          </DropdownMenuItem>
-                        )}
-                        {canDelete && (
-                          <DropdownMenuItem
-                            onClick={() => handleDeleteOwnerClick(owner)}
-                            className="text-red-600 focus:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Excluir
-                          </DropdownMenuItem>
-                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>

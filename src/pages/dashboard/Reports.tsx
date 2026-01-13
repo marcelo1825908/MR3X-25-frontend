@@ -23,23 +23,48 @@ export default function Reports() {
   const canAccessFinancialReports = canViewReports && user?.role !== 'INQUILINO'
 
   const currentYear = new Date().getFullYear()
-  const [year] = useState<number>(currentYear)
+  const initialMonth = new Date().getMonth() + 1
+  const initialDay = new Date().getDate()
+  const [year, setYear] = useState<number>(currentYear)
+  const [month, setMonth] = useState<number>(initialMonth)
+  const [day, setDay] = useState<number>(initialDay)
   const [loading, setLoading] = useState<boolean>(false)
+
+  // Update day when month or year changes to ensure valid date
+  useEffect(() => {
+    const daysInMonth = new Date(year, month, 0).getDate()
+    if (day > daysInMonth) {
+      setDay(daysInMonth)
+    }
+  }, [year, month, day])
   const [data, setData] = useState<Array<{ month: string; total: number }>>([])
   const [error, setError] = useState<string | null>(null)
   const [properties, setProperties] = useState<Array<{ id: string; name?: string; address?: string }>>([])
   const [tenants, setTenants] = useState<Array<{ id: string; name: string }>>([])
   const [payments, setPayments] = useState<Array<{ propertyId?: string; tenantId?: string; amount?: number; valorPago?: number; paymentType?: string; tipo?: string }>>([])
   const [reportType] = useState<'monthly' | 'property' | 'tenant'>('monthly')
-  const [financialReportType, setFinancialReportType] = useState<'daily' | 'monthly' | 'annual'>('monthly')
+  const [financialReportType, setFinancialReportType] = useState<'daily' | 'monthly' | 'annual'>('annual')
   const [isChartReady, setIsChartReady] = useState<boolean>(false)
   const chartContainerRef = useRef<HTMLDivElement>(null)
   const pieChartContainerRef = useRef<HTMLDivElement>(null)
 
   // Fetch financial report data
   const { data: financialReport } = useQuery({
-    queryKey: ['financial-report', financialReportType],
-    queryFn: () => financialReportsAPI.generateReport({ type: financialReportType }),
+    queryKey: ['financial-report', financialReportType, year, month, day],
+    queryFn: () => {
+      const params: any = { type: financialReportType };
+      if (financialReportType === 'annual') {
+        params.startDate = new Date(year, 0, 1).toISOString().split('T')[0];
+        params.endDate = new Date(year, 11, 31).toISOString().split('T')[0];
+      } else if (financialReportType === 'monthly') {
+        params.startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
+        params.endDate = new Date(year, month, 0).toISOString().split('T')[0];
+      } else if (financialReportType === 'daily') {
+        params.startDate = new Date(year, month - 1, day).toISOString().split('T')[0];
+        params.endDate = new Date(year, month - 1, day).toISOString().split('T')[0];
+      }
+      return financialReportsAPI.generateReport(params);
+    },
     enabled: canAccessFinancialReports,
   })
 
@@ -487,9 +512,23 @@ export default function Reports() {
       let filename: string;
       let hash: string | null = null;
 
+      // Build query parameters
+      const params = new URLSearchParams();
+      params.append('type', financialReportType);
+      if (financialReportType === 'annual') {
+        params.append('startDate', new Date(year, 0, 1).toISOString().split('T')[0]);
+        params.append('endDate', new Date(year, 11, 31).toISOString().split('T')[0]);
+      } else if (financialReportType === 'monthly') {
+        params.append('startDate', new Date(year, month - 1, 1).toISOString().split('T')[0]);
+        params.append('endDate', new Date(year, month, 0).toISOString().split('T')[0]);
+      } else if (financialReportType === 'daily') {
+        params.append('startDate', new Date(year, month - 1, day).toISOString().split('T')[0]);
+        params.append('endDate', new Date(year, month - 1, day).toISOString().split('T')[0]);
+      }
+
       if (format === 'csv') {
         const response = await fetch(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:8081'}/api/financial-reports/export/csv?type=${financialReportType}`,
+          `${import.meta.env.VITE_API_URL || 'http://localhost:8081'}/api/financial-reports/export/csv?${params.toString()}`,
           {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
@@ -499,10 +538,28 @@ export default function Reports() {
         if (!response.ok) throw new Error('Failed to export CSV');
         blob = await response.blob();
         hash = response.headers.get('X-Integrity-Hash');
-        filename = `relatorio-financeiro-${financialReportType}-${new Date().toISOString().split('T')[0]}.csv`;
+        const generatedAt = response.headers.get('X-Generated-At');
+        const ip = response.headers.get('X-Generated-By-IP');
+        let dateStr = '';
+        if (financialReportType === 'annual') {
+          dateStr = year.toString();
+        } else if (financialReportType === 'monthly') {
+          dateStr = `${year}-${String(month).padStart(2, '0')}`;
+        } else if (financialReportType === 'daily') {
+          dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        }
+        filename = `relatorio-financeiro-${financialReportType}-${dateStr}.csv`;
+        
+        const details = [
+          hash ? `Hash: ${hash.substring(0, 16)}...` : '',
+          generatedAt ? `Gerado em: ${new Date(generatedAt).toLocaleString('pt-BR')}` : '',
+          ip ? `IP: ${ip}` : '',
+        ].filter(Boolean).join(' | ');
+        
+        toast.success(`CSV exportado! ${details}`);
       } else {
         const response = await fetch(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:8081'}/api/financial-reports/export/pdf?type=${financialReportType}`,
+          `${import.meta.env.VITE_API_URL || 'http://localhost:8081'}/api/financial-reports/export/pdf?${params.toString()}`,
           {
             headers: {
               'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
@@ -512,7 +569,18 @@ export default function Reports() {
         if (!response.ok) throw new Error('Failed to export PDF');
         blob = await response.blob();
         hash = response.headers.get('X-Integrity-Hash');
-        filename = `relatorio-financeiro-${financialReportType}-${new Date().toISOString().split('T')[0]}.pdf`;
+        const generatedAt = response.headers.get('X-Generated-At');
+        const ip = response.headers.get('X-Generated-By-IP');
+        const dateStr = financialReportType === 'annual' ? year.toString() : new Date().toISOString().split('T')[0];
+        filename = `relatorio-financeiro-${financialReportType}-${dateStr}.pdf`;
+        
+        const details = [
+          hash ? `Hash: ${hash.substring(0, 16)}...` : '',
+          generatedAt ? `Gerado em: ${new Date(generatedAt).toLocaleString('pt-BR')}` : '',
+          ip ? `IP: ${ip}` : '',
+        ].filter(Boolean).join(' | ');
+        
+        toast.success(`PDF exportado! ${details}`);
       }
 
       const url = window.URL.createObjectURL(blob);
@@ -521,8 +589,6 @@ export default function Reports() {
       a.download = filename;
       a.click();
       window.URL.revokeObjectURL(url);
-
-      toast.success(`${format.toUpperCase()} exportado! ${hash ? `Hash: ${hash.substring(0, 16)}...` : ''}`);
     } catch (error: any) {
       toast.error(error.message || `Erro ao exportar ${format.toUpperCase()}`);
     }
@@ -640,7 +706,7 @@ export default function Reports() {
         </div>
         {canAccessFinancialReports && (
           <div className="flex flex-col sm:flex-row gap-2">
-            <Select value={financialReportType} onValueChange={(v: any) => setFinancialReportType(v)}>
+            <Select value={financialReportType} onValueChange={(v: 'daily' | 'monthly' | 'annual') => setFinancialReportType(v)}>
               <SelectTrigger className="w-full sm:w-40">
                 <SelectValue placeholder="Período" />
               </SelectTrigger>
@@ -665,20 +731,6 @@ export default function Reports() {
       {/* Financial Report Summary for Brazilian Federal Revenue */}
       {canAccessFinancialReports && financialReport && (
         <>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg sm:text-xl">
-                {financialReportType === 'daily' && 'Recebimentos Diários'}
-                {financialReportType === 'monthly' && 'Recebimentos por Mês'}
-                {financialReportType === 'annual' && 'Recebimentos Anuais'}
-              </CardTitle>
-              <CardDescription className="text-sm sm:text-base">
-                {financialReportType === 'daily' && `Período: ${new Date(financialReport.period.start).toLocaleDateString('pt-BR')}`}
-                {financialReportType === 'monthly' && `Período: ${new Date(financialReport.period.start).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}`}
-                {financialReportType === 'annual' && `Ano: ${new Date(financialReport.period.start).getFullYear()}`}
-              </CardDescription>
-            </CardHeader>
-          </Card>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="pb-2">
@@ -724,30 +776,96 @@ export default function Reports() {
       {}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg sm:text-xl">
-            {reportType === 'monthly' && canAccessFinancialReports && (
-              <>
-                {financialReportType === 'daily' && `Recebimentos Diários - ${new Date().toLocaleDateString('pt-BR')}`}
-                {financialReportType === 'monthly' && `Recebimentos por Mês - ${year}`}
-                {financialReportType === 'annual' && `Recebimentos Anuais - ${year}`}
-              </>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <CardTitle className="text-lg sm:text-xl">
+                {reportType === 'monthly' && canAccessFinancialReports && (
+                  <>
+                    {financialReportType === 'daily' && `Recebimentos Diários - ${new Date().toLocaleDateString('pt-BR')}`}
+                    {financialReportType === 'monthly' && `Recebimentos por Mês - ${year}`}
+                    {financialReportType === 'annual' && `Recebimentos Anuais - ${year}`}
+                  </>
+                )}
+                {reportType === 'monthly' && !canAccessFinancialReports && `Recebimentos por Mês - ${year}`}
+                {reportType === 'property' && 'Performance por Imóvel'}
+                {reportType === 'tenant' && 'Performance por Inquilino'}
+              </CardTitle>
+              <CardDescription className="text-sm sm:text-base">
+                {reportType === 'monthly' && canAccessFinancialReports && (
+                  <>
+                    {financialReportType === 'daily' && 'Somatório de valores pagos no dia'}
+                    {financialReportType === 'monthly' && 'Somatório de valores pagos em cada mês'}
+                    {financialReportType === 'annual' && 'Somatório de valores pagos no ano'}
+                  </>
+                )}
+                {reportType === 'monthly' && !canAccessFinancialReports && 'Somatório de valores pagos em cada mês'}
+                {reportType === 'property' && 'Receita gerada por cada imóvel'}
+                {reportType === 'tenant' && 'Valores pagos por cada inquilino'}
+              </CardDescription>
+            </div>
+            {canAccessFinancialReports && (
+              <div className="flex flex-col sm:flex-row gap-2">
+                {(financialReportType === 'monthly' || financialReportType === 'daily') && (
+                  <Select value={String(month)} onValueChange={(v: any) => setMonth(Number(v))}>
+                    <SelectTrigger className="w-full sm:w-32">
+                      <SelectValue placeholder="Mês" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[
+                        { value: 1, label: 'Janeiro' },
+                        { value: 2, label: 'Fevereiro' },
+                        { value: 3, label: 'Março' },
+                        { value: 4, label: 'Abril' },
+                        { value: 5, label: 'Maio' },
+                        { value: 6, label: 'Junho' },
+                        { value: 7, label: 'Julho' },
+                        { value: 8, label: 'Agosto' },
+                        { value: 9, label: 'Setembro' },
+                        { value: 10, label: 'Outubro' },
+                        { value: 11, label: 'Novembro' },
+                        { value: 12, label: 'Dezembro' },
+                      ].map((m) => (
+                        <SelectItem key={m.value} value={String(m.value)}>
+                          {m.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {financialReportType === 'daily' && (
+                  <Select 
+                    value={String(day)} 
+                    onValueChange={(v: any) => setDay(Number(v))}
+                  >
+                    <SelectTrigger className="w-full sm:w-24">
+                      <SelectValue placeholder="Dia" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: new Date(year, month, 0).getDate() }, (_, i) => i + 1).map((d) => (
+                        <SelectItem key={d} value={String(d)}>
+                          {d}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {(financialReportType === 'monthly' || financialReportType === 'daily' || financialReportType === 'annual') && (
+                  <Select value={String(year)} onValueChange={(v: any) => setYear(Number(v))}>
+                    <SelectTrigger className="w-full sm:w-32">
+                      <SelectValue placeholder="Ano" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[currentYear, currentYear - 1, currentYear - 2, currentYear - 3, currentYear - 4].map((y) => (
+                        <SelectItem key={y} value={String(y)}>
+                          {y}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
             )}
-            {reportType === 'monthly' && !canAccessFinancialReports && `Recebimentos por Mês - ${year}`}
-            {reportType === 'property' && 'Performance por Imóvel'}
-            {reportType === 'tenant' && 'Performance por Inquilino'}
-          </CardTitle>
-          <CardDescription className="text-sm sm:text-base">
-            {reportType === 'monthly' && canAccessFinancialReports && (
-              <>
-                {financialReportType === 'daily' && 'Somatório de valores pagos no dia'}
-                {financialReportType === 'monthly' && 'Somatório de valores pagos em cada mês'}
-                {financialReportType === 'annual' && 'Somatório de valores pagos no ano'}
-              </>
-            )}
-            {reportType === 'monthly' && !canAccessFinancialReports && 'Somatório de valores pagos em cada mês'}
-            {reportType === 'property' && 'Receita gerada por cada imóvel'}
-            {reportType === 'tenant' && 'Valores pagos por cada inquilino'}
-          </CardDescription>
+          </div>
         </CardHeader>
         <CardContent>
           {error ? (

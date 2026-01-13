@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { usersAPI } from '../../api';
-import { Plus, Search, Eye, UserCheck, UserX, Users, Loader2 } from 'lucide-react';
+import { Plus, Search, Eye, UserCheck, UserX, Users, Loader2, Trash2 } from 'lucide-react';
+import { useMutation } from '@tanstack/react-query';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Input } from '../../components/ui/input';
@@ -43,6 +44,8 @@ export function AdminUsersPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [userDetail, setUserDetail] = useState<UserItem | null>(null);
   const [loadingDetailsId, setLoadingDetailsId] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<{ id: string; name: string } | null>(null);
 
   const canViewUsers = hasPermission('users:read');
   const canCreateUsers = hasPermission('users:create');
@@ -139,6 +142,37 @@ export function AdminUsersPage() {
       load();
     } catch (error: any) {
       toast.error(error.message || 'Falha ao alterar status do usuário');
+    }
+  };
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      return await usersAPI.deleteUser(userId);
+    },
+    onSuccess: () => {
+      toast.success('Usuário excluído com sucesso');
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+      load();
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Erro ao excluir usuário');
+    },
+  });
+
+  const handleDeleteUser = (userId: string, userName: string) => {
+    if (!canDeleteUsers) {
+      toast.error('Você não tem permissão para excluir usuários');
+      return;
+    }
+
+    setUserToDelete({ id: userId, name: userName });
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (userToDelete) {
+      deleteUserMutation.mutate(userToDelete.id);
     }
   };
 
@@ -361,6 +395,21 @@ export function AdminUsersPage() {
                       </span>
                     )}
                   </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => handleDeleteUser(u.id, u.name || u.email || 'Usuário')}
+                    disabled={deleteUserMutation.isPending}
+                  >
+                    {deleteUserMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <span className="flex items-center justify-center gap-2">
+                        <Trash2 className="w-4 h-4" /> Excluir
+                      </span>
+                    )}
+                  </Button>
                 </div>
               )}
             </div>
@@ -444,26 +493,45 @@ export function AdminUsersPage() {
                         >
                           {loadingDetailsId === u.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
                         </Button>
-                        {canDeleteUsers && !u.isFrozen &&
-                          (u.status === 'ACTIVE' ? (
+                        {canDeleteUsers && !u.isFrozen && (
+                          <>
+                            {u.status === 'ACTIVE' ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleStatusChange(u.id, 'SUSPENDED')}
+                                className="text-red-600 hover:text-red-700"
+                                title="Suspender usuário"
+                              >
+                                <UserX className="w-4 h-4" />
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleStatusChange(u.id, 'ACTIVE')}
+                                className="text-green-600 hover:text-green-700"
+                                title="Ativar usuário"
+                              >
+                                <UserCheck className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => handleStatusChange(u.id, 'SUSPENDED')}
+                              onClick={() => handleDeleteUser(u.id, u.name || u.email || 'Usuário')}
+                              disabled={deleteUserMutation.isPending}
                               className="text-red-600 hover:text-red-700"
+                              title="Excluir usuário"
                             >
-                              <UserX className="w-4 h-4" />
+                              {deleteUserMutation.isPending ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="w-4 h-4" />
+                              )}
                             </Button>
-                          ) : (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleStatusChange(u.id, 'ACTIVE')}
-                              className="text-green-600 hover:text-green-700"
-                            >
-                              <UserCheck className="w-4 h-4" />
-                            </Button>
-                          ))}
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -488,6 +556,51 @@ export function AdminUsersPage() {
           </Button>
         </div>
       </div>
+
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirmar exclusão</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Tem certeza que deseja excluir o usuário <strong>"{userToDelete?.name}"</strong>?
+            </p>
+            <p className="text-sm text-destructive font-medium">
+              Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteModal(false);
+                  setUserToDelete(null);
+                }}
+                disabled={deleteUserMutation.isPending}
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={confirmDelete}
+                disabled={deleteUserMutation.isPending}
+              >
+                {deleteUserMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Excluindo...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Excluir
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
         <DialogContent className="max-w-2xl">

@@ -6,9 +6,9 @@ import { dashboardAPI } from '../../api';
 import { formatCurrency } from '../../lib/utils';
 import { ApiConsumptionWidget } from '../../components/dashboard/ApiConsumptionWidget';
 import {
-  Building2, FileText,
+  Building2, FileText, DollarSign,
   AlertCircle, CheckCircle, Clock, Home,
-  PieChart as PieChartIcon, Inbox, Briefcase, User
+  PieChart as PieChartIcon, Inbox, Briefcase, User, Award
 } from 'lucide-react';
 import {
   ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis,
@@ -163,6 +163,7 @@ export function AdminDashboard() {
   }
 
   const overview = dashboard?.overview || {};
+  const defaultRate = overview.defaultRate ?? 0;
 
   const revenueDistributionData = [
     { name: 'Recebido', value: overview.receivedValue ?? overview.receivedRevenue ?? 0, color: COLORS.success },
@@ -192,9 +193,6 @@ export function AdminDashboard() {
   ].filter(item => item.value > 0);
 
   const totalProperties = overview.totalProperties ?? 0;
-
-  const overdueUnits = overview.overdueUnits ?? 0;
-  const defaultRate = overview.defaultRate ?? (totalProperties > 0 ? ((overdueUnits / totalProperties) * 100).toFixed(1) : 0);
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -256,32 +254,32 @@ export function AdminDashboard() {
       {}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         <KPICard
-          title="Imóveis Disponíveis"
-          value={overview.availableProperties ?? overview.vacantUnits ?? 0}
-          icon={Building2}
-          color="cyan"
+          title="Receita Mensal Total"
+          value={formatCurrency(overview.monthlyRevenue ?? 0)}
+          icon={DollarSign}
+          color="green"
+          isAmount
+        />
+        <KPICard
+          title="Taxa MR3X (2%)"
+          value={formatCurrency(overview.platformFee ?? 0)}
+          icon={Award}
+          color="yellow"
+          subtitle="Receita da plataforma"
+          isAmount
         />
         <KPICard
           title="Taxa de Inadimplência"
           value={`${defaultRate}%`}
           icon={AlertCircle}
           color={Number(defaultRate) > 10 ? 'red' : Number(defaultRate) > 5 ? 'yellow' : 'green'}
-          subtitle="Pagamentos em atraso"
         />
         <KPICard
-          title="Receita Recebida"
-          value={formatCurrency(overview.receivedValue ?? overview.receivedRevenue ?? 0)}
-          icon={CheckCircle}
-          color="green"
-          subtitle="Este mês"
-          isAmount
-        />
-        <KPICard
-          title="Pagamentos Pendentes"
-          value={overview.pendingPayments ?? 0}
+          title="Pagamentos Vencidos"
+          value={overview.overdueCount ?? 0}
           icon={Clock}
           color="red"
-          subtitle={formatCurrency(overview.overdueValue ?? overview.overdueRevenue ?? 0)}
+          subtitle={formatCurrency(overview.overdueRevenue ?? 0)}
         />
       </div>
 
@@ -451,12 +449,12 @@ export function AdminDashboard() {
       {}
       {dashboard?.topAgencies && dashboard.topAgencies.length > 0 && (
         <Card>
-          <CardHeader className="pb-2 sm:pb-6">
-            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-500" />
-              Agências Vinculadas
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Briefcase className="w-5 h-5 text-indigo-500" />
+              Principais Agências
             </CardTitle>
-            <CardDescription className="text-xs sm:text-sm">Agências com imóveis gerenciados</CardDescription>
+            <CardDescription>Agências com maior volume de operações</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">

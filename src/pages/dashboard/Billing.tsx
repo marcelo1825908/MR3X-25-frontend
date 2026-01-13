@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { FileText, AlertCircle, Receipt } from 'lucide-react'
+import { FileText, AlertCircle, Receipt, Inbox, Database } from 'lucide-react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Badge } from '../../components/ui/badge'
@@ -196,11 +196,13 @@ export default function BillingPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Faturado</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Histórico completo</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {billingData?.summary?.totalTransactions || 0} transações
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -208,7 +210,7 @@ export default function BillingPage() {
             <CardTitle className="text-sm font-medium">Este Mês</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.thisMonth)}</div>
+            <div className="text-2xl font-bold text-blue-600">{formatCurrency(stats.thisMonth)}</div>
             <p className="text-xs text-muted-foreground mt-1 capitalize">{stats.currentMonth}</p>
           </CardContent>
         </Card>
@@ -218,7 +220,9 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">{formatCurrency(stats.pending)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Aguardando pagamento</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {billingData?.summary?.pendingCount || 0} transações
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -227,10 +231,59 @@ export default function BillingPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.paid)}</div>
-            <p className="text-xs text-muted-foreground mt-1">Total recebido</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {billingData?.summary?.paidCount || 0} transações
+            </p>
           </CardContent>
         </Card>
       </div>
+
+      {/* Additional Billed Amounts Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Valores Faturados</CardTitle>
+          <CardDescription>Resumo detalhado dos valores faturados por status</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+              <p className="text-sm font-medium text-green-700 mb-1">Total Recebido</p>
+              <p className="text-2xl font-bold text-green-700">{formatCurrency(stats.paid)}</p>
+              <p className="text-xs text-green-600 mt-1">
+                {billingData?.summary?.paidCount || 0} transações pagas
+              </p>
+            </div>
+            <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+              <p className="text-sm font-medium text-yellow-700 mb-1">Aguardando Pagamento</p>
+              <p className="text-2xl font-bold text-yellow-700">{formatCurrency(stats.pending)}</p>
+              <p className="text-xs text-yellow-600 mt-1">
+                {billingData?.summary?.pendingCount || 0} transações pendentes
+              </p>
+            </div>
+            <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+              <p className="text-sm font-medium text-red-700 mb-1">Vencido</p>
+              <p className="text-2xl font-bold text-red-700">{formatCurrency(stats.overdue)}</p>
+              <p className="text-xs text-red-600 mt-1">
+                {billingData?.summary?.overdueCount || 0} transações vencidas
+              </p>
+            </div>
+          </div>
+          <div className="mt-4 pt-4 border-t">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Total Faturado (Histórico)</span>
+              <span className="text-lg font-bold">{formatCurrency(stats.totalRevenue)}</span>
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-sm text-muted-foreground">Taxa de Conversão</span>
+              <span className="text-sm font-medium">
+                {stats.totalRevenue > 0 
+                  ? `${((stats.paid / stats.totalRevenue) * 100).toFixed(1)}%`
+                  : '0%'}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Tabs defaultValue="invoices" className="space-y-4">
         <TabsList>
@@ -395,7 +448,7 @@ export default function BillingPage() {
               {/* Financial History Summary */}
               <div className="mt-6 pt-6 border-t">
                 <h3 className="text-lg font-semibold mb-4">Histórico Financeiro Consolidado</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                   <div className="p-4 border rounded-lg">
                     <p className="text-sm text-muted-foreground mb-1">Receita Total Histórica</p>
                     <p className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</p>
@@ -406,6 +459,84 @@ export default function BillingPage() {
                     <p className="text-2xl font-bold text-blue-600">{formatCurrency(stats.thisMonth)}</p>
                     <p className="text-xs text-muted-foreground mt-1 capitalize">{stats.currentMonth}</p>
                   </div>
+                </div>
+
+                {/* Detailed Financial History Table */}
+                <div className="mt-4">
+                  <h4 className="text-md font-semibold mb-3">Histórico Detalhado de Transações</h4>
+                  {invoices.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Database className="w-12 h-12 mx-auto text-muted-foreground mb-3 opacity-50" />
+                      <p className="text-sm text-muted-foreground">Nenhuma transação registrada</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      <div className="hidden sm:block">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Data</TableHead>
+                              <TableHead>Cliente</TableHead>
+                              <TableHead>Tipo</TableHead>
+                              <TableHead className="text-right">Valor</TableHead>
+                              <TableHead>Status</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {invoices.slice(0, 50).map((invoice) => (
+                              <TableRow key={invoice.id}>
+                                <TableCell className="text-sm">
+                                  {formatDate(invoice.paymentDate || invoice.issueDate)}
+                                </TableCell>
+                                <TableCell className="text-sm">{invoice.agencyName}</TableCell>
+                                <TableCell>{getTypeBadge(invoice.type)}</TableCell>
+                                <TableCell className="text-right font-semibold">
+                                  {formatCurrency(invoice.amount)}
+                                </TableCell>
+                                <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        {invoices.length > 50 && (
+                          <p className="text-xs text-muted-foreground text-center py-2">
+                            Mostrando 50 de {invoices.length} transações
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Mobile view */}
+                      <div className="block sm:hidden space-y-2">
+                        {invoices.slice(0, 20).map((invoice) => (
+                          <div key={invoice.id} className="p-3 border rounded-lg text-sm">
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-medium">{invoice.agencyName}</span>
+                              {getStatusBadge(invoice.status)}
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Data:</span>
+                                <span>{formatDate(invoice.paymentDate || invoice.issueDate)}</span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-muted-foreground">Tipo:</span>
+                                {getTypeBadge(invoice.type)}
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">Valor:</span>
+                                <span className="font-semibold">{formatCurrency(invoice.amount)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {invoices.length > 20 && (
+                          <p className="text-xs text-muted-foreground text-center py-2">
+                            Mostrando 20 de {invoices.length} transações
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -420,23 +551,144 @@ export default function BillingPage() {
           </Card>
 
           {/* Client-level Breakdown */}
-          {billingData?.agencies && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Receitas por Cliente</CardTitle>
-                <CardDescription>Breakdown de receitas por agência/usuário</CardDescription>
-              </CardHeader>
-              <CardContent>
+          <Card>
+            <CardHeader>
+              <CardTitle>Breakdown por Cliente</CardTitle>
+              <CardDescription>Detalhamento de receitas e faturas por agência/usuário</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {billingData?.agencies && (
                 <div className="text-sm text-muted-foreground mb-4">
                   Total de agências ativas: {billingData.agencies.total} | 
                   Com pagamentos: {billingData.agencies.withPayments}
                 </div>
-                <div className="text-center py-4 text-muted-foreground">
-                  <p className="text-sm">Detalhamento por cliente será exibido aqui</p>
+              )}
+              
+              {invoices.length === 0 ? (
+                <div className="text-center py-12">
+                  <Inbox className="w-16 h-16 mx-auto text-muted-foreground mb-4 opacity-50" />
+                  <p className="text-sm text-muted-foreground">Nenhum dado de cliente disponível</p>
                 </div>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <>
+                  {/* Group invoices by agency/client */}
+                  {(() => {
+                    const clientMap = new Map<string, {
+                      name: string;
+                      totalBilled: number;
+                      totalPaid: number;
+                      totalPending: number;
+                      totalOverdue: number;
+                      invoiceCount: number;
+                      lastPaymentDate: string | null;
+                    }>();
+
+                    invoices.forEach((invoice) => {
+                      const clientKey = invoice.agencyId || invoice.id;
+                      const clientName = invoice.agencyName || 'Cliente Indefinido';
+                      
+                      if (!clientMap.has(clientKey)) {
+                        clientMap.set(clientKey, {
+                          name: clientName,
+                          totalBilled: 0,
+                          totalPaid: 0,
+                          totalPending: 0,
+                          totalOverdue: 0,
+                          invoiceCount: 0,
+                          lastPaymentDate: null,
+                        });
+                      }
+
+                      const client = clientMap.get(clientKey)!;
+                      client.totalBilled += invoice.amount;
+                      client.invoiceCount += 1;
+
+                      if (invoice.status === 'paid') {
+                        client.totalPaid += invoice.amount;
+                        if (invoice.paymentDate && (!client.lastPaymentDate || new Date(invoice.paymentDate) > new Date(client.lastPaymentDate))) {
+                          client.lastPaymentDate = invoice.paymentDate;
+                        }
+                      } else if (invoice.status === 'pending') {
+                        client.totalPending += invoice.amount;
+                      } else if (invoice.status === 'overdue') {
+                        client.totalOverdue += invoice.amount;
+                      }
+                    });
+
+                    const clientBreakdown = Array.from(clientMap.values()).sort((a, b) => b.totalBilled - a.totalBilled);
+
+                    return (
+                      <div className="space-y-4">
+                        <div className="hidden sm:block">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                <TableHead>Cliente</TableHead>
+                                <TableHead className="text-right">Total Faturado</TableHead>
+                                <TableHead className="text-right">Pago</TableHead>
+                                <TableHead className="text-right">Pendente</TableHead>
+                                <TableHead className="text-right">Vencido</TableHead>
+                                <TableHead className="text-right">Faturas</TableHead>
+                                <TableHead>Último Pagamento</TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {clientBreakdown.map((client, index) => (
+                                <TableRow key={index}>
+                                  <TableCell className="font-medium">{client.name}</TableCell>
+                                  <TableCell className="text-right font-semibold">{formatCurrency(client.totalBilled)}</TableCell>
+                                  <TableCell className="text-right text-green-600">{formatCurrency(client.totalPaid)}</TableCell>
+                                  <TableCell className="text-right text-yellow-600">{formatCurrency(client.totalPending)}</TableCell>
+                                  <TableCell className="text-right text-red-600">{formatCurrency(client.totalOverdue)}</TableCell>
+                                  <TableCell className="text-right">{client.invoiceCount}</TableCell>
+                                  <TableCell>{client.lastPaymentDate ? formatDate(client.lastPaymentDate) : '-'}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
+
+                        {/* Mobile view */}
+                        <div className="block sm:hidden space-y-4">
+                          {clientBreakdown.map((client, index) => (
+                            <div key={index} className="p-4 border rounded-lg space-y-3">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-semibold">{client.name}</h4>
+                                <Badge variant="outline">{client.invoiceCount} fatura(s)</Badge>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                  <p className="text-muted-foreground">Total Faturado</p>
+                                  <p className="font-semibold">{formatCurrency(client.totalBilled)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Pago</p>
+                                  <p className="font-semibold text-green-600">{formatCurrency(client.totalPaid)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Pendente</p>
+                                  <p className="font-semibold text-yellow-600">{formatCurrency(client.totalPending)}</p>
+                                </div>
+                                <div>
+                                  <p className="text-muted-foreground">Vencido</p>
+                                  <p className="font-semibold text-red-600">{formatCurrency(client.totalOverdue)}</p>
+                                </div>
+                              </div>
+                              {client.lastPaymentDate && (
+                                <div className="pt-2 border-t text-sm">
+                                  <p className="text-muted-foreground">Último pagamento: {formatDate(client.lastPaymentDate)}</p>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
+            </CardContent>
+          </Card>
         </TabsContent>
 
         <TabsContent value="settings">
@@ -472,7 +724,7 @@ export default function BillingPage() {
                   <div className="text-sm text-muted-foreground">
                     <p>• A plataforma cobra uma taxa fixa de 2% sobre todas as transações</p>
                     <p>• O split de pagamentos é configurado individualmente por agência/proprietário</p>
-                    <p>• Acesse "Split Configuration" para ajustar porcentagens individuais</p>
+                    <p>• Acesse "Configuração dividida" para ajustar porcentagens individuais</p>
                   </div>
                 </div>
 

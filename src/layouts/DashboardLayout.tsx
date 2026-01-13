@@ -56,7 +56,7 @@ const baseNavigation = [
   { name: 'Relatórios', href: '/dashboard/reports', icon: BarChart3, perm: 'reports:read' },
   { name: 'Planos', href: '/dashboard/plans', icon: Package, perm: undefined, roles: ['CEO', 'ADMIN'] },
   { name: 'Faturamento', href: '/dashboard/billing', icon: Receipt, perm: 'billing:read', roles: ['CEO', 'ADMIN', 'INDEPENDENT_OWNER'] },
-  { name: 'Split Configuration', href: '/dashboard/split-configuration', icon: Handshake, perm: undefined, roles: ['CEO', 'ADMIN', 'AGENCY_ADMIN', 'AGENCY_MANAGER', 'INDEPENDENT_OWNER'] },
+  { name: 'Configuração dividida', href: '/dashboard/split-configuration', icon: Handshake, perm: undefined, roles: ['CEO', 'ADMIN', 'AGENCY_ADMIN', 'AGENCY_MANAGER', 'INDEPENDENT_OWNER'] },
   { name: 'Comunicação', href: '/dashboard/communications', icon: Mail, perm: undefined, roles: ['CEO'] },
   { name: 'Auditorias', href: '/dashboard/audit', icon: ShieldCheck, perm: 'audit:read', roles: ['CEO', 'ADMIN'] },
   { name: 'Cobranças e Recibos', href: '/dashboard/documents', icon: FileDown, perm: 'documents:read', roles: ['CEO', 'ADMIN', 'INDEPENDENT_OWNER'] },

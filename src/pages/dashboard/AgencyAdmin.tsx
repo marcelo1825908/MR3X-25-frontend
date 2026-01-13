@@ -11,8 +11,6 @@ import {
   Users,
   AlertTriangle,
   Eye,
-  Edit,
-  Trash2,
   MoreHorizontal,
   Mail,
   Phone,
@@ -229,17 +227,6 @@ export function AgencyAdmin() {
     setShowDetailModal(true)
   }
 
-  const handleEditAgencyClick = (agency: any) => {
-    setSelectedAgency(agency)
-    setEmailError('')
-    setEmailVerified(true)
-    setCheckingEmail(false)
-    setShowEditModal(true)
-  }
-
-  const handleDeleteAgencyClick = (agency: any) => {
-    setAgencyToDelete(agency)
-  }
 
   const getPlanColor = (plan: string) => {
     switch (plan) {
@@ -342,27 +329,12 @@ export function AgencyAdmin() {
                           <MoreHorizontal className="w-5 h-5" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleViewAgency(admin)}>
-                          <Eye className="w-4 h-4 mr-2" />
-                          Visualizar
-                        </DropdownMenuItem>
-                        {canUpdate && (
-                          <DropdownMenuItem onClick={() => handleEditAgencyClick(admin)}>
-                            <Edit className="w-4 h-4 mr-2" />
-                            Editar
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleViewAgency(admin)}>
+                            <Eye className="w-4 h-4 mr-2" />
+                            Visualizar
                           </DropdownMenuItem>
-                        )}
-                        {canDelete && (
-                          <DropdownMenuItem
-                            onClick={() => handleDeleteAgencyClick(admin)}
-                            className="text-red-600 focus:text-red-700"
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Excluir
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
+                        </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
                 </CardHeader>

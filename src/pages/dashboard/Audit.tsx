@@ -341,7 +341,7 @@ export function Audit() {
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2 flex-wrap">
                         <div className="flex items-center gap-1">
                           <User className="w-4 h-4" />
                           {log.user?.name || 'Usuario Desconhecido'}
@@ -353,6 +353,14 @@ export function Audit() {
                         {log.ip && (
                           <div className="flex items-center gap-1">
                             <span className="font-mono text-xs">IP: {log.ip}</span>
+                          </div>
+                        )}
+                        {log.integrityHash && (
+                          <div className="flex items-center gap-1">
+                            <ShieldCheck className="w-4 h-4" />
+                            <span className="font-mono text-xs" title="Hash de Integridade">
+                              Hash: {log.integrityHash.substring(0, 16)}...
+                            </span>
                           </div>
                         )}
                       </div>
@@ -389,6 +397,15 @@ export function Audit() {
                         <div>
                           <Label className="text-xs font-semibold">User Agent</Label>
                           <p className="text-xs text-muted-foreground mt-1">{log.userAgent}</p>
+                        </div>
+                      )}
+                      {log.integrityHash && (
+                        <div>
+                          <Label className="text-xs font-semibold">Hash de Integridade</Label>
+                          <p className="text-xs font-mono text-muted-foreground mt-1 break-all">{log.integrityHash}</p>
+                          <p className="text-xs text-muted-foreground mt-1 italic">
+                            Este hash garante a integridade e imutabilidade deste registro de auditoria.
+                          </p>
                         </div>
                       )}
                     </div>

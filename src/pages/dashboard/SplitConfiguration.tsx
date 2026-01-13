@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
-import { agenciesAPI, settingsAPI, usersAPI } from '../../api';
+import { agenciesAPI, settingsAPI, usersAPI, profileAPI } from '../../api';
 import {
   Handshake,
   Save,
@@ -20,6 +20,7 @@ import { Button } from '../../components/ui/button';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import { Skeleton } from '../../components/ui/skeleton';
 import { Slider } from '../../components/ui/slider';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -40,7 +41,10 @@ export function SplitConfiguration() {
   const [exampleRent] = useState<number>(10000);
   const [selectedAgencyId, setSelectedAgencyId] = useState<string>('');
   const [selectedOwnerId, setSelectedOwnerId] = useState<string>('');
+  const [selectedIndependentOwnerId, setSelectedIndependentOwnerId] = useState<string>('');
   const [selectedOwnerFee, setSelectedOwnerFee] = useState<number>(90);
+  const [independentOwnerFee, setIndependentOwnerFee] = useState<number>(90);
+  const [entityType, setEntityType] = useState<'agency' | 'independent-owner'>('agency');
 
   const canViewSplit = hasPermission('payments:read') ||
     ['AGENCY_ADMIN', 'AGENCY_MANAGER', 'INDEPENDENT_OWNER', 'CEO', 'ADMIN'].includes(user?.role || '');
@@ -81,6 +85,27 @@ export function SplitConfiguration() {
     enabled: isAgencyAdmin && canViewSplit,
   });
 
+  // Fetch independent owners list for CEO/ADMIN users
+  const { data: independentOwnersList, isLoading: independentOwnersLoading } = useQuery({
+    queryKey: ['independent-owners'],
+    queryFn: () => usersAPI.listUsers({ role: 'INDEPENDENT_OWNER', pageSize: 100 }),
+    enabled: isCeoOrAdmin && canViewSplit,
+  });
+
+  // Fetch current user profile for INDEPENDENT_OWNER to get their ownerFee
+  const { data: userProfile } = useQuery({
+    queryKey: ['user-profile', user?.id],
+    queryFn: () => profileAPI.getProfile(),
+    enabled: isIndependentOwner && canViewSplit,
+  });
+
+  // Fetch selected independent owner profile for CEO/ADMIN
+  const { data: selectedIndependentOwnerProfile } = useQuery({
+    queryKey: ['independent-owner-profile', selectedIndependentOwnerId],
+    queryFn: () => usersAPI.getUserById(selectedIndependentOwnerId),
+    enabled: isCeoOrAdmin && !!selectedIndependentOwnerId && canViewSplit,
+  });
+
   useEffect(() => {
     if (agency?.agencyFee !== undefined) {
       setAgencyFee(agency.agencyFee);
@@ -114,7 +139,18 @@ export function SplitConfiguration() {
     }
   }, [selectedOwnerId, ownersList]);
 
-  // For independent owners, owner fee is calculated (100% - platform fee), no need to fetch from profile
+  // Set independent owner fee when selected (for CEO/ADMIN) or from user profile (for INDEPENDENT_OWNER)
+  useEffect(() => {
+    const currentPlatformFee = paymentConfig?.platformFee ?? platformFeeValue ?? 2;
+    if (isCeoOrAdmin && selectedIndependentOwnerId && selectedIndependentOwnerProfile) {
+      setIndependentOwnerFee(selectedIndependentOwnerProfile.ownerFee ?? (100 - currentPlatformFee));
+    } else if (isIndependentOwner && userProfile) {
+      setIndependentOwnerFee(userProfile.ownerFee ?? (100 - currentPlatformFee));
+    } else if (isIndependentOwner && !userProfile) {
+      // Default to calculated value if profile not loaded yet
+      setIndependentOwnerFee(100 - currentPlatformFee);
+    }
+  }, [selectedIndependentOwnerId, selectedIndependentOwnerProfile, userProfile, isCeoOrAdmin, isIndependentOwner, paymentConfig?.platformFee, platformFeeValue]);
 
   const isCeo = user?.role === 'CEO';
 
@@ -179,7 +215,7 @@ export function SplitConfiguration() {
     );
   }
 
-  const isLoading = agencyLoading || configLoading || (isCeoOrAdmin && agenciesLoading) || (isAgencyAdmin && ownersLoading);
+  const isLoading = agencyLoading || configLoading || (isCeoOrAdmin && agenciesLoading) || (isAgencyAdmin && ownersLoading) || (isCeoOrAdmin && independentOwnersLoading);
 
   if (isLoading && agencyId) {
     return (
@@ -260,24 +296,52 @@ export function SplitConfiguration() {
   };
 
   const handleSaveOwnerFee = async () => {
-    // Independent owners don't need to save - their fee is calculated automatically
-    if (isIndependentOwner) {
-      return;
-    }
+    let ownerIdToUpdate: string;
+    let feeToUpdate: number;
 
-    if (!selectedOwnerId) {
+    if (isIndependentOwner) {
+      // Independent owner updating their own fee
+      if (!user?.id) {
+        toast.error('Usuário não encontrado');
+        return;
+      }
+      ownerIdToUpdate = user.id;
+      feeToUpdate = independentOwnerFee;
+    } else if (isCeoOrAdmin && selectedIndependentOwnerId) {
+      // CEO/ADMIN updating independent owner fee
+      ownerIdToUpdate = selectedIndependentOwnerId;
+      feeToUpdate = independentOwnerFee;
+    } else if (isAgencyAdmin) {
+      // Agency admin updating regular owner fee
+      if (!selectedOwnerId) {
+        toast.error('Selecione um proprietário');
+        return;
+      }
+      ownerIdToUpdate = selectedOwnerId;
+      feeToUpdate = selectedOwnerFee;
+    } else {
       toast.error('Selecione um proprietário');
       return;
     }
 
-    if (selectedOwnerFee < 0 || selectedOwnerFee > 100) {
+    if (feeToUpdate < 0 || feeToUpdate > 100) {
       toast.error('A taxa do proprietário deve estar entre 0 e 100%');
+      return;
+    }
+
+    // Validate that fee doesn't exceed available percentage (considering platform fee)
+    if (feeToUpdate > 100 - platformFee) {
+      toast.error(`A taxa do proprietário não pode exceder ${100 - platformFee}% (100% - ${platformFee}% da plataforma)`);
       return;
     }
 
     setSavingOwnerFee(true);
     try {
-      await updateOwnerFeeMutation.mutateAsync({ ownerId: selectedOwnerId, ownerFee: selectedOwnerFee });
+      await updateOwnerFeeMutation.mutateAsync({ ownerId: ownerIdToUpdate, ownerFee: feeToUpdate });
+      // If updating own profile, invalidate user profile query
+      if (isIndependentOwner) {
+        queryClient.invalidateQueries({ queryKey: ['user-profile', user?.id] });
+      }
     } finally {
       setSavingOwnerFee(false);
     }
@@ -300,59 +364,125 @@ export function SplitConfiguration() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold">Configuração de Divisão de Pagamentos</h1>
           <p className="text-sm sm:text-base text-muted-foreground mt-1">
-            Configure a porcentagem de comissão da agência nos pagamentos de aluguel
+            Configure as porcentagens de divisão de pagamentos entre plataforma, agência e proprietários
           </p>
         </div>
       </div>
 
-      {/* Agency Selector for CEO/ADMIN */}
+      {/* Entity Selector for CEO/ADMIN */}
       {isCeoOrAdmin && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <Building2 className="w-5 h-5" />
-              Selecionar Agência
+              <Handshake className="w-5 h-5" />
+              Selecionar Entidade
             </CardTitle>
             <CardDescription>
-              Escolha uma agência para configurar suas definições de divisão de pagamento
+              Escolha o tipo de entidade e selecione uma para configurar suas definições de divisão de pagamento
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Select
-              value={selectedAgencyId}
-              onValueChange={(value) => {
-                setSelectedAgencyId(value);
-                setAgencyFee(8); // Reset to default when changing agency
-              }}
-            >
-              <SelectTrigger className="w-full md:w-[400px]">
-                <SelectValue placeholder="Selecione uma agência..." />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.isArray(agencies) && agencies.map((ag: any) => (
-                  <SelectItem key={ag.id} value={ag.id.toString()}>
-                    {ag.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {!selectedAgencyId && (
-              <p className="text-sm text-muted-foreground mt-2">
-                Por favor, selecione uma agência para visualizar e configurar suas definições de divisão.
-              </p>
-            )}
+            <Tabs value={entityType} onValueChange={(value) => {
+              setEntityType(value as 'agency' | 'independent-owner');
+              if (value === 'agency') {
+                setSelectedIndependentOwnerId('');
+              } else {
+                setSelectedAgencyId('');
+                setAgencyFee(8);
+              }
+            }} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="agency" className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4" />
+                  Agência
+                </TabsTrigger>
+                <TabsTrigger value="independent-owner" className="flex items-center gap-2">
+                  <User className="w-4 h-4" />
+                  Proprietário Independente
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="agency" className="mt-4 space-y-4">
+                <div className="space-y-2">
+                  <Label>Selecione uma agência</Label>
+                  <Select
+                    value={selectedAgencyId}
+                    onValueChange={(value) => {
+                      setSelectedAgencyId(value);
+                      setAgencyFee(8); // Reset to default when changing agency
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione uma agência..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.isArray(agencies) && agencies.length > 0 ? (
+                        agencies.map((ag: any) => (
+                          <SelectItem key={ag.id} value={ag.id.toString()}>
+                            {ag.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-agencies" disabled>
+                          Nenhuma agência disponível
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {!selectedAgencyId && (
+                    <p className="text-sm text-muted-foreground">
+                      Selecione uma agência para visualizar e configurar suas definições de divisão.
+                    </p>
+                  )}
+                </div>
+              </TabsContent>
+              
+              <TabsContent value="independent-owner" className="mt-4 space-y-4">
+                <div className="space-y-2">
+                  <Label>Selecione um proprietário independente</Label>
+                  <Select
+                    value={selectedIndependentOwnerId}
+                    onValueChange={(value) => {
+                      setSelectedIndependentOwnerId(value);
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione um proprietário independente..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.isArray(independentOwnersList?.items) && independentOwnersList.items.length > 0 ? (
+                        independentOwnersList.items.map((owner: any) => (
+                          <SelectItem key={owner.id} value={owner.id.toString()}>
+                            {owner.name || owner.email} {owner.document ? `- ${owner.document}` : ''}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="no-owners" disabled>
+                          Nenhum proprietário independente disponível
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                  {!selectedIndependentOwnerId && (
+                    <p className="text-sm text-muted-foreground">
+                      Selecione um proprietário independente para visualizar e configurar suas definições de divisão.
+                    </p>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
       )}
 
-      {/* Show message if no agency selected for CEO/ADMIN */}
-      {isCeoOrAdmin && !selectedAgencyId && (
+      {/* Show message if no entity selected for CEO/ADMIN */}
+      {isCeoOrAdmin && !selectedAgencyId && !selectedIndependentOwnerId && (
         <Alert className="border-amber-200 bg-amber-50">
           <AlertCircle className="h-5 w-5 text-amber-600" />
           <AlertDescription className="text-amber-800">
-            <p className="font-medium">Nenhuma Agência Selecionada</p>
+            <p className="font-medium">Nenhuma Entidade Selecionada</p>
             <p className="text-sm mt-1">
-              Por favor, selecione uma agência no menu acima para configurar suas definições de divisão de pagamento.
+              Por favor, selecione uma agência ou um proprietário independente acima para configurar suas definições de divisão de pagamento.
             </p>
           </AlertDescription>
         </Alert>
@@ -410,8 +540,8 @@ export function SplitConfiguration() {
         </Alert>
       )}
 
-      {/* Only show the rest if an agency is selected or user has agencyId (for non-agency-admin) OR owner is selected (for agency admin) OR user is independent owner */}
-      {((agencyId && !isAgencyAdmin && !isIndependentOwner) || (isAgencyAdmin && selectedOwnerId) || isIndependentOwner) && (
+      {/* Only show the rest if an agency is selected OR independent owner is selected (for CEO/ADMIN) OR user has agencyId (for non-agency-admin) OR owner is selected (for agency admin) OR user is independent owner */}
+      {((agencyId && !isAgencyAdmin && !isIndependentOwner) || (isAgencyAdmin && selectedOwnerId) || (isCeoOrAdmin && selectedIndependentOwnerId) || isIndependentOwner) && (
         <>
       {/* Info Alert */}
       <Alert className="border-blue-200 bg-blue-50">
@@ -572,18 +702,27 @@ export function SplitConfiguration() {
               <div className="flex items-center justify-between pt-4 border-t">
                 <span className="text-lg font-semibold">Porcentagem Total</span>
                 <span className={`text-2xl font-bold ${
-                  isIndependentOwner 
-                    ? 'text-green-600' // Always 100% for independent owners (calculated)
+                  (isIndependentOwner || (isCeoOrAdmin && selectedIndependentOwnerId))
+                    ? (independentOwnerFee + platformFee === 100 ? 'text-green-600' : 'text-red-600')
                     : (selectedOwnerFee + Math.max(0, 100 - selectedOwnerFee - platformFee) + platformFee === 100 ? 'text-green-600' : 'text-red-600')
                 }`}>
-                  {isIndependentOwner
-                    ? '100%' // Always 100% for independent owners
+                  {(isIndependentOwner || (isCeoOrAdmin && selectedIndependentOwnerId))
+                    ? (independentOwnerFee + platformFee).toFixed(0)
                     : (selectedOwnerFee + Math.max(0, 100 - selectedOwnerFee - platformFee) + platformFee).toFixed(0)
                   }%
                 </span>
               </div>
 
-              {!isIndependentOwner && (100 - selectedOwnerFee - platformFee) < 0 && (
+              {(isIndependentOwner || (isCeoOrAdmin && selectedIndependentOwnerId)) && (independentOwnerFee + platformFee) !== 100 && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    A soma das taxas deve ser 100%. Por favor, ajuste a taxa do proprietário.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {!isIndependentOwner && !(isCeoOrAdmin && selectedIndependentOwnerId) && (100 - selectedOwnerFee - platformFee) < 0 && (
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
@@ -598,9 +737,9 @@ export function SplitConfiguration() {
                 <div className="h-10 rounded-lg overflow-hidden flex shadow-inner">
                   <div
                     className="bg-blue-500 flex items-center justify-center text-white text-sm font-medium transition-all"
-                    style={{ width: `${isIndependentOwner ? (100 - platformFee) : selectedOwnerFee}%` }}
+                    style={{ width: `${(isIndependentOwner || (isCeoOrAdmin && selectedIndependentOwnerId)) ? independentOwnerFee : selectedOwnerFee}%` }}
                   >
-                    {(isIndependentOwner ? (100 - platformFee) : selectedOwnerFee) > 15 && `${isIndependentOwner ? (100 - platformFee).toFixed(1) : selectedOwnerFee}%`}
+                    {((isIndependentOwner || (isCeoOrAdmin && selectedIndependentOwnerId)) ? independentOwnerFee : selectedOwnerFee) > 15 && `${(isIndependentOwner || (isCeoOrAdmin && selectedIndependentOwnerId)) ? independentOwnerFee.toFixed(1) : selectedOwnerFee}%`}
                   </div>
                   {isAgencyAdmin && (
                     <div
@@ -620,7 +759,7 @@ export function SplitConfiguration() {
                 <div className={`flex ${isAgencyAdmin ? 'justify-between' : 'justify-around'} text-xs text-muted-foreground`}>
                   <span className="flex items-center gap-1">
                     <div className="w-3 h-3 rounded-full bg-blue-500" />
-                    {isIndependentOwner ? 'Você' : 'Proprietário'} ({isIndependentOwner ? (100 - platformFee).toFixed(1) : selectedOwnerFee}%)
+                    {(isIndependentOwner || (isCeoOrAdmin && selectedIndependentOwnerId)) ? 'Proprietário Independente' : 'Proprietário'} ({(isIndependentOwner || (isCeoOrAdmin && selectedIndependentOwnerId)) ? independentOwnerFee.toFixed(1) : selectedOwnerFee}%)
                   </span>
                   {isAgencyAdmin && (
                     <span className="flex items-center gap-1">
@@ -635,12 +774,16 @@ export function SplitConfiguration() {
                 </div>
               </div>
 
-              {/* Save button only for Agency Admin, not for Independent Owner */}
-              {isAgencyAdmin && (
+              {/* Save button for Agency Admin, Independent Owner, and CEO/ADMIN with Independent Owner */}
+              {(isAgencyAdmin || isIndependentOwner || (isCeoOrAdmin && selectedIndependentOwnerId)) && (
                 <div className="flex justify-end">
                   <Button
                     onClick={handleSaveOwnerFee}
-                    disabled={savingOwnerFee || (100 - selectedOwnerFee - platformFee) < 0}
+                    disabled={
+                      savingOwnerFee || 
+                      (isAgencyAdmin ? (100 - selectedOwnerFee - platformFee) < 0 : false) ||
+                      ((isIndependentOwner || (isCeoOrAdmin && selectedIndependentOwnerId)) ? (independentOwnerFee + platformFee) !== 100 : false)
+                    }
                     className="gap-2"
                   >
                     {savingOwnerFee ? (

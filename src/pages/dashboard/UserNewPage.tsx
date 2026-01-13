@@ -33,11 +33,11 @@ const ROLE_LABELS: Record<string, string> = {
 const ROLE_CREATION_ALLOWED: Record<string, string[]> = {
   'CEO': ['ADMIN'],
   'ADMIN': ['PLATFORM_MANAGER', 'LEGAL_AUDITOR', 'REPRESENTATIVE', 'API_CLIENT'],
-  'PLATFORM_MANAGER': [], 
+  'PLATFORM_MANAGER': [],
   'AGENCY_ADMIN': ['AGENCY_MANAGER', 'BROKER', 'PROPRIETARIO'],
   'AGENCY_MANAGER': ['BROKER', 'PROPRIETARIO'],
   'INDEPENDENT_OWNER': ['INQUILINO', 'BUILDING_MANAGER'],
-  
+
   'BROKER': [],
   'PROPRIETARIO': [],
   'INQUILINO': [],
@@ -124,7 +124,7 @@ export function UserNewPage() {
   useEffect(() => {
     if (!canCreateUsers) {
       toast.error('Você não tem permissão para criar usuários');
-      navigate('/dashboard/users');
+      navigate('/dashboard/admin-users');
     }
   }, [canCreateUsers, navigate]);
 
@@ -147,7 +147,7 @@ export function UserNewPage() {
           return;
         }
       }
-      
+
       const createPayload = {
         email: formData.email,
         password: formData.password,
@@ -158,7 +158,7 @@ export function UserNewPage() {
       };
       await usersAPI.createUser(createPayload);
       toast.success('Usuário criado com sucesso');
-      navigate('/dashboard/users');
+      navigate('/dashboard/admin-users');
     } catch (error: any) {
       toast.error(error.message || 'Falha ao criar usuário');
     } finally {
@@ -196,19 +196,19 @@ export function UserNewPage() {
 
   return (
     <div className="space-y-6">
-      {}
-      <div className="flex items-center gap-4">
-        <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="flex items-center gap-2">
-          <ArrowLeft className="w-4 h-4" />
-          Voltar
-        </Button>
+      { }
+      <div className="flex items-center gap-4 justify-between">
         <div>
           <h1 className="text-2xl font-bold">Criar Novo Usuário</h1>
           <p className="text-muted-foreground">Adicione um novo usuário ao sistema</p>
         </div>
+        <Button variant="outline" size="sm" onClick={() => navigate(-1)} className="flex items-center gap-2">
+          <ArrowLeft className="w-4 h-4" />
+          Voltar
+        </Button>
       </div>
 
-      {}
+      { }
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -219,7 +219,7 @@ export function UserNewPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {}
+            { }
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-2">
                 <Label htmlFor="name">Nome Completo *</Label>
@@ -319,7 +319,7 @@ export function UserNewPage() {
               />
             </div>
 
-            {}
+            { }
             <div className="space-y-4">
               <Label className="text-base font-medium">Preferências de Notificação</Label>
               <div className="space-y-3">
@@ -350,7 +350,7 @@ export function UserNewPage() {
               </div>
             </div>
 
-            {}
+            { }
             <div className="flex justify-end gap-3 pt-6 border-t">
               <Button type="button" variant="outline" onClick={() => navigate(-1)} disabled={loading}>
                 Cancelar
