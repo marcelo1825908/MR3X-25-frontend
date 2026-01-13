@@ -155,7 +155,23 @@ export default function MyAccount() {
 
   const handleProfileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    updateProfileMutation.mutate(formData);
+    // Only send fields that are accepted by the backend UpdateProfileDto
+    const profileData = {
+      name: formData.name,
+      phone: formData.phone,
+      document: formData.document,
+      creci: formData.creci,
+      address: formData.address,
+      cep: formData.cep,
+      neighborhood: formData.neighborhood,
+      city: formData.city,
+      state: formData.state,
+      agencyName: formData.agencyName,
+      agencyCnpj: formData.agencyCnpj,
+      representativeName: formData.representativeName,
+      representativeDocument: formData.representativeDocument,
+    };
+    updateProfileMutation.mutate(profileData);
   };
 
 
