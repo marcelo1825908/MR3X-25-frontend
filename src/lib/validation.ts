@@ -128,7 +128,7 @@ function validateTraditionalCNPJ(cnpj: string): ValidationResult {
  */
 function validateAlphanumericCNPJ(cnpj: string): ValidationResult {
   // Remove pontuação mas mantém letras (convertendo para maiúsculas)
-  const cleanCNPJ = cnpj.replace(/[.\-\/\s]/g, '').toUpperCase();
+  const cleanCNPJ = cnpj.replace(/[.\-/\\s]/g, '').toUpperCase();
 
   if (cleanCNPJ.length !== 14) {
     return {
@@ -203,7 +203,7 @@ function validateAlphanumericCNPJ(cnpj: string): ValidationResult {
  */
 export function validateCNPJ(cnpj: string): ValidationResult {
   // Limpa e normaliza
-  const cleanCNPJ = cnpj.replace(/[.\-\/\s]/g, '').toUpperCase();
+  const cleanCNPJ = cnpj.replace(/[.\-/\\s]/g, '').toUpperCase();
 
   if (cleanCNPJ.length !== 14) {
     return {
@@ -398,7 +398,7 @@ export function formatCRECIInput(value: string): string {
     return digits;
   } else {
     const numberPart = parts[0].replace(/[^0-9]/g, '').slice(0, 10);
-    let statePart = parts.slice(1).join('/').replace(/[^A-Z\-]/g, '').slice(0, 4);
+    let statePart = parts.slice(1).join('/').replace(/[^A-Z-]/g, '').slice(0, 4);
 
     return numberPart + '/' + statePart;
   }

@@ -97,7 +97,9 @@ export function SalesInbox() {
     try {
       await apiClient.patch(`/sales-rep/messages/${id}/read`);
       queryClient.invalidateQueries({ queryKey: ['sales-messages'] });
-    } catch {
+    } catch (error) {
+      // Silently handle read status update errors
+      console.debug('Failed to mark message as read:', error);
     }
   };
 
@@ -115,7 +117,9 @@ export function SalesInbox() {
     try {
       await apiClient.patch(`/sales-rep/messages/${id}/star`);
       queryClient.invalidateQueries({ queryKey: ['sales-messages'] });
-    } catch {
+    } catch (error) {
+      // Silently handle star toggle errors
+      console.debug('Failed to toggle star:', error);
     }
   };
 
@@ -143,7 +147,9 @@ export function SalesInbox() {
     try {
       await apiClient.delete(`/sales-rep/messages/${messageToDelete}`);
       queryClient.invalidateQueries({ queryKey: ['sales-messages'] });
-    } catch {
+    } catch (error) {
+      // Silently handle delete errors
+      console.debug('Failed to delete message:', error);
     }
   };
 
@@ -182,7 +188,9 @@ export function SalesInbox() {
         content: replyContent,
       });
       queryClient.invalidateQueries({ queryKey: ['sales-messages'] });
-    } catch {
+    } catch (error) {
+      // Silently handle reply errors
+      console.debug('Failed to send reply:', error);
     }
   };
 

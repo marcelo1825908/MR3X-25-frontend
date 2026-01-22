@@ -148,7 +148,7 @@ export function ApiSettings() {
   const addIpToWhitelist = () => {
     if (!newIp.trim()) return;
 
-    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/;
+    const ipRegex = /^(\d{1,3}\.){3}\d{1,3}([/]\d{1,2})?$/;
     if (!ipRegex.test(newIp.trim())) {
       toast.error('Please enter a valid IP address or CIDR range');
       return;

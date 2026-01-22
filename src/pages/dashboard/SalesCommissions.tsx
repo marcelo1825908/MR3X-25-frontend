@@ -10,7 +10,7 @@ import {
 import type { PieLabelRenderProps } from 'recharts';
 import {
   DollarSign, Award, Clock, CheckCircle, Calendar, Building2,
-  TrendingUp, Download, Filter
+  TrendingUp, Download, Filter, X
 } from 'lucide-react';
 
 interface Commission {
@@ -41,9 +41,12 @@ const emptySummary = {
 };
 
 const statusConfig = {
+  calculated: { label: 'Calculada', color: 'bg-purple-100 text-purple-800', icon: Clock },
   pending: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
-  processing: { label: 'Processando', color: 'bg-blue-100 text-blue-800', icon: Clock },
+  released: { label: 'Liberada', color: 'bg-blue-100 text-blue-800', icon: CheckCircle },
+  processing: { label: 'Processando', color: 'bg-indigo-100 text-indigo-800', icon: Clock },
   paid: { label: 'Pago', color: 'bg-green-100 text-green-800', icon: CheckCircle },
+  canceled: { label: 'Cancelada', color: 'bg-red-100 text-red-800', icon: X },
 };
 
 const COLORS = ['#94A3B8', '#3B82F6', '#8B5CF6', '#10B981'];
@@ -111,8 +114,8 @@ export function SalesCommissions() {
       {}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold">Comissões</h1>
-          <p className="text-muted-foreground">Acompanhe suas comissões e pagamentos</p>
+          <h1 className="text-2xl font-bold">Comissionamento</h1>
+          <p className="text-muted-foreground">Acompanhe sua produção, comissões e pagamentos da MR3X</p>
         </div>
         <Button variant="outline" className="flex items-center gap-2">
           <Download className="w-4 h-4" />
@@ -127,7 +130,7 @@ export function SalesCommissions() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Total Ganho</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(summary.totalEarned)}</p>
+                <p className="text-2xl font-bold text-green-600">{formatCurrency(summary.totalEarned || 0)}</p>
               </div>
               <div className="p-3 bg-green-100 rounded-full">
                 <Award className="w-6 h-6 text-green-600" />
@@ -135,6 +138,38 @@ export function SalesCommissions() {
             </div>
           </CardContent>
         </Card>
+
+        {summary.totalCalculated > 0 && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Em Período de Segurança</p>
+                  <p className="text-2xl font-bold text-purple-600">{formatCurrency(summary.totalCalculated || 0)}</p>
+                </div>
+                <div className="p-3 bg-purple-100 rounded-full">
+                  <Clock className="w-6 h-6 text-purple-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {summary.totalReleased > 0 && (
+          <Card>
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-muted-foreground">Liberadas</p>
+                  <p className="text-2xl font-bold text-blue-600">{formatCurrency(summary.totalReleased || 0)}</p>
+                </div>
+                <div className="p-3 bg-blue-100 rounded-full">
+                  <CheckCircle className="w-6 h-6 text-blue-600" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardContent className="p-6">

@@ -734,7 +734,7 @@ export function Inspections() {
 
   const getMediaUrl = (media: ServerMedia): string => {
     const apiUrl = import.meta.env.VITE_API_URL || '';
-    const baseUrl = apiUrl.replace(/\/api\/?$/, '');
+    const baseUrl = apiUrl.replace(new RegExp('/api/?$'), '');
     return `${baseUrl}${media.url}`;
   };
 
@@ -1045,7 +1045,7 @@ export function Inspections() {
           : inspectionDetail.photos;
         if (Array.isArray(parsed)) {
           photosArray = parsed.map((photo: string) =>
-            photo.startsWith('http') ? photo : `${(import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '')}/uploads/${photo}`
+            photo.startsWith('http') ? photo : `${(import.meta.env.VITE_API_URL || '').replace(new RegExp('/api/?$'), '')}/uploads/${photo}`
           );
         }
       } catch {
@@ -2813,7 +2813,7 @@ export function Inspections() {
                       : inspectionDetail.photos;
                     if (Array.isArray(photos) && photos.length > 0) {
                       const photoUrls = photos.map((photo: string, idx: number) => ({
-                        url: photo.startsWith('http') ? photo : `${(import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '')}/uploads/${photo}`,
+                        url: photo.startsWith('http') ? photo : `${(import.meta.env.VITE_API_URL || '').replace(new RegExp('/api/?$'), '')}/uploads/${photo}`,
                         name: `Foto ${idx + 1}`
                       }));
                       return (
@@ -2824,7 +2824,7 @@ export function Inspections() {
                           </Label>
                           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                             {photos.map((photo: string, index: number) => {
-                              const url = photo.startsWith('http') ? photo : `${(import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '')}/uploads/${photo}`;
+                              const url = photo.startsWith('http') ? photo : `${(import.meta.env.VITE_API_URL || '').replace(new RegExp('/api/?$'), '')}/uploads/${photo}`;
                               return (
                                 <div key={index} className="relative group">
                                   <img
@@ -3067,7 +3067,7 @@ export function Inspections() {
 
                           {item.photos && item.photos.length > 0 && getDetailMediaForItem(index).length === 0 && (() => {
                             const itemPhotoUrls = item.photos!.map((photo: string, idx: number) => ({
-                              url: photo.startsWith('http') ? photo : `${(import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '')}/uploads/${photo}`,
+                              url: photo.startsWith('http') ? photo : `${(import.meta.env.VITE_API_URL || '').replace(new RegExp('/api/?$'), '')}/uploads/${photo}`,
                               name: `Foto ${idx + 1} - ${item.item}`
                             }));
                             return (
@@ -3078,7 +3078,7 @@ export function Inspections() {
                                 </Label>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
                                   {item.photos!.map((photo: string, photoIndex: number) => {
-                                    const url = photo.startsWith('http') ? photo : `${(import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '')}/uploads/${photo}`;
+                                    const url = photo.startsWith('http') ? photo : `${(import.meta.env.VITE_API_URL || '').replace(new RegExp('/api/?$'), '')}/uploads/${photo}`;
                                     return (
                                       <div key={photoIndex} className="relative group">
                                         <img

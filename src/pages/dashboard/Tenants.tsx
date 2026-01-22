@@ -64,6 +64,79 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
+interface Tenant {
+  id: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  document?: string;
+  birthDate?: string;
+  address?: string;
+  cep?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  brokerId?: string;
+  agencyId?: string;
+  nationality?: string;
+  maritalStatus?: string;
+  profession?: string;
+  rg?: string;
+  employerName?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+  plainPassword?: string;
+  photo?: string;
+  role?: string;
+  plan?: string;
+}
+
+interface CEPData {
+  logradouro?: string;
+  street?: string;
+  bairro?: string;
+  neighborhood?: string;
+  cidade?: string;
+  city?: string;
+  estado?: string;
+  state?: string;
+}
+
+interface TenantFormData {
+  document?: string;
+  name?: string;
+  phone?: string;
+  email?: string;
+  password?: string;
+  birthDate?: string;
+  cep?: string;
+  address?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  agencyId?: string;
+  brokerId?: string;
+  nationality?: string;
+  maritalStatus?: string;
+  profession?: string;
+  rg?: string;
+  employerName?: string;
+  emergencyContactName?: string;
+  emergencyContactPhone?: string;
+}
+
+interface ApiError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+    status?: number;
+  };
+  message?: string;
+}
+
 export function Tenants() {
   const { hasPermission, user } = useAuth()
   const queryClient = useQueryClient()
@@ -126,9 +199,9 @@ export function Tenants() {
     rg: '',
   })
 
-  const [selectedTenant, setSelectedTenant] = useState<any>(null)
-  const [tenantToDelete, setTenantToDelete] = useState<any>(null)
-  const [tenantDetail, setTenantDetail] = useState<any>(null)
+  const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null)
+  const [tenantToDelete, setTenantToDelete] = useState<Tenant | null>(null)
+  const [tenantDetail, setTenantDetail] = useState<Tenant | null>(null)
   const [tenantDetailLoading, setTenantDetailLoading] = useState(false)
   const [whatsappMessage, setWhatsappMessage] = useState('')
   const [creating, setCreating] = useState(false)
@@ -142,7 +215,7 @@ export function Tenants() {
   const [showAnalysisSearchModal, setShowAnalysisSearchModal] = useState(false)
   const [searchDocument, setSearchDocument] = useState('')
   const [searchingAnalysis, setSearchingAnalysis] = useState(false)
-  const [analysisResult, setAnalysisResult] = useState<any>(null)
+  const [analysisResult, setAnalysisResult] = useState<unknown>(null)
   const [analysisError, setAnalysisError] = useState('')
 
   const [showUpgradeModal, setShowUpgradeModal] = useState(false)
@@ -238,17 +311,6 @@ export function Tenants() {
 
   const canCreateTenant = tenantLimits?.allowed !== false
 
-  if (!canViewUsers) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold text-muted-foreground">Acesso Negado</h2>
-          <p className="text-muted-foreground">Voce nao tem permissao para visualizar inquilinos.</p>
-        </div>
-      </div>
-    )
-  }
-
   const closeAllModals = () => {
     setShowCreateModal(false)
     setShowEditModal(false)
@@ -261,6 +323,106 @@ export function Tenants() {
     setAnalysisResult(null)
     setAnalysisError('')
     setSearchDocument('')
+  }
+
+  // All hooks must be called before any early returns
+  const createTenantMutation = useMutation({
+    mutationFn: (data: TenantFormData) => usersAPI.createTenant(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenants'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      closeAllModals()
+      setNewTenant({
+        document: '', name: '', phone: '', email: '', password: '', birthDate: '',
+        cep: '', address: '', number: '', complement: '', neighborhood: '', city: '', state: '',
+        agencyId: '', brokerId: '', nationality: '', maritalStatus: '', profession: '', rg: '',
+        employerName: '', emergencyContactName: '', emergencyContactPhone: ''
+      })
+      toast.success('Inquilino criado com sucesso')
+    },
+    onError: (error: ApiError) => {
+      let errorMessage = 'Erro ao criar inquilino'
+      const backendMessage = error.response?.data?.message || error.message
+      if (backendMessage) {
+        const message = backendMessage.toLowerCase()
+        if (message.includes('already exists')) {
+          errorMessage = 'Este usuario ja existe. Verifique o email ou documento.'
+        } else {
+          errorMessage = backendMessage
+        }
+      }
+
+      const isPlanLimitError = error?.response?.status === 403 ||
+        errorMessage.toLowerCase().includes('plano') ||
+        errorMessage.toLowerCase().includes('limite') ||
+        errorMessage.toLowerCase().includes('plan') ||
+        errorMessage.toLowerCase().includes('limit')
+
+      if (isPlanLimitError) {
+        setUpgradeErrorMessage(errorMessage || 'Você atingiu o limite do seu plano.')
+        setShowCreateModal(false)
+        setShowUpgradeModal(true)
+      } else {
+        toast.error(errorMessage)
+      }
+    },
+  })
+
+  const updateTenantMutation = useMutation({
+    mutationFn: ({ id, data }: { id: string, data: Partial<TenantFormData> }) => usersAPI.updateTenant(id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenants'] })
+      closeAllModals()
+      toast.success('Inquilino atualizado com sucesso')
+    },
+    onError: (error: ApiError) => {
+      toast.error(error.message || 'Erro ao atualizar inquilino')
+    },
+  })
+
+  const deleteTenantMutation = useMutation({
+    mutationFn: (id: string) => usersAPI.deleteTenant(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tenants'] })
+      closeAllModals()
+      setTenantToDelete(null)
+      toast.success('Inquilino excluido com sucesso')
+    },
+    onError: (error: ApiError) => {
+      toast.error(error?.message || 'Erro ao excluir inquilino')
+    },
+  })
+
+  const handleNewTenantCEPData = useCallback((data: CEPData) => {
+    setNewTenant((prev: TenantFormData) => ({
+      ...prev,
+      address: data.logradouro || data.street || prev.address,
+      neighborhood: data.bairro || data.neighborhood || prev.neighborhood,
+      city: data.cidade || data.city || prev.city,
+      state: data.estado || data.state || prev.state,
+    }))
+  }, [])
+
+  const handleEditTenantCEPData = useCallback((data: CEPData) => {
+    setEditForm((prev: TenantFormData) => ({
+      ...prev,
+      address: data.logradouro || data.street || prev.address,
+      neighborhood: data.bairro || data.neighborhood || prev.neighborhood,
+      city: data.cidade || data.city || prev.city,
+      state: data.estado || data.state || prev.state,
+    }))
+  }, [])
+
+  // Early return check must come after all hooks
+  if (!canViewUsers) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-muted-foreground">Acesso Negado</h2>
+          <p className="text-muted-foreground">Voce nao tem permissao para visualizar inquilinos.</p>
+        </div>
+      </div>
+    )
   }
 
   const handleSearchAnalysis = async () => {
@@ -293,7 +455,7 @@ export function Tenants() {
       } else {
         setAnalysisError('Nenhuma análise encontrada para este documento. Realize uma análise no módulo "Análise de Inquilinos" primeiro.')
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error searching analysis:', error)
       setAnalysisError('Erro ao buscar análise. Tente novamente.')
     } finally {
@@ -412,78 +574,11 @@ export function Tenants() {
     setShowCreateModal(true)
   }
 
-  const handleViewContracts = (tenant: any) => {
+  const handleViewContracts = (tenant: Tenant) => {
     closeAllModals()
     setSelectedTenant(tenant)
     setShowContractsModal(true)
   }
-
-  const createTenantMutation = useMutation({
-    mutationFn: (data: any) => usersAPI.createTenant(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenants'] })
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
-      closeAllModals()
-      setNewTenant({
-        document: '', name: '', phone: '', email: '', password: '', birthDate: '',
-        cep: '', address: '', number: '', complement: '', neighborhood: '', city: '', state: '',
-        agencyId: '', brokerId: '', nationality: '', maritalStatus: '', profession: '', rg: '',
-        employerName: '', emergencyContactName: '', emergencyContactPhone: ''
-      })
-      toast.success('Inquilino criado com sucesso')
-    },
-    onError: (error: any) => {
-      let errorMessage = 'Erro ao criar inquilino'
-      const backendMessage = error.response?.data?.message || error.message
-      if (backendMessage) {
-        const message = backendMessage.toLowerCase()
-        if (message.includes('already exists')) {
-          errorMessage = 'Este usuario ja existe. Verifique o email ou documento.'
-        } else {
-          errorMessage = backendMessage
-        }
-      }
-
-      const isPlanLimitError = error?.response?.status === 403 ||
-        errorMessage.toLowerCase().includes('plano') ||
-        errorMessage.toLowerCase().includes('limite') ||
-        errorMessage.toLowerCase().includes('plan') ||
-        errorMessage.toLowerCase().includes('limit')
-
-      if (isPlanLimitError) {
-        setUpgradeErrorMessage(errorMessage || 'Você atingiu o limite do seu plano.')
-        setShowCreateModal(false)
-        setShowUpgradeModal(true)
-      } else {
-        toast.error(errorMessage)
-      }
-    },
-  })
-
-  const updateTenantMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string, data: any }) => usersAPI.updateTenant(id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenants'] })
-      closeAllModals()
-      toast.success('Inquilino atualizado com sucesso')
-    },
-    onError: (error: any) => {
-      toast.error(error.message || 'Erro ao atualizar inquilino')
-    },
-  })
-
-  const deleteTenantMutation = useMutation({
-    mutationFn: (id: string) => usersAPI.deleteTenant(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['tenants'] })
-      closeAllModals()
-      setTenantToDelete(null)
-      toast.success('Inquilino excluido com sucesso')
-    },
-    onError: (error: any) => {
-      toast.error(error?.message || 'Erro ao excluir inquilino')
-    },
-  })
 
   const handleCreateTenant = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -524,7 +619,7 @@ export function Tenants() {
         return
       }
       // Remove empty strings and convert to undefined for optional fields
-      const tenantToSend: any = {
+      const tenantToSend: TenantFormData = {
         email: newTenant.email.trim(),
         password: newTenant.password,
         name: newTenant.name.trim(),
@@ -583,27 +678,7 @@ export function Tenants() {
     }
   }
 
-  const handleNewTenantCEPData = useCallback((data: any) => {
-    setNewTenant((prev: any) => ({
-      ...prev,
-      address: data.logradouro || data.street || prev.address,
-      neighborhood: data.bairro || data.neighborhood || prev.neighborhood,
-      city: data.cidade || data.city || prev.city,
-      state: data.estado || data.state || prev.state,
-    }))
-  }, [])
-
-  const handleEditTenantCEPData = useCallback((data: any) => {
-    setEditForm((prev: any) => ({
-      ...prev,
-      address: data.logradouro || data.street || prev.address,
-      neighborhood: data.bairro || data.neighborhood || prev.neighborhood,
-      city: data.cidade || data.city || prev.city,
-      state: data.estado || data.state || prev.state,
-    }))
-  }, [])
-
-  const handleViewTenant = async (tenant: any) => {
+  const handleViewTenant = async (tenant: Tenant) => {
     closeAllModals()
     setSelectedTenant(tenant)
     setTenantDetail(null)
@@ -622,7 +697,7 @@ export function Tenants() {
     }
   }
 
-  const handleEditTenant = async (tenant: any) => {
+  const handleEditTenant = async (tenant: Tenant) => {
     closeAllModals()
     setEmailError('')
     setEmailVerified(true)
@@ -651,14 +726,14 @@ export function Tenants() {
         rg: fullTenantDetails.rg || '',
       })
       setShowEditModal(true)
-    } catch (error) {
+    } catch {
       toast.error('Erro ao carregar detalhes do inquilino')
     } finally {
       setLoadingEditId(null)
     }
   }
 
-  const handleDeleteTenant = (tenant: any) => {
+  const handleDeleteTenant = (tenant: Tenant) => {
     closeAllModals()
     setTenantToDelete(tenant)
   }
@@ -669,7 +744,7 @@ export function Tenants() {
     }
   }
 
-  const handleWhatsAppNotification = (tenant: any) => {
+  const handleWhatsAppNotification = (tenant: Tenant) => {
     closeAllModals()
     setSelectedTenant(tenant)
     setWhatsappMessage(`Ola ${tenant.name}! Este e um lembrete sobre seu aluguel.`)
@@ -901,7 +976,7 @@ export function Tenants() {
                     </tr>
                   </thead>
                   <tbody>
-                    {tenants.map((tenant: any) => (
+                    {tenants.map((tenant: Tenant) => (
                       <tr key={tenant.id} className="border-t border-border hover:bg-muted/30 transition-colors">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
@@ -997,7 +1072,7 @@ export function Tenants() {
               </div>
 
               <div className="md:hidden">
-                {tenants.map((tenant: any) => (
+                {tenants.map((tenant: Tenant) => (
                   <div key={tenant.id} className="border-b border-border last:border-b-0 p-4">
                     <div className="flex items-start justify-between mb-3 min-w-0 gap-2">
                       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -1076,7 +1151,7 @@ export function Tenants() {
             
             <div className="flex justify-center w-full">
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 w-full max-w-7xl px-2 items-stretch justify-center">
-                {tenants.map((tenant: any) => (
+                {tenants.map((tenant: Tenant) => (
                   <Card key={tenant.id} className="transition-all hover:shadow-md flex flex-col w-full max-w-[400px] mx-auto overflow-hidden">
                     <CardContent className="p-0 h-full flex flex-col overflow-hidden min-w-0">
                       <div className="flex h-full min-w-0">
@@ -1407,7 +1482,7 @@ export function Tenants() {
                       className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground"
                     >
                       <option value="">Selecione uma imobiliaria (opcional)</option>
-                      {agencies.map((agency: any) => (
+                      {agencies.map((agency: { id: string; name: string }) => (
                         <option key={agency.id} value={agency.id}>
                           {agency.name}
                         </option>
@@ -1431,7 +1506,7 @@ export function Tenants() {
                 <div>
                   <CEPInput
                     value={newTenant.cep}
-                    onChange={(v: string) => setNewTenant((prev: any) => ({ ...prev, cep: v }))}
+                    onChange={(v: string) => setNewTenant((prev: TenantFormData) => ({ ...prev, cep: v }))}
                     onCEPData={handleNewTenantCEPData}
                     placeholder="00000-000"
                   />
@@ -1747,7 +1822,7 @@ export function Tenants() {
                 <div>
                   <CEPInput
                     value={editForm.cep}
-                    onChange={(v: string) => setEditForm((prev: any) => ({ ...prev, cep: v }))}
+                    onChange={(v: string) => setEditForm((prev: TenantFormData) => ({ ...prev, cep: v }))}
                     onCEPData={handleEditTenantCEPData}
                     placeholder="00000-000"
                   />

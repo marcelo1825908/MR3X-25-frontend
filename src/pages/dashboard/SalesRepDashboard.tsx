@@ -261,7 +261,7 @@ export function SalesRepDashboard() {
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm text-muted-foreground">Pistas Capturadas</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Leads Capturados</p>
                 <p className="text-xl sm:text-2xl font-bold mt-1">{salesStats.leadsCaptured || salesStats.totalLeads || 0}</p>
                 <p className="text-xs text-muted-foreground mt-1 truncate">
                   {salesStats.newLeads || 0} novas
@@ -278,7 +278,7 @@ export function SalesRepDashboard() {
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm text-muted-foreground">Pistas Contatadas</p>
+                <p className="text-xs sm:text-sm text-muted-foreground">Leads Contatados</p>
                 <p className="text-xl sm:text-2xl font-bold mt-1">{salesStats.contactedLeads || 0}</p>
                 <p className="text-xs text-muted-foreground mt-1 truncate">
                   {salesStats.convertedLeads || 0} convertidas

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CheckCircle, XCircle } from 'lucide-react';
-import { validateDocument } from '@/lib/validation';
+import { validateDocument, formatDocumentInput } from '@/lib/validation';
 
 interface DocumentInputProps {
   value: string;
@@ -53,18 +53,8 @@ export function DocumentInput({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputValue = e.target.value;
-    const cleanValue = inputValue.replace(/\D/g, '');
-
-    if (cleanValue.length > 14) return;
-
-    let formatted = inputValue;
-    if (cleanValue.length <= 11) {
-      
-      formatted = cleanValue.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
-    } else {
-      
-      formatted = cleanValue.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5');
-    }
+    // Use formatDocumentInput from validation library which supports alphanumeric CNPJ
+    const formatted = formatDocumentInput(inputValue);
 
     setLocalValue(formatted);
     onChange(formatted);

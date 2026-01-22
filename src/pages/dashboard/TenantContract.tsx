@@ -352,7 +352,7 @@ export function TenantContract() {
       const token = previewToken || contractToRender?.contractToken || 'DRAFT';
       
       const contractContentHtml = contractPreview.split('\n').map((line) => {
-        const isSeparator = line.trim().match(/^[─═\-]{20,}$/);
+        const isSeparator = line.trim().match(/^[─═-]{20,}$/);
         if (isSeparator) {
           return '<hr class="border-t border-gray-400 w-full my-4" />';
         }
@@ -1521,7 +1521,7 @@ export function TenantContract() {
               <div className="prose prose-sm max-w-none bg-white p-4 sm:p-6 border rounded-lg">
                 <div className="text-sm leading-relaxed" style={{ wordBreak: 'normal', overflowWrap: 'normal', hyphens: 'none' }}>
                   {contractPreview.split('\n').map((line, index) => {
-                    const isSeparator = line.trim().match(/^[─═\-]{20,}$/);
+                    const isSeparator = line.trim().match(/^[─═-]{20,}$/);
                     if (isSeparator) {
                       return (
                         <div key={index} className="my-4">

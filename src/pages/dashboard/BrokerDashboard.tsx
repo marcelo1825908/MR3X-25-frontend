@@ -364,18 +364,18 @@ export function BrokerDashboard() {
           </CardHeader>
           <CardContent>
             {chartData.propertyStatusData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={350}>
                 <PieChart>
                   <Pie
                     data={chartData.propertyStatusData}
                     cx="50%"
-                    cy="45%"
-                    innerRadius={50}
-                    outerRadius={90}
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={100}
                     paddingAngle={3}
                     dataKey="value"
                     label={({ name, value }: { name?: string; value?: number; percent?: number }) => 
-                      `${name || ''}: ${value || 0}`
+                      value && value > 0 ? `${name || ''}: ${value}` : ''
                     }
                     labelLine={true}
                   >
@@ -389,8 +389,9 @@ export function BrokerDashboard() {
                   />
                   <Legend 
                     verticalAlign="bottom" 
-                    height={36}
+                    height={50}
                     formatter={(value) => value}
+                    wrapperStyle={{ paddingTop: '10px' }}
                   />
                 </PieChart>
               </ResponsiveContainer>

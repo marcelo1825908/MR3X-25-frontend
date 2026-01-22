@@ -20,7 +20,14 @@ import {
   AlertDialogTitle,
 } from '../../components/ui/alert-dialog';
 import {
-  User,UserCog, Mail, Phone, FileText, MapPin, Shield, Camera, Trash2, Lock, Save, Loader2, Building2, Award, Users, BadgeCheck
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog';
+import {
+  User,UserCog, Mail, Phone, FileText, MapPin, Shield, Camera, Trash2, Lock, Save, Loader2, Building2, Award, Users, BadgeCheck, Copy
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
@@ -69,6 +76,15 @@ export default function MyAccount() {
   });
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  // 2FA state
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [show2FASetup, setShow2FASetup] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [manualEntryKey, setManualEntryKey] = useState<string | null>(null);
+  const [verificationToken, setVerificationToken] = useState('');
+  const [backupCodes, setBackupCodes] = useState<string[]>([]);
+  const [showBackupCodes, setShowBackupCodes] = useState(false);
 
   const getPhotoUrl = (photoUrl: string | null | undefined) => {
     if (!photoUrl) return undefined;
@@ -107,6 +123,7 @@ export default function MyAccount() {
         representativeName: profile.agency?.representativeName || '',
         representativeDocument: profile.agency?.representativeDocument || '',
       });
+      setTwoFactorEnabled(profile.twoFactorEnabled || false);
     }
   }, [profile]);
 
@@ -158,6 +175,84 @@ export default function MyAccount() {
       toast.error(error?.response?.data?.message || 'Erro ao alterar senha');
     },
   });
+
+  // 2FA Mutations
+  const generate2FAMutation = useMutation({
+    mutationFn: profileAPI.generate2FA,
+    onSuccess: (data) => {
+      setQrCodeUrl(data.qrCodeUrl);
+      setManualEntryKey(data.manualEntryKey);
+      setShow2FASetup(true);
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Erro ao gerar código 2FA');
+    },
+  });
+
+  const verify2FAMutation = useMutation({
+    mutationFn: profileAPI.verify2FA,
+    onSuccess: (data) => {
+      setTwoFactorEnabled(true);
+      setShow2FASetup(false);
+      setQrCodeUrl(null);
+      setManualEntryKey(null);
+      setVerificationToken('');
+      setBackupCodes(data.backupCodes || []);
+      setShowBackupCodes(true);
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      toast.success('Autenticação de dois fatores ativada com sucesso!');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Código inválido. Tente novamente.');
+    },
+  });
+
+  const disable2FAMutation = useMutation({
+    mutationFn: profileAPI.disable2FA,
+    onSuccess: () => {
+      setTwoFactorEnabled(false);
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      toast.success('Autenticação de dois fatores desativada com sucesso!');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Erro ao desativar 2FA');
+    },
+  });
+
+  const regenerateBackupCodesMutation = useMutation({
+    mutationFn: profileAPI.regenerate2FABackupCodes,
+    onSuccess: (data) => {
+      setBackupCodes(data.backupCodes || []);
+      setShowBackupCodes(true);
+      toast.success('Códigos de backup regenerados com sucesso!');
+    },
+    onError: (error: any) => {
+      toast.error(error?.response?.data?.message || 'Erro ao regenerar códigos de backup');
+    },
+  });
+
+  // 2FA Handlers
+  const handleGenerate2FA = () => {
+    generate2FAMutation.mutate();
+  };
+
+  const handleVerify2FA = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (verificationToken.length === 6) {
+      verify2FAMutation.mutate(verificationToken);
+    }
+  };
+
+  const handleDisable2FA = () => {
+    if (confirm('Tem certeza que deseja desativar a autenticação de dois fatores?')) {
+      disable2FAMutation.mutate();
+    }
+  };
+
+  const handleCopyBackupCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    toast.success('Código copiado!');
+  };
 
   const handleProfileSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -310,7 +405,6 @@ export default function MyAccount() {
   const showCreci = ['BROKER', 'AGENCY_ADMIN'].includes(user?.role || '');
   const showAgencyInfo = user?.role === 'AGENCY_ADMIN' && profile?.agency;
   const showAddressSection = (user?.role || '') !== 'ADMIN';
-  const isRepresentative = user?.role === 'REPRESENTATIVE';
 
   return (
     <div className="space-y-6">
@@ -727,65 +821,214 @@ export default function MyAccount() {
                   </div>
                 </form>
 
-                {/* Two-Factor Authentication Section for Representatives */}
-                {isRepresentative && (
-                  <>
-                    <Separator className="my-6" />
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="text-lg font-semibold flex items-center gap-2">
-                            <Shield className="h-5 w-5" />
-                            Autenticação de Dois Fatores (2FA)
-                          </h3>
-                          <p className="text-sm text-muted-foreground mt-1">
-                            Adicione uma camada extra de segurança à sua conta
-                          </p>
-                        </div>
-                        <Badge className={'bg-gray-100 text-gray-800'}>
-                          Desativado
-                        </Badge>
-                      </div>
+                {/* Two-Factor Authentication Section - Available for all users */}
+                <Separator className="my-6" />
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-lg font-semibold flex items-center gap-2">
+                        <Shield className="h-5 w-5" />
+                        Autenticação de Dois Fatores (2FA)
+                      </h3>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Adicione uma camada extra de segurança à sua conta
+                      </p>
+                    </div>
+                    <Badge className={twoFactorEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                      {twoFactorEnabled ? 'Ativado' : 'Desativado'}
+                    </Badge>
+                  </div>
 
-                      {true ? (
-                        <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
-                          <p className="text-sm text-muted-foreground">
-                            A autenticação de dois fatores (2FA) é obrigatória para representantes comerciais.
-                            Isso protege sua conta mesmo se sua senha for comprometida.
-                          </p>
-                          <Button
-                            type="button"
-                            onClick={() => {
-                              // TODO: Implement 2FA setup
-                              toast.info('Configuração de 2FA será implementada em breve');
-                            }}
-                            className="w-full sm:w-auto"
-                          >
+                  {!twoFactorEnabled ? (
+                    <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
+                      <p className="text-sm text-muted-foreground">
+                        A autenticação de dois fatores (2FA) protege sua conta mesmo se sua senha for comprometida.
+                        Você precisará de um aplicativo autenticador (Google Authenticator, Authy, etc.).
+                      </p>
+                      <Button
+                        type="button"
+                        onClick={handleGenerate2FA}
+                        disabled={generate2FAMutation.isPending}
+                        className="w-full sm:w-auto"
+                      >
+                        {generate2FAMutation.isPending ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Gerando...
+                          </>
+                        ) : (
+                          <>
                             <Shield className="h-4 w-4 mr-2" />
                             Configurar 2FA
-                          </Button>
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 p-4 border rounded-lg bg-green-50">
+                      <p className="text-sm text-green-800">
+                        ✓ Autenticação de dois fatores está ativada
+                      </p>
+                      <div className="flex gap-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={handleDisable2FA}
+                          disabled={disable2FAMutation.isPending}
+                          className="w-full sm:w-auto"
+                        >
+                          {disable2FAMutation.isPending ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Desativando...
+                            </>
+                          ) : (
+                            'Desativar 2FA'
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => regenerateBackupCodesMutation.mutate()}
+                          disabled={regenerateBackupCodesMutation.isPending}
+                          className="w-full sm:w-auto"
+                        >
+                          {regenerateBackupCodesMutation.isPending ? (
+                            <>
+                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                              Regenerando...
+                            </>
+                          ) : (
+                            'Regenerar Códigos de Backup'
+                          )}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* 2FA Setup Dialog */}
+                <Dialog open={show2FASetup} onOpenChange={setShow2FASetup}>
+                  <DialogContent className="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Configurar Autenticação de Dois Fatores</DialogTitle>
+                      <DialogDescription>
+                        Escaneie o QR code com seu aplicativo autenticador ou insira a chave manualmente
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      {qrCodeUrl && (
+                        <div className="flex justify-center">
+                          <img src={qrCodeUrl} alt="QR Code" className="w-48 h-48" />
                         </div>
-                      ) : (
-                        <div className="space-y-4 p-4 border rounded-lg bg-green-50">
-                          <p className="text-sm text-green-800">
-                            ✓ Autenticação de dois fatores está ativada
-                          </p>
+                      )}
+                      {manualEntryKey && (
+                        <div className="space-y-2">
+                          <Label>Chave Manual (se não conseguir escanear)</Label>
+                          <div className="flex gap-2">
+                            <Input value={manualEntryKey} readOnly className="font-mono" />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              onClick={() => {
+                                navigator.clipboard.writeText(manualEntryKey);
+                                toast.success('Chave copiada!');
+                              }}
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      <form onSubmit={handleVerify2FA} className="space-y-4">
+                        <div className="space-y-2">
+                          <Label>Digite o código de 6 dígitos do seu aplicativo</Label>
+                          <Input
+                            value={verificationToken}
+                            onChange={(e) => setVerificationToken(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            placeholder="000000"
+                            maxLength={6}
+                            className="text-center text-2xl font-mono tracking-widest"
+                          />
+                        </div>
+                        <div className="flex gap-2">
                           <Button
                             type="button"
                             variant="outline"
                             onClick={() => {
-                              // TODO: Implement 2FA disable
-                              toast.info('Desativação de 2FA será implementada em breve');
+                              setShow2FASetup(false);
+                              setQrCodeUrl(null);
+                              setManualEntryKey(null);
+                              setVerificationToken('');
                             }}
-                            className="w-full sm:w-auto"
+                            className="flex-1"
                           >
-                            Desativar 2FA
+                            Cancelar
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={verificationToken.length !== 6 || verify2FAMutation.isPending}
+                            className="flex-1"
+                          >
+                            {verify2FAMutation.isPending ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Verificando...
+                              </>
+                            ) : (
+                              'Verificar e Ativar'
+                            )}
                           </Button>
                         </div>
-                      )}
+                      </form>
                     </div>
-                  </>
-                )}
+                  </DialogContent>
+                </Dialog>
+
+                {/* Backup Codes Dialog */}
+                <Dialog open={showBackupCodes} onOpenChange={setShowBackupCodes}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Códigos de Backup</DialogTitle>
+                      <DialogDescription>
+                        Guarde estes códigos em um local seguro. Eles podem ser usados para acessar sua conta se você perder acesso ao seu aplicativo autenticador.
+                        Cada código só pode ser usado uma vez.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-2 gap-2 p-4 bg-gray-50 rounded-lg">
+                        {backupCodes.map((code, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-2 bg-white rounded border font-mono text-sm"
+                          >
+                            <span>{code}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6"
+                              onClick={() => handleCopyBackupCode(code)}
+                            >
+                              <Copy className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setShowBackupCodes(false);
+                          setBackupCodes([]);
+                        }}
+                        className="w-full"
+                      >
+                        Fechar
+                      </Button>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </TabsContent>
             </Tabs>
           </CardContent>

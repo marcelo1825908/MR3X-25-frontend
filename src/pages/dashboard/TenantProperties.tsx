@@ -38,17 +38,62 @@ import {
 
 const API_URL = import.meta.env.VITE_API_URL;
 
+interface Property {
+  id: string;
+  tenantId?: string;
+  name?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  status?: string;
+  rentValue?: number;
+  [key: string]: unknown;
+}
+
+interface PropertyDocument {
+  id: string;
+  type?: string;
+  name?: string;
+  url?: string;
+  [key: string]: unknown;
+}
+
+interface PropertyImage {
+  id: string;
+  isPrimary?: boolean;
+  [key: string]: unknown;
+}
+
+interface Contract {
+  id: string;
+  propertyId?: string;
+  property?: { id: string };
+  [key: string]: unknown;
+}
+
+interface Inspection {
+  id: string;
+  propertyId?: string;
+  [key: string]: unknown;
+}
+
+interface Notification {
+  id: string;
+  propertyId?: string;
+  [key: string]: unknown;
+}
+
 export function TenantProperties() {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
-  const [selectedProperty, setSelectedProperty] = useState<any>(null);
-  const [propertyDetail, setPropertyDetail] = useState<any>(null);
+  const [selectedProperty, setSelectedProperty] = useState<Property | null>(null);
+  const [propertyDetail, setPropertyDetail] = useState<Property | null>(null);
   const [propertyDetailLoading, setPropertyDetailLoading] = useState(false);
   const [documentsLoading, setDocumentsLoading] = useState(false);
-  const [documents, setDocuments] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<PropertyDocument[]>([]);
   const [imageRefreshTrigger, setImageRefreshTrigger] = useState(0);
 
   const handleSearch = useCallback(() => {
@@ -67,7 +112,7 @@ export function TenantProperties() {
       const allProperties = await propertiesAPI.getProperties(searchQuery ? { search: searchQuery } : undefined);
       const propertiesArray = Array.isArray(allProperties) ? allProperties : (allProperties?.data || []);
       // Filter to show only properties linked to this tenant
-      return propertiesArray.filter((p: any) => 
+      return propertiesArray.filter((p: Property) => 
         p.tenantId === user?.id || String(p.tenantId) === String(user?.id)
       );
     },
@@ -108,7 +153,7 @@ export function TenantProperties() {
     useEffect(() => {
       setErrored(false);
       setLoading(true);
-    }, [propertyId, imageRefreshTrigger]);
+    }, [propertyId]);
 
     // Use public endpoint directly - it returns primary image if no imageId is specified
     const imageUrl = `${API_URL}/properties/${propertyId}/image/public?t=${imageRefreshTrigger}&_=${Date.now()}`;
@@ -144,7 +189,7 @@ export function TenantProperties() {
   };
 
   const PropertyImagesCarousel = ({ propertyId, propertyName, refreshTrigger }: { propertyId: string, propertyName?: string, refreshTrigger?: number }) => {
-    const [images, setImages] = useState<any[]>([]);
+    const [images, setImages] = useState<PropertyImage[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [errored, setErrored] = useState(false);
@@ -169,9 +214,10 @@ export function TenantProperties() {
           try {
             const data = await propertiesAPI.getPropertyImages(propertyId);
             setImages(Array.isArray(data) ? data : []);
-          } catch (err: any) {
+          } catch (err) {
+            const error = err as { response?: { status?: number } };
             // If 403 or permission error, use public endpoint for primary image only
-            if (err?.response?.status === 403 || err?.response?.status === 401) {
+            if (error?.response?.status === 403 || error?.response?.status === 401) {
               // Use public endpoint - it will return primary image
               setImages([{ id: 'primary', isPrimary: true }]);
             } else {
@@ -192,7 +238,7 @@ export function TenantProperties() {
       if (propertyId) {
         fetchImages();
       }
-    }, [propertyId, refreshTrigger, user?.role]);
+    }, [propertyId, refreshTrigger, user]);
 
     const nextImage = () => {
       setCurrentIndex((prev) => (prev + 1) % images.length);
@@ -306,7 +352,7 @@ export function TenantProperties() {
     );
   };
 
-  const handleViewProperty = async (property: any) => {
+  const handleViewProperty = async (property: Property) => {
     setSelectedProperty(property);
     setPropertyDetailLoading(true);
     setPropertyDetail(null);
@@ -324,7 +370,7 @@ export function TenantProperties() {
     }
   };
 
-  const handleViewDocuments = async (property: any) => {
+  const handleViewDocuments = async (property: Property) => {
     setSelectedProperty(property);
     setDocumentsLoading(true);
     setShowDocumentsModal(true);
@@ -333,7 +379,7 @@ export function TenantProperties() {
     try {
       const [contracts, inspections, notificationsResponse] = await Promise.all([
         contractsAPI.getContracts().then(contracts => 
-          Array.isArray(contracts) ? contracts.filter((c: any) => c.propertyId === property.id || c.property?.id === property.id) : []
+          Array.isArray(contracts) ? contracts.filter((c: Contract) => c.propertyId === property.id || c.property?.id === property.id) : []
         ).catch(() => []),
         inspectionsAPI.getInspections({ propertyId: property.id }).then(result => 
           Array.isArray(result) ? result : (result?.data || result?.items || [])
@@ -351,21 +397,21 @@ export function TenantProperties() {
       const notificationsArray = Array.isArray(notificationsResponse) ? notificationsResponse : [];
 
       const allDocuments = [
-        ...contractsArray.map((c: any) => ({
+        ...contractsArray.map((c: Contract) => ({
           id: c.id,
           name: `Contrato - ${c.property?.name || property.name || 'Imóvel'}`,
           type: 'CONTRACT',
           date: c.createdAt || c.contractDate,
           pdfUrl: c.provisionalPdfUrl || c.finalPdfUrl,
         })),
-        ...inspectionsArray.map((i: any) => ({
+        ...inspectionsArray.map((i: Inspection) => ({
           id: i.id,
           name: `Vistoria - ${i.property?.name || property.name || 'Imóvel'}`,
           type: 'INSPECTION',
           date: i.createdAt || i.inspectionDate,
           pdfUrl: i.pdfUrl,
         })),
-        ...notificationsArray.map((n: any) => ({
+        ...notificationsArray.map((n: Notification) => ({
           id: n.id,
           name: `Notificação Extrajudicial - ${n.property?.name || property.name || 'Imóvel'}`,
           type: 'NOTIFICATION',
@@ -483,7 +529,7 @@ export function TenantProperties() {
         <div className="flex justify-center w-full">
           <div className="grid grid-cols-[repeat(auto-fit,minmax(400px,1fr))] gap-6 w-full max-w-7xl px-2 items-stretch justify-center">
             {properties && properties.length > 0 ? (
-              properties.map((property: any) => (
+              properties.map((property: Property) => (
                 <Card key={property.id} className="transition-all hover:shadow-md flex flex-col w-[400px] mx-auto overflow-hidden">
                   <CardContent className="p-0 h-full flex flex-col overflow-hidden min-w-0">
                     <div className="flex h-full min-w-0">

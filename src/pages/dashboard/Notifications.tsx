@@ -221,6 +221,7 @@ export function Notifications() {
         return 'Notificação Extrajudicial'
       case 'CONTRACT':
         if (type === 'contract_signature_pending') return 'Assinatura Pendente'
+        if (type === 'contract_status_changed') return 'Status Alterado'
         return 'Contrato'
       case 'AGREEMENT':
         if (type === 'agreement_signature_pending') return 'Assinatura Pendente'
@@ -252,6 +253,22 @@ export function Notifications() {
             return 'Sucesso'
           case 'ERROR':
             return 'Erro'
+          case 'property_created':
+            return 'Imóvel Criado'
+          case 'property_status_changed':
+            return 'Status Alterado'
+          case 'tenant_assigned':
+            return 'Inquilino Atribuído'
+          case 'tenant_removed':
+            return 'Inquilino Removido'
+          case 'contract_status_changed':
+            return 'Status do Contrato'
+          case 'payment_created':
+            return 'Pagamento Criado'
+          case 'payment_updated':
+            return 'Pagamento Atualizado'
+          case 'billing_cycle_closed':
+            return 'Ciclo Fechado'
           default:
             return type || 'Notificação'
         }

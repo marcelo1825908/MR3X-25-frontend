@@ -259,7 +259,7 @@ export function SalesLeads() {
       queryClient.invalidateQueries({ queryKey: ['sales-leads'] });
       queryClient.invalidateQueries({ queryKey: ['sales-leads-kpis'] });
       setShowAddModal(false);
-      toast.success('Pista criada com sucesso!');
+      toast.success('Lead criado com sucesso!');
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message || 'Erro ao criar pista');
@@ -277,7 +277,7 @@ export function SalesLeads() {
       queryClient.invalidateQueries({ queryKey: ['sales-leads-kpis'] });
       setShowEditModal(false);
       setSelectedLead(null);
-      toast.success('Pista atualizada com sucesso!');
+      toast.success('Lead atualizado com sucesso!');
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message || 'Erro ao atualizar pista');
@@ -287,7 +287,7 @@ export function SalesLeads() {
   // Convert lead to agency mutation
   const convertLeadMutation = useMutation({
     mutationFn: async ({ id, planType }: { id: string; planType: string }) => {
-      const response = await apiClient.post(`/sales-rep/prospects/${id}/convert`, { planType });
+      const response = await apiClient.post(`/sales-rep/leads/${id}/convert-to-agency`, { planType });
       return response.data;
     },
     onSuccess: () => {
@@ -295,7 +295,7 @@ export function SalesLeads() {
       queryClient.invalidateQueries({ queryKey: ['sales-leads-kpis'] });
       setShowConvertModal(false);
       setSelectedLead(null);
-      toast.success('Pista convertida para agência com sucesso!');
+      toast.success('Lead convertido para agência com sucesso!');
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message || 'Erro ao converter pista');
@@ -313,7 +313,7 @@ export function SalesLeads() {
       queryClient.invalidateQueries({ queryKey: ['sales-leads-kpis'] });
       setShowDeleteModal(false);
       setSelectedLead(null);
-      toast.success('Pista excluída com sucesso!');
+      toast.success('Lead excluído com sucesso!');
     },
     onError: (error: any) => {
       toast.error(error?.response?.data?.message || 'Erro ao excluir pista');
@@ -541,10 +541,10 @@ export function SalesLeads() {
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
             <Target className="w-7 h-7 text-primary" />
-            <h1 className="text-2xl font-bold">Pistas</h1>
+            <h1 className="text-2xl font-bold">Captação de Leads</h1>
           </div>
           <p className="text-muted-foreground">
-            Gerencie pistas comerciais de agências e corretores independentes
+            Gerencie leads comerciais de agências e corretores independentes
           </p>
         </div>
         <Button
@@ -552,7 +552,7 @@ export function SalesLeads() {
           className="flex items-center gap-2 w-full sm:w-auto"
         >
           <Plus className="w-4 h-4" />
-          Nova Pista
+          Novo Lead
         </Button>
       </div>
 
@@ -561,13 +561,13 @@ export function SalesLeads() {
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
           <Card>
             <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Total de Pistas</p>
+              <p className="text-sm text-muted-foreground">Total de Leads</p>
               <p className="text-2xl font-bold">{kpis.totalLeads}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Pistas Ativas</p>
+              <p className="text-sm text-muted-foreground">Leads Ativos</p>
               <p className="text-2xl font-bold text-blue-600">{kpis.activeLeads}</p>
             </CardContent>
           </Card>
@@ -720,7 +720,7 @@ export function SalesLeads() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Building2 className="w-5 h-5" />
-            Pistas ({filteredLeads.length})
+            Leads ({filteredLeads.length})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -896,7 +896,7 @@ export function SalesLeads() {
           {filteredLeads.length === 0 && (
             <div className="text-center py-12">
               <Target className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">Nenhuma pista encontrada</p>
+              <p className="text-muted-foreground">Nenhum lead encontrado</p>
             </div>
           )}
         </CardContent>
@@ -912,7 +912,7 @@ export function SalesLeads() {
             className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-bold mb-4">Nova Pista</h2>
+            <h2 className="text-xl font-bold mb-4">Novo Lead</h2>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -1091,7 +1091,7 @@ export function SalesLeads() {
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={createLeadMutation.isPending || checkingEmail || !emailVerified || (formContactPhone ? !phoneVerified : false)}>
-                  {createLeadMutation.isPending ? 'Salvando...' : 'Criar Pista'}
+                  {createLeadMutation.isPending ? 'Salvando...' : 'Criar Lead'}
                 </Button>
               </div>
             </form>
@@ -1112,7 +1112,7 @@ export function SalesLeads() {
             className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-bold mb-4">Editar Pista</h2>
+            <h2 className="text-xl font-bold mb-4">Editar Lead</h2>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -1332,7 +1332,7 @@ export function SalesLeads() {
             className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-bold mb-4">Detalhes da Pista</h2>
+            <h2 className="text-xl font-bold mb-4">Detalhes do Lead</h2>
 
             {/* Header info with status and origem (no titles) */}
             <div className="flex flex-col sm:flex-row justify-between items-start gap-3 mb-4 pb-4 border-b">
@@ -1553,7 +1553,7 @@ export function SalesLeads() {
                 <Trash2 className="w-6 h-6 text-red-600" />
               </div>
               <div>
-                <h2 className="text-xl font-bold">Excluir Pista</h2>
+                <h2 className="text-xl font-bold">Excluir Lead</h2>
                 <p className="text-sm text-muted-foreground mt-1">
                   Esta ação não pode ser desfeita
                 </p>
@@ -1562,7 +1562,7 @@ export function SalesLeads() {
 
             <div className="mb-6">
               <p className="text-sm text-gray-700">
-                Tem certeza que deseja excluir a pista <strong>"{selectedLead.companyName}"</strong>?
+                Tem certeza que deseja excluir o lead <strong>"{selectedLead.companyName}"</strong>?
               </p>
               <p className="text-xs text-muted-foreground mt-2">
                 Todos os dados relacionados a esta pista serão permanentemente removidos.
@@ -1587,7 +1587,7 @@ export function SalesLeads() {
                 disabled={deleteLeadMutation.isPending}
                 className="bg-red-600 hover:bg-red-700 text-white"
               >
-                {deleteLeadMutation.isPending ? 'Excluindo...' : 'Excluir Pista'}
+                {deleteLeadMutation.isPending ? 'Excluindo...' : 'Excluir Lead'}
               </Button>
             </div>
           </div>

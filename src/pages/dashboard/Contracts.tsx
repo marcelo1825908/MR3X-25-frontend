@@ -1365,7 +1365,8 @@ export function Contracts() {
     };
 
     for (const [key, value] of Object.entries(replacements)) {
-      content = content.replace(new RegExp(`\\[${key}\\]`, 'g'), value || '');
+      const pattern = `[${key}]`;
+      content = content.replace(new RegExp(pattern.replace(/[\[\]]/g, '\\$&'), 'g'), value || '');
     }
 
     setPreviewToken(contractData.contractToken || '');
@@ -2017,7 +2018,8 @@ export function Contracts() {
     }
 
     for (const [key, value] of Object.entries(replacements)) {
-      content = content.replace(new RegExp(`\\[${key}\\]`, 'g'), value || '');
+      const pattern = `[${key}]`;
+      content = content.replace(new RegExp(pattern.replace(/[\[\]]/g, '\\$&'), 'g'), value || '');
     }
 
     const token = generatePreviewToken(newContract.templateType || 'CTR');
@@ -3855,7 +3857,7 @@ export function Contracts() {
                   ) : (
                     <div className="text-sm leading-relaxed" style={{ wordBreak: 'normal', overflowWrap: 'normal', hyphens: 'none' }}>
                       {previewContent.split('\n').map((line, index) => {
-                        const isSeparator = line.trim().match(/^[─═\-]{20,}$/);
+                        const isSeparator = line.trim().match(/^[─═-]{20,}$/);
                         if (isSeparator) {
                           return (
                             <div key={index} className="my-4">

@@ -252,13 +252,6 @@ const getStatusIcon = (status: string) => {
   }
 };
 
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: 'BRL',
-  }).format(value);
-};
-
 const formatDate = (date: string) => {
   return new Date(date).toLocaleDateString('pt-BR', {
     day: '2-digit',
@@ -548,7 +541,7 @@ const AnalysisDetailModal = ({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 mb-4">
                 <div>
                   <p className="text-xs sm:text-sm text-muted-foreground flex items-center">
                     Score de Crédito
@@ -562,36 +555,53 @@ const AnalysisDetailModal = ({
                 </div>
                 <div>
                   <p className="text-xs sm:text-sm text-muted-foreground flex items-center">
-                    Dívidas Totais
+                    Possui Dívidas?
                     <LgpdTooltip
-                      field="Dívidas Totais"
+                      field="Dívidas"
                       basis="Art. 7º, V - Execução de contrato"
-                      description="Informação financeira necessária para análise de risco de inadimplência."
+                      description="Indicação se há dívidas registradas para avaliação de risco de inadimplência."
                     />
                   </p>
-                  <p className="text-sm sm:text-2xl font-bold">{formatCurrency(analysis.financial.totalDebts)}</p>
+                  <Badge 
+                    variant={analysis.financial.totalDebts > 0 || analysis.financial.activeDebts > 0 ? 'destructive' : 'default'}
+                    className="text-sm sm:text-base px-3 py-1"
+                  >
+                    {analysis.financial.totalDebts > 0 || analysis.financial.activeDebts > 0 ? 'Sim' : 'Não'}
+                  </Badge>
                 </div>
                 <div>
                   <p className="text-xs sm:text-sm text-muted-foreground flex items-center">
-                    Dívidas Ativas
+                    Registros Negativos
                     <LgpdTooltip
-                      field="Dívidas Ativas"
+                      field="Registros Negativos"
                       basis="Art. 7º, V - Execução de contrato"
-                      description="Quantidade de dívidas em aberto para avaliação de risco."
+                      description="Indicação se há registros negativos em órgãos de proteção ao crédito."
                     />
                   </p>
-                  <p className="text-lg sm:text-2xl font-bold">{analysis.financial.activeDebts}</p>
+                  <Badge 
+                    variant={analysis.financial.hasNegativeRecords ? 'destructive' : 'default'}
+                    className="text-sm sm:text-base px-3 py-1"
+                  >
+                    {analysis.financial.hasNegativeRecords ? 'Sim' : 'Não'}
+                  </Badge>
                 </div>
               </div>
+              {(analysis.financial.totalDebts > 0 || analysis.financial.activeDebts > 0) && (
+                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-xs sm:text-sm text-yellow-800">
+                    <strong>Atenção:</strong> Foram identificadas dívidas registradas. Esta informação é apenas indicativa e não representa valores específicos.
+                  </p>
+                </div>
+              )}
               {analysis.financial.debtDetails.length > 0 && (
                 <div>
-                  <p className="text-xs sm:text-sm font-medium mb-2">Detalhes das Dívidas:</p>
+                  <p className="text-xs sm:text-sm font-medium mb-2">Detalhes das Dívidas (sem valores):</p>
                   <div className="hidden sm:block">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Credor</TableHead>
-                          <TableHead>Valor</TableHead>
+                          <TableHead>Status</TableHead>
                           <TableHead>Dias em Atraso</TableHead>
                         </TableRow>
                       </TableHeader>
@@ -599,8 +609,12 @@ const AnalysisDetailModal = ({
                         {analysis.financial.debtDetails.map((debt, i) => (
                           <TableRow key={i}>
                             <TableCell>{debt.creditor}</TableCell>
-                            <TableCell>{formatCurrency(debt.amount)}</TableCell>
-                            <TableCell>{debt.daysOverdue} dias</TableCell>
+                            <TableCell>
+                              <Badge variant={debt.daysOverdue > 0 ? 'destructive' : 'default'}>
+                                {debt.daysOverdue > 0 ? 'Em Atraso' : 'Regular'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{debt.daysOverdue > 0 ? `${debt.daysOverdue} dias` : '-'}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
@@ -611,8 +625,10 @@ const AnalysisDetailModal = ({
                       <div key={i} className="p-2 border rounded text-xs">
                         <p className="font-medium truncate">{debt.creditor}</p>
                         <div className="flex justify-between mt-1">
-                          <span>{formatCurrency(debt.amount)}</span>
-                          <span className="text-muted-foreground">{debt.daysOverdue} dias</span>
+                          <Badge variant={debt.daysOverdue > 0 ? 'destructive' : 'default'} className="text-xs">
+                            {debt.daysOverdue > 0 ? 'Em Atraso' : 'Regular'}
+                          </Badge>
+                          <span className="text-muted-foreground">{debt.daysOverdue > 0 ? `${debt.daysOverdue} dias` : '-'}</span>
                         </div>
                       </div>
                     ))}
@@ -680,11 +696,14 @@ const AnalysisDetailModal = ({
                   <div className="flex items-center justify-between mb-3">
                     <p className="text-sm font-medium flex items-center gap-2">
                       <FileText className="w-4 h-4 text-orange-600" />
-                      Protestos ({analysis.background.protestRecords.length})
+                      Protestos em Cartório ({analysis.background.protestRecords.length})
                     </p>
-                    <p className="text-lg font-bold text-orange-600">
-                      Total: {formatCurrency(analysis.background.totalProtestValue)}
-                    </p>
+                    <Badge variant="destructive" className="text-sm">
+                      Há Protestos Registrados
+                    </Badge>
+                  </div>
+                  <div className="mb-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
+                    <strong>Atenção:</strong> Foram identificados protestos em cartório. Esta informação é apenas indicativa e não representa valores específicos.
                   </div>
                   {analysis.background.infoSimplesData && (
                     <div className="mb-3 p-2 bg-blue-50 rounded text-xs text-blue-700">
@@ -733,9 +752,8 @@ const AnalysisDetailModal = ({
                             )}
                           </div>
                           <div className="text-right">
-                            <p className="font-bold text-orange-700">{formatCurrency(protest.amount)}</p>
                             {protest.source && (
-                              <Badge variant="outline" className="text-xs mt-1">
+                              <Badge variant="outline" className="text-xs">
                                 {protest.source === 'INFOSIMPLES_CENPROT_SP' ? 'CENPROT-SP' : protest.source}
                               </Badge>
                             )}
@@ -1353,3 +1371,4 @@ export function TenantAnalysis() {
 }
 
 export default TenantAnalysis;
+

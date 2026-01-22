@@ -91,6 +91,8 @@ import Communications from './pages/dashboard/Communications';
 import Documents from './pages/dashboard/Documents';
 import { CEOPayments } from './pages/dashboard/CEOPayments';
 import { PricingPage } from './pages/public/PricingPage';
+import { TermsPage } from './pages/public/TermsPage';
+import { TermsOfUsePage } from './pages/public/TermsOfUsePage';
 import { SubscriptionPage } from './pages/dashboard/SubscriptionPage';
 import { SplitConfiguration } from './pages/dashboard/SplitConfiguration';
 import './index.css';
@@ -146,7 +148,9 @@ function App() {
             <Route path="/auth/register" element={<Register />} />
             <Route path="/forgot-password" element={<PlaceholderPage title="Recuperar Senha" />} />
             <Route path="/reset-password" element={<PlaceholderPage title="Redefinir Senha" />} />
-            <Route path="/terms" element={<PlaceholderPage title="Termos de Uso" />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<TermsPage />} />
+            <Route path="/terms-of-use" element={<TermsOfUsePage />} />
             <Route path="/pricing" element={<PricingPage />} />
 
             {}

@@ -51,7 +51,7 @@ export function validatePasswordStrength(password: string): {
     uppercase: /[A-Z]/.test(password),
     lowercase: /[a-z]/.test(password),
     number: /[0-9]/.test(password),
-    special: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password),
+    special: /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(password),
   };
 
   if (!checks.length) errors.push('Mínimo 8 caracteres');

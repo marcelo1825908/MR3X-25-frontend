@@ -115,7 +115,7 @@ const statusOptions = [
   { value: 'RESOLVIDO', label: 'Resolvido', color: 'bg-green-500' },
   { value: 'REJEITADO', label: 'Rejeitado', color: 'bg-red-500' },
   { value: 'PRAZO_EXPIRADO', label: 'Prazo Expirado', color: 'bg-orange-500' },
-  { value: 'ENCAMINHADO_JUDICIAL', label: 'Encaminhado para Medidas Judiciais', color: 'bg-red-700' },
+  { value: 'ENCAMINHADO_JUDICIAL', label: 'Protocolo de Ação Judicial', color: 'bg-red-700' },
   { value: 'CANCELADO', label: 'Cancelado', color: 'bg-gray-700' },
 ];
 
@@ -646,12 +646,12 @@ export default function ExtrajudicialNotifications() {
     try {
       setSaving(true);
       await extrajudicialNotificationsAPI.forwardToJudicial(selectedNotification.id, judicialData);
-      toast.success('Notificacao encaminhada ao judicial com sucesso!');
+      toast.success('Protocolo de acao judicial registrado com sucesso!');
       setShowJudicialModal(false);
       loadData();
     } catch (error) {
       console.error('Error forwarding to judicial:', error);
-      toast.error('Erro ao encaminhar ao judicial');
+      toast.error('Erro ao protocolizar acao judicial');
     } finally {
       setSaving(false);
     }
@@ -1973,10 +1973,10 @@ export default function ExtrajudicialNotifications() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Gavel className="h-4 w-4 sm:h-5 sm:w-5" />
-              Encaminhar para Medidas Judiciais
+              Protocolo de Ação Judicial
             </DialogTitle>
             <DialogDescription className="text-xs sm:text-sm">
-              Esta notificacao sera marcada como "Encaminhada para Medidas Judiciais", indicando que o credor podera utilizar este documento para suportar o ajuizamento de acao judicial. Este documento nao constitui uma decisao judicial e nao substitui o ajuizamento formal de uma acao.
+              Esta notificacao sera marcada como "Protocolo de Acao Judicial", indicando que o advogado podera utilizar este documento para protocolo pessoal ou digital da acao de despejo. Este documento nao constitui uma decisao judicial e nao substitui o protocolo formal de uma acao.
             </DialogDescription>
           </DialogHeader>
 
@@ -2016,7 +2016,7 @@ export default function ExtrajudicialNotifications() {
             </Button>
             <Button onClick={handleForwardToJudicial} disabled={saving} variant="destructive" className="w-full sm:w-auto order-1 sm:order-2">
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Encaminhar
+              Protocolar Ação Judicial
             </Button>
           </DialogFooter>
         </DialogContent>

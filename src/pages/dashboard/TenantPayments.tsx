@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { dashboardAPI } from '../../api';
+import { dashboardAPI, invoicesAPI } from '../../api';
 import { formatCurrency } from '../../lib/utils';
 import {
   DollarSign, Calendar, Download, CheckCircle, Clock,
@@ -11,6 +11,33 @@ import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
+
+interface Payment {
+  id?: string;
+  date?: string;
+  amount?: number | string;
+  type?: string;
+  status?: string;
+}
+
+interface Invoice {
+  id: string;
+  status?: string;
+  paidAt?: string;
+  dueDate?: string;
+  paidValue?: number;
+  originalValue?: number;
+}
+
+interface Receipt {
+  id: string;
+  invoiceNumber?: string;
+  referenceMonth?: string;
+  paidAt?: string;
+  paidValue?: number;
+  paymentMethod?: string;
+  receiptUrl?: string;
+}
 
 export function TenantPayments() {
   const { user } = useAuth();
@@ -31,7 +58,7 @@ export function TenantPayments() {
   const property = dashboard?.property;
   const paymentHistory = dashboard?.paymentHistory || [];
 
-  const totalPaid = paymentHistory.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+  const totalPaid = paymentHistory.reduce((sum: number, p: Payment) => sum + (Number(p.amount) || 0), 0);
   const paymentsCount = paymentHistory.length;
 
   const getPaymentStatus = () => {
@@ -51,13 +78,46 @@ export function TenantPayments() {
 
   const paymentStatus = getPaymentStatus();
 
-  const handleDownloadReceipt = async (_paymentId: string) => {
+  const handleDownloadReceipt = async (paymentId: string) => {
     try {
       toast.info('Gerando comprovante...');
       
-      toast.success('Funcionalidade em desenvolvimento');
-    } catch (error) {
-      toast.error('Erro ao baixar comprovante');
+      // Try to find invoice ID from payment
+      // First, get invoices to find the one related to this payment
+      const invoices = await invoicesAPI.getInvoices({ tenantId: user?.id });
+      const paidInvoices = invoices.filter((inv: Invoice) => inv.status === 'PAID');
+      
+      // Try to match payment with invoice (by date or amount)
+      const payment = paymentHistory.find((p: Payment) => p.id === paymentId);
+      if (!payment) {
+        toast.error('Pagamento não encontrado');
+        return;
+      }
+      
+      // Find invoice that matches this payment
+      const matchingInvoice = paidInvoices.find((inv: Invoice) => {
+        const invDate = new Date(inv.paidAt || inv.dueDate).toISOString().split('T')[0];
+        const payDate = new Date(payment.date).toISOString().split('T')[0];
+        return invDate === payDate || Math.abs(Number(inv.paidValue || inv.originalValue) - Number(payment.amount)) < 0.01;
+      });
+      
+      if (matchingInvoice) {
+        const receiptData = await invoicesAPI.downloadReceipt(matchingInvoice.id);
+        
+        if (receiptData.receiptUrl) {
+          // Open receipt URL in new tab
+          window.open(receiptData.receiptUrl, '_blank');
+          toast.success('Recibo aberto em nova aba');
+        } else {
+          toast.error('Recibo não disponível para este pagamento');
+        }
+      } else {
+        toast.error('Fatura correspondente não encontrada');
+      }
+    } catch (err) {
+      console.error('Error downloading receipt:', err);
+      const error = err as { response?: { data?: { message?: string } } };
+      toast.error(error?.response?.data?.message || 'Erro ao baixar comprovante');
     }
   };
 
@@ -221,7 +281,7 @@ export function TenantPayments() {
         <CardContent>
           {paymentHistory.length > 0 ? (
             <div className="space-y-3">
-              {paymentHistory.map((payment: any, index: number) => (
+              {paymentHistory.map((payment: Payment, index: number) => (
                 <div
                   key={payment.id || index}
                   className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
@@ -276,7 +336,89 @@ export function TenantPayments() {
         </CardContent>
       </Card>
 
-      {}
+      {/* Receipts Section */}
+      {dashboard?.receipts && dashboard.receipts.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Receipt className="w-5 h-5" />
+              Recibos Disponíveis
+            </CardTitle>
+            <CardDescription>
+              Baixe seus recibos de pagamento a qualquer momento
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {dashboard.receipts.map((receipt: Receipt) => (
+                <div
+                  key={receipt.id}
+                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <FileText className="w-4 h-4 text-gray-500" />
+                      <p className="font-semibold">
+                        {receipt.invoiceNumber || `Recibo #${receipt.id}`}
+                      </p>
+                    </div>
+                    <div className="text-sm text-gray-600 space-y-1">
+                      {receipt.referenceMonth && (
+                        <p>Mês de referência: {receipt.referenceMonth}</p>
+                      )}
+                      {receipt.paidAt && (
+                        <p>
+                          Pago em: {new Date(receipt.paidAt).toLocaleDateString('pt-BR')}
+                        </p>
+                      )}
+                      <p>Valor: {formatCurrency(receipt.paidValue || 0)}</p>
+                      {receipt.paymentMethod && (
+                        <p>Método: {receipt.paymentMethod}</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {receipt.receiptUrl ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(receipt.receiptUrl, '_blank')}
+                        className="flex items-center gap-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        Baixar PDF
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={async () => {
+                          try {
+                            const receiptData = await invoicesAPI.downloadReceipt(receipt.id);
+                            if (receiptData.receiptUrl) {
+                              window.open(receiptData.receiptUrl, '_blank');
+                            } else {
+                              toast.error('Recibo não disponível');
+                            }
+                          } catch {
+                            toast.error('Erro ao baixar recibo');
+                          }
+                        }}
+                        className="flex items-center gap-2"
+                      >
+                        <Download className="w-4 h-4" />
+                        Gerar Recibo
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {} 
       <Card>
         <CardHeader>
           <CardTitle className="text-lg">Formas de Pagamento</CardTitle>

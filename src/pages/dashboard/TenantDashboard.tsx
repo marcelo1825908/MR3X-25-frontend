@@ -60,6 +60,14 @@ interface AgreementAlert {
   effectiveDate?: string;
 }
 
+interface Payment {
+  id?: string;
+  date?: string;
+  amount?: number | string;
+  type?: string;
+  status?: string;
+}
+
 interface TenantAlerts {
   hasOverduePayment: boolean;
   overdueAmount?: number;
@@ -114,7 +122,7 @@ export function TenantDashboard() {
           ? (Array.isArray(agreementsRes.value) ? agreementsRes.value : [])
           : [];
 
-        const activeExtrajudicials = extrajudicials.filter((n: any) =>
+        const activeExtrajudicials = extrajudicials.filter((n: ExtrajudicialAlert) =>
           ['SENT', 'PENDING_SEND', 'VIEWED'].includes(n.status) && !n.acknowledgedAt && !n.debtorSignedAt
         );
 
@@ -294,7 +302,7 @@ export function TenantDashboard() {
       monthlyTrend[key] = 0;
     }
 
-    paymentHistory.forEach((payment: any) => {
+    paymentHistory.forEach((payment: Payment) => {
       if (payment.date) {
         const date = new Date(payment.date);
         const key = date.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
@@ -316,7 +324,7 @@ export function TenantDashboard() {
       'Outros': 0,
     };
 
-    paymentHistory.forEach((payment: any) => {
+    paymentHistory.forEach((payment: Payment) => {
       const amount = Number(payment.amount) || 0;
       if (payment.type === 'ALUGUEL') byType['Aluguel'] += amount;
       else if (payment.type === 'CONDOMINIO') byType['Condomínio'] += amount;
@@ -325,16 +333,16 @@ export function TenantDashboard() {
     });
 
     const pieData = Object.entries(byType)
-      .filter(([_, value]) => value > 0)
+      .filter(([, value]) => value > 0)
       .map(([name, value]) => ({ name, value }));
 
     const statusData = [
-      { name: 'Pagos', value: paymentHistory.filter((p: any) => p.status === 'PAGO' || p.status === 'paid').length, color: '#10B981' },
-      { name: 'Pendentes', value: paymentHistory.filter((p: any) => p.status === 'PENDENTE' || p.status === 'pending').length, color: '#F59E0B' },
-      { name: 'Atrasados', value: paymentHistory.filter((p: any) => p.status === 'ATRASADO' || p.status === 'overdue').length, color: '#EF4444' },
+      { name: 'Pagos', value: paymentHistory.filter((p: Payment) => p.status === 'PAGO' || p.status === 'paid').length, color: '#10B981' },
+      { name: 'Pendentes', value: paymentHistory.filter((p: Payment) => p.status === 'PENDENTE' || p.status === 'pending').length, color: '#F59E0B' },
+      { name: 'Atrasados', value: paymentHistory.filter((p: Payment) => p.status === 'ATRASADO' || p.status === 'overdue').length, color: '#EF4444' },
     ].filter(item => item.value > 0);
 
-    const totalPaid = paymentHistory.reduce((sum: number, p: any) => sum + (Number(p.amount) || 0), 0);
+    const totalPaid = paymentHistory.reduce((sum: number, p: Payment) => sum + (Number(p.amount) || 0), 0);
     const totalPayments = paymentHistory.length;
     const avgPayment = totalPayments > 0 ? totalPaid / totalPayments : 0;
 
@@ -1052,7 +1060,7 @@ export function TenantDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {paymentHistory.slice(0, 5).map((payment: any, index: number) => (
+              {paymentHistory.slice(0, 5).map((payment: Payment, index: number) => (
                 <div
                   key={payment.id || index}
                   className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"

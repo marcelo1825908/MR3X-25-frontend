@@ -367,6 +367,27 @@ export const profileAPI = {
     const response = await apiClient.post('/users/me/change-password', data);
     return response.data;
   },
+
+  // Two-Factor Authentication (2FA)
+  generate2FA: async () => {
+    const response = await apiClient.post('/users/me/2fa/generate');
+    return response.data;
+  },
+
+  verify2FA: async (token: string) => {
+    const response = await apiClient.post('/users/me/2fa/verify', { token });
+    return response.data;
+  },
+
+  disable2FA: async () => {
+    const response = await apiClient.post('/users/me/2fa/disable');
+    return response.data;
+  },
+
+  regenerate2FABackupCodes: async () => {
+    const response = await apiClient.post('/users/me/2fa/regenerate-backup-codes');
+    return response.data;
+  },
 };
 
 export const usersAPI = {

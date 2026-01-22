@@ -72,7 +72,8 @@ const baseNavigation = [
   { name: 'Account Settings', href: '/dashboard/api-settings', icon: UserCog2, perm: undefined, roles: ['API_CLIENT'] },
   
   { name: 'Dashboard', href: '/dashboard/sales-dashboard', icon: Home, perm: undefined, roles: ['REPRESENTATIVE'] },
-  { name: 'Pistas', href: '/dashboard/sales-leads', icon: Target, perm: undefined, roles: ['REPRESENTATIVE'] },
+  { name: 'Captação de Leads', href: '/dashboard/sales-leads', icon: Target, perm: undefined, roles: ['REPRESENTATIVE'] },
+  { name: 'Comissionamento', href: '/dashboard/sales-commissions', icon: DollarSign, perm: undefined, roles: ['REPRESENTATIVE'] },
   { name: 'Propostas', href: '/dashboard/sales-proposals', icon: FileText, perm: undefined, roles: ['REPRESENTATIVE'] },
   { name: 'Agencies', href: '/dashboard/sales-agencies', icon: Building, perm: undefined, roles: ['REPRESENTATIVE'] },
   { name: 'Relatórios', href: '/dashboard/sales-reports', icon: BarChart3, perm: undefined, roles: ['REPRESENTATIVE'] },
@@ -392,6 +393,7 @@ export function DashboardLayout() {
         '/dashboard/sales-dashboard',
         '/dashboard/sales-leads',
         '/dashboard/sales-proposals',
+        '/dashboard/sales-commissions',
         '/dashboard/sales-agencies',
         '/dashboard/sales-reports',
         '/dashboard/chat',

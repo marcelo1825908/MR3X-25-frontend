@@ -435,7 +435,9 @@ export function Properties() {
           state: data?.state || prev.state,
           neighborhood: data?.neighborhood || prev.neighborhood,
         }));
-      } catch {
+      } catch (error) {
+        // Silently handle CEP lookup errors
+        console.debug('CEP lookup failed:', error);
       }
     }
   };
@@ -464,7 +466,9 @@ export function Properties() {
             state: data?.state || prev.state,
             neighborhood: data?.neighborhood || prev.neighborhood,
           }));
-        } catch {
+        } catch (error) {
+          // Silently handle CEP lookup errors
+          console.debug('CEP lookup failed:', error);
         }
       }
     }
@@ -1858,7 +1862,8 @@ export function Properties() {
                                   Atribuir inquilino (congelado)
                                 </DropdownMenuItem>
                               )}
-                              {!property.isFrozen ? (
+                              {/* Ações funcionais obrigatórias - sempre disponíveis para REALTOR */}
+                              {user?.role === 'BROKER' || !property.isFrozen ? (
                                 <DropdownMenuItem onClick={() => handleViewDocuments(property)}>
                                   <FileText className="w-4 h-4 mr-2" />
                                   Ver documentos
@@ -1869,7 +1874,7 @@ export function Properties() {
                                   Ver documentos (congelado)
                                 </DropdownMenuItem>
                               )}
-                              {!property.isFrozen ? (
+                              {user?.role === 'BROKER' || !property.isFrozen ? (
                                 <DropdownMenuItem onClick={() => handleWhatsAppNotification(property)}>
                                   <MessageSquare className="w-4 h-4 mr-2" />
                                   Notificar por WhatsApp
@@ -1880,7 +1885,7 @@ export function Properties() {
                                   Notificar por WhatsApp (congelado)
                                 </DropdownMenuItem>
                               )}
-                              {!property.isFrozen && (
+                              {(user?.role === 'BROKER' || !property.isFrozen) && (
                                 <>
                                   <DropdownMenuItem onClick={() => handleIssueInvoice(property)}>
                                     <Calculator className="w-4 h-4 mr-2" />
