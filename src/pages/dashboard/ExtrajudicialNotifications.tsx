@@ -24,6 +24,7 @@ import { extrajudicialNotificationsAPI, propertiesAPI, usersAPI, profileAPI } fr
 import { useAuth } from '@/contexts/AuthContext';
 import { safeGetCurrentPosition, isSecureOrigin } from '@/hooks/use-geolocation';
 import { SignatureCapture } from '@/components/contracts/SignatureCapture';
+import { maskDocument } from '@/lib/utils';
 import {
   Plus,
   Search,
@@ -115,7 +116,7 @@ const statusOptions = [
   { value: 'RESOLVIDO', label: 'Resolvido', color: 'bg-green-500' },
   { value: 'REJEITADO', label: 'Rejeitado', color: 'bg-red-500' },
   { value: 'PRAZO_EXPIRADO', label: 'Prazo Expirado', color: 'bg-orange-500' },
-  { value: 'ENCAMINHADO_JUDICIAL', label: 'Protocolo de Ação Judicial', color: 'bg-red-700' },
+  { value: 'ENCAMINHADO_JUDICIAL', label: 'Encaminhada para Medidas Judiciais', color: 'bg-red-700' },
   { value: 'CANCELADO', label: 'Cancelado', color: 'bg-gray-700' },
 ];
 
@@ -291,6 +292,8 @@ export default function ExtrajudicialNotifications() {
     interestAmount: '',
     correctionAmount: '',
     lawyerFees: '',
+    attorneyName: '',
+    attorneyOAB: '',
     totalAmount: '',
     deadlineDays: '15',
     gracePeriodDays: '',
@@ -492,7 +495,7 @@ export default function ExtrajudicialNotifications() {
 
     try {
       setSaving(true);
-      await extrajudicialNotificationsAPI.createNotification({
+      const notificationData: any = {
         ...formData,
         principalAmount: formData.principalAmount ? parseFloat(formData.principalAmount) : undefined,
         fineAmount: formData.fineAmount ? parseFloat(formData.fineAmount) : undefined,
@@ -502,7 +505,16 @@ export default function ExtrajudicialNotifications() {
         totalAmount: parseFloat(formData.totalAmount) || 0,
         deadlineDays: parseInt(formData.deadlineDays) || 15,
         gracePeriodDays: formData.gracePeriodDays ? parseInt(formData.gracePeriodDays) : undefined,
-      });
+      };
+      
+      if (formData.attorneyName) {
+        notificationData.attorneyName = formData.attorneyName;
+      }
+      if (formData.attorneyOAB) {
+        notificationData.attorneyOAB = formData.attorneyOAB;
+      }
+      
+      await extrajudicialNotificationsAPI.createNotification(notificationData);
       toast.success('Notificacao criada com sucesso!');
       setShowCreateModal(false);
       resetForm();
@@ -646,7 +658,7 @@ export default function ExtrajudicialNotifications() {
     try {
       setSaving(true);
       await extrajudicialNotificationsAPI.forwardToJudicial(selectedNotification.id, judicialData);
-      toast.success('Protocolo de acao judicial registrado com sucesso!');
+      toast.success('Notificação marcada como "Encaminhada para Medidas Judiciais" com sucesso!');
       setShowJudicialModal(false);
       loadData();
     } catch (error) {
@@ -749,6 +761,8 @@ export default function ExtrajudicialNotifications() {
       interestAmount: '',
       correctionAmount: '',
       lawyerFees: '',
+      attorneyName: '',
+      attorneyOAB: '',
       totalAmount: '',
       deadlineDays: '15',
       gracePeriodDays: '',
@@ -1040,11 +1054,11 @@ export default function ExtrajudicialNotifications() {
                         )}
                         <TableCell>
                           <div className="font-medium">{n.creditorName}</div>
-                          <div className="text-xs text-muted-foreground">{n.creditorDocument}</div>
+                          <div className="text-xs text-muted-foreground font-mono">{maskDocument(n.creditorDocument)}</div>
                         </TableCell>
                         <TableCell>
                           <div className="font-medium">{n.debtorName}</div>
-                          <div className="text-xs text-muted-foreground">{n.debtorDocument}</div>
+                          <div className="text-xs text-muted-foreground font-mono">{maskDocument(n.debtorDocument)}</div>
                         </TableCell>
                         <TableCell className="font-mono">
                           {formatCurrency(n.totalAmount)}
@@ -1435,7 +1449,7 @@ export default function ExtrajudicialNotifications() {
                   value={formData.legalBasis}
                   onChange={(e) => setFormData({ ...formData, legalBasis: e.target.value })}
                   rows={2}
-                  placeholder="Ex: Art. 389 e 395 do Codigo Civil; Lei 8.245/91 (Lei do Inquilinato)"
+                  placeholder="Ex: Artigos 1.336, inciso IV, e 1.337 do Código Civil Brasileiro; Lei 8.245/91 (Lei do Inquilinato)"
                   className="text-xs sm:text-sm"
                 />
               </div>
@@ -1494,15 +1508,43 @@ export default function ExtrajudicialNotifications() {
                   />
                 </div>
                 <div>
-                  <Label className="text-xs sm:text-sm">Honorarios (R$)</Label>
+                  <Label className="text-xs sm:text-sm">Honorarios Advocaticios (R$)</Label>
                   <Input
                     type="number"
                     step="0.01"
                     value={formData.lawyerFees}
                     onChange={(e) => setFormData({ ...formData, lawyerFees: e.target.value })}
                     className="text-xs sm:text-sm"
+                    placeholder="0,00"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Se informado, é obrigatório preencher nome e OAB do advogado abaixo
+                  </p>
                 </div>
+                {(formData.lawyerFees && parseFloat(formData.lawyerFees) > 0) && (
+                  <>
+                    <div>
+                      <Label className="text-xs sm:text-sm">Nome do Advogado Responsável *</Label>
+                      <Input
+                        value={formData.attorneyName || ''}
+                        onChange={(e) => setFormData({ ...formData, attorneyName: e.target.value })}
+                        className="text-xs sm:text-sm"
+                        placeholder="Nome completo do advogado"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs sm:text-sm">Número OAB *</Label>
+                      <Input
+                        value={formData.attorneyOAB || ''}
+                        onChange={(e) => setFormData({ ...formData, attorneyOAB: e.target.value })}
+                        className="text-xs sm:text-sm"
+                        placeholder="Ex: 123456/SP"
+                        required
+                      />
+                    </div>
+                  </>
+                )}
                 <div>
                   <Label className="text-xs sm:text-sm">Total Devido (R$) *</Label>
                   <Input
@@ -1632,7 +1674,7 @@ export default function ExtrajudicialNotifications() {
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 p-4 bg-gray-50 border rounded-lg mb-4">
                   <div className="flex flex-col items-center">
                     <QRCodeSVG
-                      value={`https://mr3x.com.br/verify/notification/${selectedNotification.notificationToken}`}
+                      value={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'https://mr3x.com.br'}/verify/notification/${selectedNotification.notificationToken}`}
                       size={80}
                       level="H"
                     />
@@ -1667,7 +1709,7 @@ export default function ExtrajudicialNotifications() {
                     <div className="border rounded-lg p-3">
                       <h3 className="font-bold text-sm mb-2 text-gray-700">NOTIFICANTE (Credor)</h3>
                       <p className="text-sm"><span className="font-semibold">Nome:</span> {selectedNotification.creditorName}</p>
-                      <p className="text-sm"><span className="font-semibold">CPF/CNPJ:</span> {selectedNotification.creditorDocument}</p>
+                      <p className="text-sm"><span className="font-semibold">CPF/CNPJ:</span> <span className="font-mono">{maskDocument(selectedNotification.creditorDocument)}</span></p>
                       {selectedNotification.creditorAddress && (
                         <p className="text-sm"><span className="font-semibold">Endereco:</span> {selectedNotification.creditorAddress}</p>
                       )}
@@ -1681,7 +1723,7 @@ export default function ExtrajudicialNotifications() {
                     <div className="border rounded-lg p-3">
                       <h3 className="font-bold text-sm mb-2 text-gray-700">NOTIFICADO (Devedor)</h3>
                       <p className="text-sm"><span className="font-semibold">Nome:</span> {selectedNotification.debtorName}</p>
-                      <p className="text-sm"><span className="font-semibold">CPF/CNPJ:</span> {selectedNotification.debtorDocument}</p>
+                      <p className="text-sm"><span className="font-semibold">CPF/CNPJ:</span> <span className="font-mono">{maskDocument(selectedNotification.debtorDocument)}</span></p>
                       {selectedNotification.debtorAddress && (
                         <p className="text-sm"><span className="font-semibold">Endereco:</span> {selectedNotification.debtorAddress}</p>
                       )}
@@ -1973,10 +2015,10 @@ export default function ExtrajudicialNotifications() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Gavel className="h-4 w-4 sm:h-5 sm:w-5" />
-              Protocolo de Ação Judicial
+              Encaminhar para Medidas Judiciais
             </DialogTitle>
             <DialogDescription className="text-xs sm:text-sm">
-              Esta notificacao sera marcada como "Protocolo de Acao Judicial", indicando que o advogado podera utilizar este documento para protocolo pessoal ou digital da acao de despejo. Este documento nao constitui uma decisao judicial e nao substitui o protocolo formal de uma acao.
+              Esta notificação será marcada como "Encaminhada para Medidas Judiciais", indicando que o credor poderá utilizar este documento para suportar o ajuizamento de ação judicial. <strong>Este documento não constitui decisão judicial e não substitui o ajuizamento formal de ação judicial perante o tribunal competente.</strong> A MR3X é uma plataforma de tecnologia e não realiza ajuizamento automático de ações judiciais.
             </DialogDescription>
           </DialogHeader>
 
@@ -2016,7 +2058,7 @@ export default function ExtrajudicialNotifications() {
             </Button>
             <Button onClick={handleForwardToJudicial} disabled={saving} variant="destructive" className="w-full sm:w-auto order-1 sm:order-2">
               {saving && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Protocolar Ação Judicial
+              Encaminhar para Medidas Judiciais
             </Button>
           </DialogFooter>
         </DialogContent>

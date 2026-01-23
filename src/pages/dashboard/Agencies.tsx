@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
-import { usersAPI } from '@/api'
+import { usersAPI, agenciesAPI } from '@/api'
 import {
   Eye,
   MoreHorizontal,
@@ -24,6 +24,7 @@ import { isValidCEPFormat } from '@/lib/validation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -105,13 +106,23 @@ export function Agencies() {
     }
   }, [])
 
-  const { data: ownersData, isLoading } = useQuery({
+  const [activeTab, setActiveTab] = useState<'agencies' | 'owners'>('agencies')
+
+  const { data: ownersData, isLoading: ownersLoading } = useQuery({
     queryKey: ['independent-owners'],
     queryFn: () => usersAPI.listUsers({ role: 'INDEPENDENT_OWNER' }),
     enabled: canView,
   })
 
+  const { data: agenciesData, isLoading: agenciesLoading } = useQuery({
+    queryKey: ['agencies'],
+    queryFn: () => agenciesAPI.getAgencies(),
+    enabled: canView && isCEO,
+  })
+
   const owners = ownersData?.items || []
+  const agencies = Array.isArray(agenciesData) ? agenciesData : agenciesData?.data || []
+  const isLoading = ownersLoading || agenciesLoading
 
   const closeAllModals = () => {
     setShowEditModal(false)
@@ -277,8 +288,8 @@ export function Agencies() {
             <Building className="w-6 h-6 text-blue-700" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Usuários Autônomos</h1>
-            <p className="text-muted-foreground">Visualize e gerencie proprietários independentes, corretores sem agência formal e profissionais com CRECI ativo</p>
+            <h1 className="text-2xl font-bold text-foreground">Agências / Proprietários Independentes</h1>
+            <p className="text-muted-foreground">Visualize e gerencie agências imobiliárias e proprietários independentes</p>
           </div>
         </div>
 
@@ -310,9 +321,97 @@ export function Agencies() {
               </Card>
             ))}
           </div>
-        ) : owners && owners.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {owners.map((owner: any) => (
+        ) : (
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'agencies' | 'owners')} className="space-y-6">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="agencies">Agências ({agencies.length})</TabsTrigger>
+              <TabsTrigger value="owners">Proprietários Independentes ({owners.length})</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="agencies" className="space-y-4">
+              {agencies.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {agencies.map((agency: any) => (
+                    <Card key={agency.id} className="hover:shadow-lg transition-shadow">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-indigo-100 rounded-lg flex items-center justify-center">
+                              <Building className="w-5 h-5 text-indigo-600" />
+                            </div>
+                            <div>
+                              <CardTitle className="text-lg">{agency.name || 'Sem nome'}</CardTitle>
+                              <p className="text-sm text-muted-foreground">Agência Imobiliária</p>
+                            </div>
+                          </div>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="outline">
+                                <MoreHorizontal className="w-5 h-5" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => handleViewOwner({ ...agency, type: 'agency' })}>
+                                <Eye className="w-4 h-4 mr-2" />
+                                Visualizar
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Mail className="w-4 h-4" />
+                          <span className="truncate">{agency.email}</span>
+                        </div>
+                        {agency.phone && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Phone className="w-4 h-4" />
+                            <span>{agency.phone}</span>
+                          </div>
+                        )}
+                        {agency.cnpj && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <User className="w-4 h-4" />
+                            <span>{agency.cnpj}</span>
+                          </div>
+                        )}
+                        {(agency.city || agency.state) && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <MapPin className="w-4 h-4" />
+                            <span className="truncate">{[agency.city, agency.state].filter(Boolean).join(', ')}</span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center justify-between pt-2 border-t">
+                          <div className="flex gap-2">
+                            <Badge className={getPlanColor(agency.plan || 'FREE')}>
+                              {getPlanLabel(agency.plan || 'FREE')}
+                            </Badge>
+                            <Badge className={getStatusColor(agency.status || 'ACTIVE')}>
+                              {getStatusLabel(agency.status || 'ACTIVE')}
+                            </Badge>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-card border border-border rounded-lg">
+                  <Building className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Nenhuma agência encontrada</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Nenhuma agência cadastrada no sistema
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="owners" className="space-y-4">
+              {owners && owners.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {owners.map((owner: any) => (
               <Card key={owner.id} className="hover:shadow-lg transition-shadow">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
@@ -376,16 +475,19 @@ export function Agencies() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        ) : (
-          <div className="text-center py-12 bg-card border border-border rounded-lg">
-            <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Nenhum proprietario independente encontrado</h3>
-            <p className="text-muted-foreground mb-4">
-              Nenhum proprietario independente cadastrado no sistema
-            </p>
-          </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-12 bg-card border border-border rounded-lg">
+                  <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Nenhum proprietario independente encontrado</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Nenhum proprietario independente cadastrado no sistema
+                  </p>
+                </div>
+              )}
+            </TabsContent>
+          </Tabs>
         )}
 
         {}

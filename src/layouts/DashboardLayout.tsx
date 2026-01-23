@@ -52,7 +52,7 @@ const baseNavigation = [
   { name: 'Plano da Agência', href: '/dashboard/agency-plan-config', icon: Package, perm: 'agencies:update', roles: ['AGENCY_ADMIN'] },
   { name: 'Meu Plano', href: '/dashboard/owner-plan-config', icon: Package, perm: undefined, roles: ['INDEPENDENT_OWNER'] },
   { name: 'Usuários', href: '/dashboard/users', icon: Users, perm: 'users:read' },
-  { name: 'Usuários Autônomos', href: '/dashboard/agencies', icon: Building, perm: undefined, roles: ['CEO', 'ADMIN'] },
+  { name: 'Agências / Proprietários Independentes', href: '/dashboard/agencies', icon: Building, perm: undefined, roles: ['CEO', 'ADMIN'] },
   { name: 'Relatórios', href: '/dashboard/reports', icon: BarChart3, perm: 'reports:read' },
   { name: 'Planos', href: '/dashboard/plans', icon: Package, perm: undefined, roles: ['CEO', 'ADMIN'] },
   { name: 'Faturamento', href: '/dashboard/billing', icon: Receipt, perm: 'billing:read', roles: ['CEO', 'ADMIN', 'INDEPENDENT_OWNER'] },
@@ -73,6 +73,7 @@ const baseNavigation = [
   
   { name: 'Dashboard', href: '/dashboard/sales-dashboard', icon: Home, perm: undefined, roles: ['REPRESENTATIVE'] },
   { name: 'Captação de Leads', href: '/dashboard/sales-leads', icon: Target, perm: undefined, roles: ['REPRESENTATIVE'] },
+  { name: 'Prospectos', href: '/dashboard/sales-prospects', icon: Briefcase, perm: undefined, roles: ['REPRESENTATIVE'] },
   { name: 'Comissionamento', href: '/dashboard/sales-commissions', icon: DollarSign, perm: undefined, roles: ['REPRESENTATIVE'] },
   { name: 'Propostas', href: '/dashboard/sales-proposals', icon: FileText, perm: undefined, roles: ['REPRESENTATIVE'] },
   { name: 'Agencies', href: '/dashboard/sales-agencies', icon: Building, perm: undefined, roles: ['REPRESENTATIVE'] },
@@ -392,6 +393,7 @@ export function DashboardLayout() {
       const allowForRepresentative = [
         '/dashboard/sales-dashboard',
         '/dashboard/sales-leads',
+        '/dashboard/sales-prospects',
         '/dashboard/sales-proposals',
         '/dashboard/sales-commissions',
         '/dashboard/sales-agencies',

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Building2, Users, Ticket, Activity, TrendingUp, TrendingDown,
-  CheckCircle, AlertTriangle, Server
+  CheckCircle, AlertTriangle, Server, AlertCircle
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Skeleton } from '../../../components/ui/skeleton';
@@ -193,6 +193,10 @@ export function ManagerDashboard() {
     );
   }
 
+  // Handle errors gracefully - show "data currently unavailable" instead of breaking
+  const hasError = !metrics || metrics.length === 0;
+  const hasData = metrics && metrics.length > 0;
+
   return (
     <div className="space-y-6">
       {}
@@ -202,10 +206,23 @@ export function ManagerDashboard() {
       </div>
 
       {}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {metrics.map((metric: any) => {
-          const IconComponent = iconMap[metric.icon] || Activity;
-          return (
+      {hasError && (
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center gap-3 text-muted-foreground">
+              <AlertCircle className="w-5 h-5" />
+              <p>Dados atualmente indisponíveis. Tente novamente em alguns instantes.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {hasData && (
+        <>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {metrics.map((metric: any) => {
+              const IconComponent = iconMap[metric.icon] || Activity;
+              return (
             <Card key={metric.title}>
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
@@ -229,12 +246,12 @@ export function ManagerDashboard() {
                 </div>
               </CardContent>
             </Card>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
 
-      {}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {}
         <Card>
           <CardHeader>
@@ -427,6 +444,8 @@ export function ManagerDashboard() {
           </CardContent>
         </Card>
       </div>
+        </>
+      )}
     </div>
   );
 }

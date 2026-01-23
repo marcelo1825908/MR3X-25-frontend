@@ -1273,6 +1273,8 @@ export const extrajudicialNotificationsAPI = {
     interestAmount?: number;
     correctionAmount?: number;
     lawyerFees?: number;
+    attorneyName?: string;
+    attorneyOAB?: string;
     totalAmount: number;
     deadlineDays: number;
     gracePeriodDays?: number;
@@ -1680,17 +1682,17 @@ export const platformManagerAPI = {
       });
     }
     const query = qs.toString();
-    const response = await apiClient.get(`/platform-manager/tickets${query ? `?${query}` : ''}`);
+    const response = await apiClient.get(`/support-tickets${query ? `?${query}` : ''}`);
     return response.data;
   },
 
   getTicketById: async (id: string) => {
-    const response = await apiClient.get(`/platform-manager/tickets/${id}`);
+    const response = await apiClient.get(`/support-tickets/${id}`);
     return response.data;
   },
 
   updateTicketStatus: async (id: string, status: string) => {
-    const response = await apiClient.patch(`/platform-manager/tickets/${id}/status`, { status });
+    const response = await apiClient.put(`/support-tickets/${id}`, { status });
     return response.data;
   },
 
@@ -1940,13 +1942,73 @@ export const auditorAPI = {
     const response = await apiClient.get('/auditor/security');
     return response.data;
   },
-
-  getDataIntegrity: async () => {
-    const response = await apiClient.get('/auditor/data-integrity');
+  get2FAStatus: async () => {
+    const response = await apiClient.get('/auditor/security/2fa-status');
+    return response.data;
+  },
+  getAccountLockouts: async (params?: { dateFrom?: string; dateTo?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/auditor/security/account-lockouts${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+  getPasswordResets: async (params?: { dateFrom?: string; dateTo?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/auditor/security/password-resets${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+  getPermissionChanges: async (params?: { dateFrom?: string; dateTo?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/auditor/security/permission-changes${query ? `?${query}` : ''}`);
     return response.data;
   },
 
-  getLogs: async (params?: { type?: string; level?: string; startDate?: string; endDate?: string; page?: number; pageSize?: number }) => {
+  getDataIntegrity: async () => {
+    const response = await apiClient.get('/auditor/integrity');
+    return response.data;
+  },
+  verifyDocumentHash: async (documentId: string) => {
+    const response = await apiClient.get(`/auditor/integrity/verify-document/${documentId}`);
+    return response.data;
+  },
+  getDocumentVersions: async (documentId: string) => {
+    const response = await apiClient.get(`/auditor/integrity/document-versions/${documentId}`);
+    return response.data;
+  },
+  getInconsistencyAlerts: async () => {
+    const response = await apiClient.get('/auditor/integrity/inconsistency-alerts');
+    return response.data;
+  },
+  getChangeHistory: async (params?: { entity?: string; entityId?: string; dateFrom?: string; dateTo?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/auditor/integrity/change-history${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  getLogs: async (params?: { event?: string; entity?: string; dateFrom?: string; dateTo?: string; user?: string; module?: string }) => {
     const qs = new URLSearchParams();
     if (params) {
       Object.entries(params).forEach(([k, v]) => {
@@ -1957,9 +2019,49 @@ export const auditorAPI = {
     const response = await apiClient.get(`/auditor/logs${query ? `?${query}` : ''}`);
     return response.data;
   },
+  exportLogsToCSV: async (params?: { event?: string; entity?: string; dateFrom?: string; dateTo?: string; user?: string; module?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/auditor/logs/export/csv${query ? `?${query}` : ''}`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
+  exportLogsToPDF: async (params?: { event?: string; entity?: string; dateFrom?: string; dateTo?: string; user?: string; module?: string }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/auditor/logs/export/pdf${query ? `?${query}` : ''}`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  },
 
   getTools: async () => {
     const response = await apiClient.get('/auditor/tools');
+    return response.data;
+  },
+  getDocumentUploadLogs: async (limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    const response = await apiClient.get(`/auditor/dashboard/document-upload-logs${query}`);
+    return response.data;
+  },
+  getExtrajudicialNotifications: async (limit?: number) => {
+    const query = limit ? `?limit=${limit}` : '';
+    const response = await apiClient.get(`/auditor/dashboard/extrajudicial-notifications${query}`);
+    return response.data;
+  },
+  getCriticalAlerts: async () => {
+    const response = await apiClient.get('/auditor/dashboard/critical-alerts');
     return response.data;
   },
 };
@@ -2597,4 +2699,63 @@ export const financialReportsAPI = {
 };
 
 export { authApi } from './auth';
+export const supportTicketsAPI = {
+  createTicket: async (data: {
+    subject: string;
+    category: string;
+    priority: string;
+    description: string;
+    agencyId?: string;
+  }) => {
+    const response = await apiClient.post('/support-tickets', data);
+    return response.data;
+  },
+
+  getAllTickets: async (params?: {
+    status?: string;
+    priority?: string;
+    category?: string;
+    requesterId?: string;
+    assignedToId?: string;
+    agencyId?: string;
+    page?: number;
+    limit?: number;
+  }) => {
+    const qs = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== null && v !== '') qs.append(k, String(v));
+      });
+    }
+    const query = qs.toString();
+    const response = await apiClient.get(`/support-tickets${query ? `?${query}` : ''}`);
+    return response.data;
+  },
+
+  getTicketById: async (id: string) => {
+    const response = await apiClient.get(`/support-tickets/${id}`);
+    return response.data;
+  },
+
+  updateTicket: async (id: string, data: {
+    status?: string;
+    priority?: string;
+    category?: string;
+    assignedToId?: string;
+    resolutionNotes?: string;
+    closureReason?: string;
+  }) => {
+    const response = await apiClient.put(`/support-tickets/${id}`, data);
+    return response.data;
+  },
+
+  addMessage: async (ticketId: string, data: {
+    content: string;
+    isInternal?: boolean;
+  }) => {
+    const response = await apiClient.post(`/support-tickets/${ticketId}/messages`, data);
+    return response.data;
+  },
+};
+
 export { default as apiClient } from './client';

@@ -67,6 +67,11 @@ export default function MyAccount() {
     agencyCnpj: '',
     representativeName: '',
     representativeDocument: '',
+    // Company fiscal data for CEO
+    companyCnpj: '',
+    companyLegalName: '',
+    stateTaxRegistration: '',
+    municipalTaxIss: '',
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -122,6 +127,11 @@ export default function MyAccount() {
         agencyCnpj: profile.agency?.cnpj || '',
         representativeName: profile.agency?.representativeName || '',
         representativeDocument: profile.agency?.representativeDocument || '',
+        // Company fiscal data for CEO
+        companyCnpj: profile.companyCnpj || '',
+        companyLegalName: profile.companyLegalName || '',
+        stateTaxRegistration: profile.stateTaxRegistration || '',
+        municipalTaxIss: profile.municipalTaxIss || '',
       });
       setTwoFactorEnabled(profile.twoFactorEnabled || false);
     }
@@ -271,6 +281,11 @@ export default function MyAccount() {
       agencyCnpj: formData.agencyCnpj,
       representativeName: formData.representativeName,
       representativeDocument: formData.representativeDocument,
+      // Company fiscal data for CEO
+      companyCnpj: formData.companyCnpj,
+      companyLegalName: formData.companyLegalName,
+      stateTaxRegistration: formData.stateTaxRegistration,
+      municipalTaxIss: formData.municipalTaxIss,
     };
     updateProfileMutation.mutate(profileData);
   };
@@ -286,8 +301,25 @@ export default function MyAccount() {
 
     const validation = validatePasswordStrength(passwordData.newPassword);
     if (!validation.valid) {
-      toast.error(`Senha inválida: ${validation.errors.join(', ')}`);
+      const errorMessage = user?.role === 'LEGAL_AUDITOR' 
+        ? `Senha inválida (OBRIGATÓRIO para Auditores Legais): ${validation.errors.join(', ')}`
+        : `Senha inválida: ${validation.errors.join(', ')}`;
+      toast.error(errorMessage);
       return;
+    }
+
+    // For Legal Auditor, enforce strong password requirements
+    if (user?.role === 'LEGAL_AUDITOR') {
+      const hasMinLength = passwordData.newPassword.length >= 8;
+      const hasUpperCase = /[A-Z]/.test(passwordData.newPassword);
+      const hasLowerCase = /[a-z]/.test(passwordData.newPassword);
+      const hasNumbers = /[0-9]/.test(passwordData.newPassword);
+      const hasSymbols = /[!@#$%^&*(),.?":{}|<>]/.test(passwordData.newPassword);
+
+      if (!hasMinLength || !hasUpperCase || !hasLowerCase || !hasNumbers || !hasSymbols) {
+        toast.error('Para Auditores Legais, a senha deve ter no mínimo 8 caracteres, incluindo maiúsculas, minúsculas, números e símbolos.');
+        return;
+      }
     }
 
     changePasswordMutation.mutate({
@@ -404,7 +436,8 @@ export default function MyAccount() {
 
   const showCreci = ['BROKER', 'AGENCY_ADMIN'].includes(user?.role || '');
   const showAgencyInfo = user?.role === 'AGENCY_ADMIN' && profile?.agency;
-  const showAddressSection = (user?.role || '') !== 'ADMIN';
+  // Admin should see address section to register RG, full address, and address reference
+  const showAddressSection = true;
 
   return (
     <div className="space-y-6">
@@ -673,8 +706,92 @@ export default function MyAccount() {
                             maxLength={2}
                           />
                         </div>
+
+                        {/* RG and Address Reference fields - Required for Admin */}
+                        {(user?.role === 'ADMIN' || user?.role === 'REPRESENTATIVE') && (
+                          <>
+                            <div className="space-y-2">
+                              <Label htmlFor="rg">RG (Registro Geral)</Label>
+                              <Input
+                                id="rg"
+                                value={formData.rg}
+                                onChange={(e) => setFormData({ ...formData, rg: e.target.value })}
+                                placeholder="00.000.000-0"
+                              />
+                            </div>
+
+                            <div className="space-y-2 sm:col-span-2">
+                              <Label htmlFor="addressReference">Referência do Endereço</Label>
+                              <Input
+                                id="addressReference"
+                                value={formData.addressReference}
+                                onChange={(e) => setFormData({ ...formData, addressReference: e.target.value })}
+                                placeholder="Ex: Próximo ao shopping, ao lado da padaria"
+                              />
+                              <p className="text-xs text-muted-foreground">
+                                Informação adicional para localização do endereço
+                              </p>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
+                  )}
+
+                  {user?.role === 'CEO' && (
+                    <>
+                      <Separator />
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                          <Building2 className="h-4 w-4" />
+                          <span>Dados Fiscais da Empresa</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Informações fiscais e tributárias da empresa MR3X
+                        </p>
+                        <div className="grid gap-4 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label htmlFor="companyCnpj">CNPJ da Empresa</Label>
+                            <Input
+                              id="companyCnpj"
+                              value={formData.companyCnpj}
+                              onChange={(e) => setFormData({ ...formData, companyCnpj: formatCNPJInput(e.target.value) })}
+                              placeholder="00.000.000/0000-00"
+                            />
+                          </div>
+
+                          <div className="space-y-2 sm:col-span-2">
+                            <Label htmlFor="companyLegalName">Razão Social</Label>
+                            <Input
+                              id="companyLegalName"
+                              value={formData.companyLegalName}
+                              onChange={(e) => setFormData({ ...formData, companyLegalName: e.target.value })}
+                              placeholder="Nome legal completo da empresa"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="stateTaxRegistration">Inscrição Estadual (IE)</Label>
+                            <Input
+                              id="stateTaxRegistration"
+                              value={formData.stateTaxRegistration}
+                              onChange={(e) => setFormData({ ...formData, stateTaxRegistration: e.target.value })}
+                              placeholder="000.000.000.000"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="municipalTaxIss">Inscrição Municipal (ISS)</Label>
+                            <Input
+                              id="municipalTaxIss"
+                              value={formData.municipalTaxIss}
+                              onChange={(e) => setFormData({ ...formData, municipalTaxIss: e.target.value })}
+                              placeholder="00000000-0"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </>
                   )}
 
                   {showAgencyInfo && (
@@ -780,14 +897,27 @@ export default function MyAccount() {
                       />
                     </div>
 
-                    <PasswordInput
-                      id="newPassword"
-                      label="Nova Senha"
-                      value={passwordData.newPassword}
-                      onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                      placeholder="Digite sua nova senha"
-                      showStrengthIndicator={true}
-                    />
+                    <div className="space-y-2">
+                      <Label htmlFor="newPassword" className="flex items-center gap-2">
+                        <Lock className="h-4 w-4" />
+                        Nova Senha
+                        {user?.role === 'LEGAL_AUDITOR' && (
+                          <Badge className="bg-red-100 text-red-700 text-xs">Obrigatório</Badge>
+                        )}
+                      </Label>
+                      {user?.role === 'LEGAL_AUDITOR' && (
+                        <p className="text-xs text-red-600 font-medium">
+                          ⚠️ Obrigatório: Mínimo 8 caracteres, incluindo maiúsculas, minúsculas, números e símbolos
+                        </p>
+                      )}
+                      <PasswordInput
+                        id="newPassword"
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
+                        placeholder="Digite sua nova senha"
+                        showStrengthIndicator={true}
+                      />
+                    </div>
 
                     <PasswordInput
                       id="confirmPassword"
@@ -840,16 +970,31 @@ export default function MyAccount() {
                   </div>
 
                   {!twoFactorEnabled ? (
-                    <div className="space-y-4 p-4 border rounded-lg bg-blue-50">
-                      <p className="text-sm text-muted-foreground">
-                        A autenticação de dois fatores (2FA) protege sua conta mesmo se sua senha for comprometida.
-                        Você precisará de um aplicativo autenticador (Google Authenticator, Authy, etc.).
+                    <div className={`space-y-4 p-4 border rounded-lg ${
+                      user?.role === 'LEGAL_AUDITOR' ? 'bg-red-50 border-red-200' : 'bg-blue-50'
+                    }`}>
+                      <p className={`text-sm ${
+                        user?.role === 'LEGAL_AUDITOR' ? 'text-red-800 font-medium' : 'text-muted-foreground'
+                      }`}>
+                        {user?.role === 'LEGAL_AUDITOR' ? (
+                          <>
+                            ⚠️ <strong>OBRIGATÓRIO:</strong> A autenticação de dois fatores (2FA) é obrigatória para Auditores Legais.
+                            Você precisará de um aplicativo autenticador (Google Authenticator, Authy, etc.).
+                          </>
+                        ) : (
+                          <>
+                            A autenticação de dois fatores (2FA) protege sua conta mesmo se sua senha for comprometida.
+                            Você precisará de um aplicativo autenticador (Google Authenticator, Authy, etc.).
+                          </>
+                        )}
                       </p>
                       <Button
                         type="button"
                         onClick={handleGenerate2FA}
                         disabled={generate2FAMutation.isPending}
-                        className="w-full sm:w-auto"
+                        className={`w-full sm:w-auto ${
+                          user?.role === 'LEGAL_AUDITOR' ? 'bg-red-600 hover:bg-red-700' : ''
+                        }`}
                       >
                         {generate2FAMutation.isPending ? (
                           <>
@@ -868,24 +1013,29 @@ export default function MyAccount() {
                     <div className="space-y-4 p-4 border rounded-lg bg-green-50">
                       <p className="text-sm text-green-800">
                         ✓ Autenticação de dois fatores está ativada
+                        {user?.role === 'LEGAL_AUDITOR' && (
+                          <span className="block mt-1 font-medium">(Obrigatório para Auditores Legais)</span>
+                        )}
                       </p>
                       <div className="flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={handleDisable2FA}
-                          disabled={disable2FAMutation.isPending}
-                          className="w-full sm:w-auto"
-                        >
-                          {disable2FAMutation.isPending ? (
-                            <>
-                              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                              Desativando...
-                            </>
-                          ) : (
-                            'Desativar 2FA'
-                          )}
-                        </Button>
+                        {user?.role !== 'LEGAL_AUDITOR' && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={handleDisable2FA}
+                            disabled={disable2FAMutation.isPending}
+                            className="w-full sm:w-auto"
+                          >
+                            {disable2FAMutation.isPending ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Desativando...
+                              </>
+                            ) : (
+                              'Desativar 2FA'
+                            )}
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           variant="outline"

@@ -105,6 +105,7 @@ interface Inspection {
   contractId?: string;
   agencyId?: string;
   type: 'ENTRY' | 'EXIT' | 'PERIODIC';
+  inspectionType?: 'VISUAL' | 'TECHNICAL' | 'SELF_DECLARED';
   date: string;
   scheduledDate?: string;
   inspectorId: string;
@@ -172,10 +173,22 @@ export function Inspections() {
     setSearchQuery('');
   }, []);
 
-  const [newInspection, setNewInspection] = useState({
+  const [newInspection, setNewInspection] = useState<{
+    propertyId: string;
+    contractId?: string;
+    type: 'ENTRY' | 'EXIT' | 'PERIODIC';
+    inspectionType?: 'VISUAL' | 'TECHNICAL' | 'SELF_DECLARED';
+    date: string;
+    scheduledDate?: string;
+    inspectorId: string;
+    notes?: string;
+    location?: string;
+    templateId?: string;
+  }>({
     propertyId: '',
     contractId: '',
     type: 'ENTRY' as 'ENTRY' | 'EXIT' | 'PERIODIC',
+    inspectionType: undefined,
     date: new Date().toISOString().split('T')[0],
     scheduledDate: '',
     inspectorId: '',
@@ -187,6 +200,7 @@ export function Inspections() {
   const [editForm, setEditForm] = useState({
     contractId: '',
     type: 'ENTRY' as 'ENTRY' | 'EXIT' | 'PERIODIC',
+    inspectionType: undefined as 'VISUAL' | 'TECHNICAL' | 'SELF_DECLARED' | undefined,
     date: '',
     scheduledDate: '',
     inspectorId: '',
@@ -519,6 +533,7 @@ export function Inspections() {
       setEditForm({
         contractId: fullDetails.contractId || '',
         type: fullDetails.type,
+        inspectionType: fullDetails.inspectionType,
         date: fullDetails.date ? fullDetails.date.split('T')[0] : '',
         scheduledDate: fullDetails.scheduledDate ? fullDetails.scheduledDate.split('T')[0] : '',
         inspectorId: fullDetails.inspectorId || '',
@@ -2006,6 +2021,27 @@ export function Inspections() {
                   </Select>
                 </div>
                 <div>
+                  <Label htmlFor="inspectionType">Classificação da Vistoria</Label>
+                  <Select
+                    value={newInspection.inspectionType || ''}
+                    onValueChange={(value: 'VISUAL' | 'TECHNICAL' | 'SELF_DECLARED' | '') => 
+                      setNewInspection({ ...newInspection, inspectionType: value || undefined })
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a classificação" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="VISUAL">Visual</SelectItem>
+                      <SelectItem value="TECHNICAL">Técnica</SelectItem>
+                      <SelectItem value="SELF_DECLARED">Auto-declarada</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Classifique a metodologia aplicada na vistoria (obrigatório para validade legal)
+                  </p>
+                </div>
+                <div>
                   <Label htmlFor="date">Data da Vistoria *</Label>
                   <Input
                     id="date"
@@ -2015,6 +2051,9 @@ export function Inspections() {
                     required
                   />
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="scheduledDate">Data Agendada</Label>
                   <Input
@@ -2294,6 +2333,24 @@ export function Inspections() {
                     </Select>
                   </div>
                   <div>
+                    <Label>Classificação da Vistoria</Label>
+                    <Select
+                      value={editForm.inspectionType || ''}
+                      onValueChange={(value: 'VISUAL' | 'TECHNICAL' | 'SELF_DECLARED' | '') => 
+                        setEditForm({ ...editForm, inspectionType: value || undefined })
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione a classificação" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="VISUAL">Visual</SelectItem>
+                        <SelectItem value="TECHNICAL">Técnica</SelectItem>
+                        <SelectItem value="SELF_DECLARED">Auto-declarada</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
                     <Label>Data da Vistoria</Label>
                     <Input
                       type="date"
@@ -2302,6 +2359,8 @@ export function Inspections() {
                       required
                     />
                   </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label>Status</Label>
                     <Select

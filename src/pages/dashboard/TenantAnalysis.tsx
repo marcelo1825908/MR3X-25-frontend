@@ -718,49 +718,67 @@ const AnalysisDetailModal = ({
                     </div>
                   )}
                   <div className="space-y-2 max-h-60 overflow-y-auto">
-                    {analysis.background.protestRecords.map((protest, i) => (
-                      <div key={i} className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                        <div className="flex justify-between items-start">
-                          <div className="flex-1">
-                            <p className="font-medium text-sm">{protest.notaryOffice}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {protest.city && `${protest.city}`}
-                              {protest.state && ` - ${protest.state}`}
+                    {analysis.background.protestRecords && analysis.background.protestRecords.length > 0 ? (
+                      <>
+                        {analysis.background.protestRecords.map((protest, i) => (
+                          <div key={i} className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                            <div className="flex justify-between items-start">
+                              <div className="flex-1">
+                                <p className="font-medium text-sm">{protest.notaryOffice}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {protest.city && `${protest.city}`}
+                                  {protest.state && ` - ${protest.state}`}
+                                </p>
+                                {protest.amount && (
+                                  <p className="text-xs mt-1 font-semibold text-orange-700">
+                                    Valor: R$ {protest.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </p>
+                                )}
+                                {protest.creditor && (
+                                  <p className="text-xs mt-1">
+                                    <span className="text-muted-foreground">Credor: </span>
+                                    {protest.creditor}
+                                  </p>
+                                )}
+                                {protest.type && (
+                                  <p className="text-xs">
+                                    <span className="text-muted-foreground">Tipo: </span>
+                                    {protest.type}
+                                  </p>
+                                )}
+                                {protest.date && (
+                                  <p className="text-xs">
+                                    <span className="text-muted-foreground">Data: </span>
+                                    {new Date(protest.date).toLocaleDateString('pt-BR')}
+                                  </p>
+                                )}
+                                {protest.protocol && (
+                                  <p className="text-xs font-mono text-muted-foreground">
+                                    #{protest.protocol}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right">
+                                {protest.source && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {protest.source === 'INFOSIMPLES_CENPROT_SP' ? 'CENPROT-SP' : protest.source}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        {analysis.background.totalProtestValue > 0 && (
+                          <div className="p-3 bg-red-50 border border-red-200 rounded-lg mt-2">
+                            <p className="text-sm font-semibold text-red-700">
+                              Valor Total em Protestos: R$ {analysis.background.totalProtestValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
-                            {protest.creditor && (
-                              <p className="text-xs mt-1">
-                                <span className="text-muted-foreground">Credor: </span>
-                                {protest.creditor}
-                              </p>
-                            )}
-                            {protest.type && (
-                              <p className="text-xs">
-                                <span className="text-muted-foreground">Tipo: </span>
-                                {protest.type}
-                              </p>
-                            )}
-                            {protest.date && (
-                              <p className="text-xs">
-                                <span className="text-muted-foreground">Data: </span>
-                                {new Date(protest.date).toLocaleDateString('pt-BR')}
-                              </p>
-                            )}
-                            {protest.protocol && (
-                              <p className="text-xs font-mono text-muted-foreground">
-                                #{protest.protocol}
-                              </p>
-                            )}
                           </div>
-                          <div className="text-right">
-                            {protest.source && (
-                              <Badge variant="outline" className="text-xs">
-                                {protest.source === 'INFOSIMPLES_CENPROT_SP' ? 'CENPROT-SP' : protest.source}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-muted-foreground text-center py-4">Nenhum protesto encontrado</p>
+                    )}
                   </div>
                 </div>
               )}

@@ -4,10 +4,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui
 import { Skeleton } from '../../../components/ui/skeleton';
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../../components/ui/select';
+import { Label } from '../../../components/ui/label';
 import {
-  Eye, Activity, Shield, Server, AlertTriangle, Search, Download, Filter, Loader2
+  Eye, Activity, Shield, Server, AlertTriangle, Search, Download, Filter, Loader2, FileText
 } from 'lucide-react';
 import { auditorAPI } from '../../../api';
+import { toast } from 'sonner';
 
 type LogType = 'access' | 'activity' | 'system' | 'auth' | 'error';
 
@@ -79,10 +82,19 @@ const logTypeConfig: Record<LogType, { label: string; icon: React.ElementType; c
 export function AuditorLogs() {
   const [activeTab, setActiveTab] = useState<LogType | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState({
+    event: '',
+    entity: '',
+    dateFrom: '',
+    dateTo: '',
+    user: '',
+    module: '',
+  });
 
   const { data: apiLogs = [], isLoading, error } = useQuery({
-    queryKey: ['auditor-logs'],
-    queryFn: () => auditorAPI.getLogs(),
+    queryKey: ['auditor-logs', filters],
+    queryFn: () => auditorAPI.getLogs(filters),
     refetchInterval: 30000, 
   });
 
@@ -118,10 +130,54 @@ export function AuditorLogs() {
             <p className="text-muted-foreground">Visualização de todos os logs (somente leitura)</p>
           </div>
         </div>
-        <Button variant="outline" className="flex items-center gap-2">
-          <Download className="w-4 h-4" />
-          Exportar CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2"
+            onClick={async () => {
+              try {
+                const blob = await auditorAPI.exportLogsToCSV(filters);
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `audit-logs-${new Date().toISOString().split('T')[0]}.csv`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                toast.success('Logs exportados com sucesso!');
+              } catch (error) {
+                toast.error('Erro ao exportar logs');
+              }
+            }}
+          >
+            <Download className="w-4 h-4" />
+            Exportar CSV
+          </Button>
+          <Button 
+            variant="outline" 
+            className="flex items-center gap-2"
+            onClick={async () => {
+              try {
+                const blob = await auditorAPI.exportLogsToPDF(filters);
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `audit-logs-${new Date().toISOString().split('T')[0]}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                toast.success('Logs exportados com sucesso!');
+              } catch (error) {
+                toast.error('Erro ao exportar logs');
+              }
+            }}
+          >
+            <FileText className="w-4 h-4" />
+            Exportar PDF
+          </Button>
+        </div>
       </div>
 
       {}
@@ -160,7 +216,11 @@ export function AuditorLogs() {
                 className="pl-10"
               />
             </div>
-            <Button variant="outline" className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              className="flex items-center gap-2"
+              onClick={() => setShowFilters(!showFilters)}
+            >
               <Filter className="w-4 h-4" />
               Filtros
             </Button>
@@ -168,7 +228,104 @@ export function AuditorLogs() {
         </CardContent>
       </Card>
 
-      {}
+      {/* Advanced Filters */}
+      {showFilters && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <Filter className="w-4 h-4" />
+              Filtros Avançados
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="event">Tipo de Evento</Label>
+                <Input
+                  id="event"
+                  placeholder="Ex: LOGIN, CREATE, UPDATE"
+                  value={filters.event}
+                  onChange={(e) => setFilters({ ...filters, event: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="entity">Entidade</Label>
+                <Input
+                  id="entity"
+                  placeholder="Ex: User, Contract, Payment"
+                  value={filters.entity}
+                  onChange={(e) => setFilters({ ...filters, entity: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="module">Módulo</Label>
+                <Select value={filters.module} onValueChange={(v) => setFilters({ ...filters, module: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o módulo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Todos</SelectItem>
+                    <SelectItem value="contracts">Contratos</SelectItem>
+                    <SelectItem value="payments">Pagamentos</SelectItem>
+                    <SelectItem value="properties">Propriedades</SelectItem>
+                    <SelectItem value="users">Usuários</SelectItem>
+                    <SelectItem value="agencies">Agências</SelectItem>
+                    <SelectItem value="documents">Documentos</SelectItem>
+                    <SelectItem value="inspections">Vistorias</SelectItem>
+                    <SelectItem value="notifications">Notificações</SelectItem>
+                    <SelectItem value="agreements">Acordos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="user">Usuário</Label>
+                <Input
+                  id="user"
+                  placeholder="Nome ou email do usuário"
+                  value={filters.user}
+                  onChange={(e) => setFilters({ ...filters, user: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dateFrom">Data Inicial</Label>
+                <Input
+                  id="dateFrom"
+                  type="date"
+                  value={filters.dateFrom}
+                  onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dateTo">Data Final</Label>
+                <Input
+                  id="dateTo"
+                  type="date"
+                  value={filters.dateTo}
+                  onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-4">
+              <Button 
+                variant="outline" 
+                onClick={() => {
+                  setFilters({
+                    event: '',
+                    entity: '',
+                    dateFrom: '',
+                    dateTo: '',
+                    user: '',
+                    module: '',
+                  });
+                }}
+              >
+                Limpar Filtros
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
@@ -212,9 +369,11 @@ export function AuditorLogs() {
                     <th className="text-left p-4 text-sm font-medium">Tipo</th>
                     <th className="text-left p-4 text-sm font-medium">Nível</th>
                     <th className="text-left p-4 text-sm font-medium">Usuário</th>
+                    <th className="text-left p-4 text-sm font-medium">Função</th>
                     <th className="text-left p-4 text-sm font-medium">IP</th>
                     <th className="text-left p-4 text-sm font-medium">Ação</th>
                     <th className="text-left p-4 text-sm font-medium">Detalhes</th>
+                    <th className="text-left p-4 text-sm font-medium">Hash</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -235,9 +394,17 @@ export function AuditorLogs() {
                           </span>
                         </td>
                         <td className="p-4 text-sm">{log.user || '-'}</td>
+                        <td className="p-4 text-sm">
+                          <span className="px-2 py-1 rounded bg-gray-100 text-gray-700 text-xs">
+                            {apiLogs.find((l: any) => l.id === log.id)?.userRole || 'N/A'}
+                          </span>
+                        </td>
                         <td className="p-4 text-sm font-mono">{log.ip || '-'}</td>
                         <td className="p-4 text-sm font-medium">{log.action}</td>
                         <td className="p-4 text-sm text-muted-foreground">{log.details}</td>
+                        <td className="p-4 text-xs font-mono text-muted-foreground">
+                          {apiLogs.find((l: any) => l.id === log.id)?.integrityHash?.substring(0, 16) || 'N/A'}...
+                        </td>
                       </tr>
                     );
                   })}

@@ -241,6 +241,19 @@ export function TermsOfUsePage() {
             <strong>☑️</strong> Declaro que li, compreendi e aceito integralmente os Termos de Uso da Plataforma MR3X.
           </p>
         </div>
+
+        <div className="bg-amber-50 border-l-4 border-amber-400 p-6 my-8 rounded">
+          <h2 className="mt-0 text-amber-800">⚠️ AVISO LEGAL IMPORTANTE</h2>
+          <p className="text-amber-900 mb-2">
+            <strong>MR3X é uma plataforma de tecnologia para gestão de aluguéis e não presta serviços jurídicos, 
+            advocatícios ou de intermediação judicial.</strong>
+          </p>
+          <p className="text-amber-800 text-sm">
+            A MR3X atua exclusivamente como provedor de tecnologia (SaaS), oferecendo ferramentas de gestão 
+            administrativa e documental. Todas as decisões jurídicas, contratuais e comerciais são de 
+            responsabilidade exclusiva dos usuários da plataforma.
+          </p>
+        </div>
       </section>
     </div>
   );

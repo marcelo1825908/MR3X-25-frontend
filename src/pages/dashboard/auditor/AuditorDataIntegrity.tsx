@@ -1,24 +1,44 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
 import { Skeleton } from '../../../components/ui/skeleton';
+import { Badge } from '../../../components/ui/badge';
+import { Input } from '../../../components/ui/input';
+import { Label } from '../../../components/ui/label';
+import { Button } from '../../../components/ui/button';
 import {
-  Database, Eye, History, CheckCircle, Edit, Trash2, Plus
+  Database, Eye, History, CheckCircle, Edit, Trash2, Plus, AlertTriangle, Hash
 } from 'lucide-react';
 import { auditorAPI } from '../../../api';
 
-interface IntegrityData {
-  totalChanges: number;
-  creates: number;
-  updates: number;
-  deletes: number;
-  integrityStatus: 'healthy' | 'warning' | 'critical';
-}
 
 export function AuditorDataIntegrity() {
-  
-  const { data: integrityData, isLoading } = useQuery<IntegrityData>({
+  const [documentId, setDocumentId] = useState('');
+  const [entityFilter, setEntityFilter] = useState('');
+  const [entityIdFilter, setEntityIdFilter] = useState('');
+
+  const { data: integrityData, isLoading } = useQuery({
     queryKey: ['auditor-integrity'],
     queryFn: () => auditorAPI.getDataIntegrity(),
+  });
+
+  const { data: inconsistencyAlerts } = useQuery({
+    queryKey: ['auditor-inconsistency-alerts'],
+    queryFn: () => auditorAPI.getInconsistencyAlerts(),
+  });
+
+  const { data: changeHistory = [], isLoading: historyLoading } = useQuery({
+    queryKey: ['auditor-change-history', entityFilter, entityIdFilter],
+    queryFn: () => auditorAPI.getChangeHistory({
+      entity: entityFilter || undefined,
+      entityId: entityIdFilter || undefined,
+    }),
+  });
+
+  const { data: documentVersions = [], isLoading: versionsLoading } = useQuery({
+    queryKey: ['auditor-document-versions', documentId],
+    queryFn: () => auditorAPI.getDocumentVersions(documentId),
+    enabled: !!documentId,
   });
 
   const getStatusStyle = (status?: string) => {
@@ -210,6 +230,177 @@ export function AuditorDataIntegrity() {
                   </span>
                 </div>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Inconsistency Alerts */}
+          {inconsistencyAlerts && inconsistencyAlerts.totalAlerts !== undefined && (
+            <Card className={inconsistencyAlerts.totalAlerts > 0 ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <AlertTriangle className={`w-4 h-4 ${inconsistencyAlerts.totalAlerts > 0 ? 'text-red-600' : 'text-green-600'}`} />
+                  Alertas de Inconsistência
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="p-3 bg-white rounded-lg border">
+                    <p className="text-xs text-muted-foreground mb-1">Contratos sem Assinatura</p>
+                    <p className="text-lg font-bold">{inconsistencyAlerts.contractsWithoutSignatures || 0}</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-lg border">
+                    <p className="text-xs text-muted-foreground mb-1">Pagamentos sem Contrato</p>
+                    <p className="text-lg font-bold">{inconsistencyAlerts.paymentsWithoutContracts || 0}</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-lg border">
+                    <p className="text-xs text-muted-foreground mb-1">Propriedades sem Proprietário</p>
+                    <p className="text-lg font-bold">{inconsistencyAlerts.propertiesWithoutOwners || 0}</p>
+                  </div>
+                  <div className="p-3 bg-white rounded-lg border">
+                    <p className="text-xs text-muted-foreground mb-1">Documentos sem Propriedade</p>
+                    <p className="text-lg font-bold">{inconsistencyAlerts.documentsWithoutProperty || 0}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Document Hash Verification */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Hash className="w-4 h-4" />
+                Verificação de Hash de Documentos
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <Label htmlFor="documentId">ID do Documento</Label>
+                    <Input
+                      id="documentId"
+                      placeholder="Digite o ID do documento"
+                      value={documentId}
+                      onChange={(e) => setDocumentId(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-end">
+                    <Button
+                      onClick={async () => {
+                        if (!documentId) return;
+                        try {
+                          const result = await auditorAPI.verifyDocumentHash(documentId);
+                          // Display result (could use a toast or modal)
+                          console.log('Verification result:', result);
+                        } catch (error) {
+                          console.error('Verification error:', error);
+                        }
+                      }}
+                      disabled={!documentId}
+                    >
+                      Verificar
+                    </Button>
+                  </div>
+                </div>
+                {versionsLoading ? (
+                  <Skeleton className="h-32 w-full" />
+                ) : documentVersions.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Histórico de Versões:</p>
+                    {documentVersions.map((version: any) => (
+                      <div key={version.id} className="p-3 bg-gray-50 rounded-lg border text-sm">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium">Versão {version.version} - {version.event}</span>
+                          <Badge className="bg-blue-100 text-blue-700">{new Date(version.timestamp).toLocaleString('pt-BR')}</Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Por: {version.user} ({version.userRole}) | IP: {version.ip}
+                        </p>
+                        <p className="text-xs font-mono text-muted-foreground mt-1">
+                          Hash: {version.integrityHash?.substring(0, 32) || 'N/A'}...
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Change History */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <History className="w-4 h-4" />
+                Histórico Completo de Alterações
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4 mb-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="entityFilter">Entidade</Label>
+                    <Input
+                      id="entityFilter"
+                      placeholder="Ex: Contract, Payment, User"
+                      value={entityFilter}
+                      onChange={(e) => setEntityFilter(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="entityIdFilter">ID da Entidade</Label>
+                    <Input
+                      id="entityIdFilter"
+                      placeholder="ID específico"
+                      value={entityIdFilter}
+                      onChange={(e) => setEntityIdFilter(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {historyLoading ? (
+                <div className="space-y-2">
+                  {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-20 w-full" />
+                  ))}
+                </div>
+              ) : changeHistory.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <History className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                  <p>Nenhuma alteração encontrada</p>
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {changeHistory.map((change: any) => (
+                    <div key={change.id} className="p-3 bg-gray-50 rounded-lg border text-sm">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Badge className={
+                              change.event.includes('CREATE') ? 'bg-green-100 text-green-700' :
+                              change.event.includes('UPDATE') ? 'bg-yellow-100 text-yellow-700' :
+                              change.event.includes('DELETE') ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                            }>
+                              {change.event}
+                            </Badge>
+                            <span className="text-xs text-muted-foreground">{change.entity} #{change.entityId}</span>
+                          </div>
+                          <p className="font-medium">{change.user} ({change.userRole})</p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(change.timestamp).toLocaleString('pt-BR')} | IP: {change.ip}
+                          </p>
+                          <p className="text-xs font-mono text-muted-foreground mt-1">
+                            Hash: {change.integrityHash?.substring(0, 32) || 'N/A'}...
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </CardContent>
           </Card>
         </>

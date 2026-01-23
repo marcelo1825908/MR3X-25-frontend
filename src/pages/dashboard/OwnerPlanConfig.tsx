@@ -703,14 +703,14 @@ export function OwnerPlanConfig() {
         </div>
       </div>
 
-      {/* Upgrade Required Alert */}
-      {planUsage?.upgradeRequired && (
+      {/* Upgrade Required Alert - Only for Independent Owners */}
+      {user?.role === 'INDEPENDENT_OWNER' && planUsage?.upgradeRequired && (
         <Alert className="border-amber-300 bg-amber-50">
           <AlertTriangle className="h-5 w-5 text-amber-600" />
           <AlertDescription className="text-amber-800">
-            <p className="font-medium mb-2">Voce tem itens congelados devido ao limite do seu plano.</p>
+            <p className="font-medium mb-2">Você tem itens congelados devido ao limite do seu plano.</p>
             <p className="text-sm">
-              Faca upgrade para um plano maior para desbloquear todos os seus imoveis.
+              Faça upgrade para um plano maior para desbloquear todos os seus imóveis.
             </p>
           </AlertDescription>
         </Alert>

@@ -43,6 +43,7 @@ import { ApiDocs } from './pages/dashboard/ApiDocs';
 import { ApiSettings } from './pages/dashboard/ApiSettings';
 import { SalesRepDashboard } from './pages/dashboard/SalesRepDashboard';
 import { SalesLeads } from './pages/dashboard/SalesLeads';
+import { SalesProspects } from './pages/dashboard/SalesProspects';
 import { SalesProposals } from './pages/dashboard/SalesProposals';
 import { SalesPipeline } from './pages/dashboard/SalesPipeline';
 import { SalesMetrics } from './pages/dashboard/SalesMetrics';
@@ -262,6 +263,7 @@ function App() {
               {}
               <Route path="sales-dashboard" element={<SalesRepDashboard />} />
               <Route path="sales-leads" element={<SalesLeads />} />
+              <Route path="sales-prospects" element={<SalesProspects />} />
               <Route path="sales-proposals" element={<SalesProposals />} />
               <Route path="sales-pipeline" element={<SalesPipeline />} />
               <Route path="sales-agencies" element={<SalesAgencies />} />

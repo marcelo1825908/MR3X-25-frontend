@@ -58,3 +58,22 @@ export function formatCEP(cep: string): string {
   if (cleaned.length !== 8) return cep
   return cleaned.replace(/(\d{5})(\d{3})/, '$1-$2')
 }
+
+  /**
+   * Mask CPF/CNPJ for LGPD compliance (frontend display only)
+   * Shows only partial digits: CPF: XXX.774.XXX-77, CNPJ: XX.123.XXX/XXXX-XX
+   */
+export function maskDocument(document: string | null | undefined): string {
+  if (!document) return '';
+  const cleaned = document.replace(/\D/g, '');
+  
+  if (cleaned.length === 11) {
+    // CPF: ***.774.***-77
+    return `***.${cleaned.slice(3, 6)}.***-${cleaned.slice(9)}`;
+  } else if (cleaned.length === 14) {
+    // CNPJ: **.123.***/****-**
+    return `**.${cleaned.slice(2, 5)}.***/****-${cleaned.slice(12)}`;
+  }
+  
+  return document; // Return as-is if not CPF/CNPJ format
+}

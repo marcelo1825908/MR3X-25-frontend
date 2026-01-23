@@ -23,8 +23,6 @@ import {
   Mail,
   Edit,
   Eye,
-  MessageSquare,
-  FileText,
   Clock,
   CheckCircle,
   XCircle,
@@ -32,7 +30,6 @@ import {
   Target,
   Filter,
   ArrowRight,
-  Shield,
   Trash2,
   Loader2,
 } from 'lucide-react';
@@ -47,10 +44,10 @@ interface Lead {
   contactPhone: string;
   city: string;
   state: string;
-  source: 'Website' | 'Referral' | 'Campaign' | 'Manual';
+  source: 'direct_signup' | 'manual' | 'invitation' | 'referral';
   assignedRepresentative?: string;
   representativeName?: string;
-  status: 'new' | 'contacted' | 'qualified' | 'proposal_sent' | 'negotiation' | 'won' | 'lost' | 'disqualified';
+  status: 'new' | 'contacted' | 'active' | 'converted' | 'discarded';
   planInterest?: 'starter' | 'business' | 'premium' | 'enterprise';
   createdAt: string;
   lastContactAt?: string;
@@ -58,6 +55,7 @@ interface Lead {
   notes?: string;
   address?: string;
   cep?: string;
+  referringUserId?: string;
   activities?: LeadActivity[];
   attachments?: LeadAttachment[];
   convertedToAgencyId?: string;
@@ -84,12 +82,9 @@ interface LeadAttachment {
 const statusConfig = {
   new: { label: 'Novo', color: 'bg-gray-100 text-gray-800', icon: Clock },
   contacted: { label: 'Contatado', color: 'bg-blue-100 text-blue-800', icon: Phone },
-  qualified: { label: 'Qualificado', color: 'bg-cyan-100 text-cyan-800', icon: Target },
-  proposal_sent: { label: 'Proposta Enviada', color: 'bg-purple-100 text-purple-800', icon: FileText },
-  negotiation: { label: 'Negociação', color: 'bg-orange-100 text-orange-800', icon: MessageSquare },
-  won: { label: 'Ganho', color: 'bg-green-100 text-green-800', icon: CheckCircle },
-  lost: { label: 'Perdido', color: 'bg-red-100 text-red-800', icon: XCircle },
-  disqualified: { label: 'Desqualificado', color: 'bg-gray-200 text-gray-700', icon: Shield },
+  active: { label: 'Ativo', color: 'bg-cyan-100 text-cyan-800', icon: Target },
+  converted: { label: 'Convertido', color: 'bg-green-100 text-green-800', icon: CheckCircle },
+  discarded: { label: 'Descartado', color: 'bg-red-100 text-red-800', icon: XCircle },
 };
 
 const planConfig = {
@@ -100,10 +95,10 @@ const planConfig = {
 };
 
 const sourceConfig = {
-  Website: { label: 'Site', color: 'bg-blue-50 text-blue-700' },
-  Referral: { label: 'Indicação', color: 'bg-green-50 text-green-700' },
-  Campaign: { label: 'Campanha', color: 'bg-purple-50 text-purple-700' },
-  Manual: { label: 'Manual', color: 'bg-gray-50 text-gray-700' },
+  direct_signup: { label: 'Cadastro Direto', color: 'bg-blue-50 text-blue-700' },
+  manual: { label: 'Criação Manual', color: 'bg-gray-50 text-gray-700' },
+  invitation: { label: 'Convite', color: 'bg-purple-50 text-purple-700' },
+  referral: { label: 'Indicação', color: 'bg-green-50 text-green-700' },
 };
 
 export function SalesLeads() {
@@ -124,9 +119,10 @@ export function SalesLeads() {
   const [showFilters, setShowFilters] = useState(false);
 
   // Form state for Create/Edit modals
-  const [formSource, setFormSource] = useState<Lead['source']>('Manual');
+  const [formSource, setFormSource] = useState<Lead['source']>('manual');
   const [formPlanInterest, setFormPlanInterest] = useState<Lead['planInterest'] | ''>('');
   const [formStatus, setFormStatus] = useState<Lead['status']>('new');
+  const [formReferringUserId, setFormReferringUserId] = useState<string>('');
   const [formCEP, setFormCEP] = useState<string>('');
   const [formAddress, setFormAddress] = useState<string>('');
   const [formCity, setFormCity] = useState<string>('');
@@ -147,12 +143,13 @@ export function SalesLeads() {
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ['sales-leads'],
     queryFn: async () => {
-      const response = await apiClient.get('/sales-rep/prospects');
+      const response = await apiClient.get('/sales-rep/leads');
       return (response.data || []).map((p: any) => ({
         ...p,
         token: p.token || deriveToken(p.id),
-        companyName: p.name,
+        companyName: p.name || p.companyName,
         status: mapOldStatusToNew(p.status),
+        source: mapOldSourceToNew(p.source),
       }));
     },
   });
@@ -163,19 +160,19 @@ export function SalesLeads() {
     queryFn: async () => {
       const totalLeads = leads.length;
       const activeLeads = leads.filter((l: Lead) =>
-        !['won', 'lost', 'disqualified'].includes(l.status)
+        !['converted', 'discarded'].includes(l.status)
       ).length;
-      const wonLeads = leads.filter((l: Lead) => l.status === 'won').length;
-      const conversionRate = totalLeads > 0 ? (wonLeads / totalLeads) * 100 : 0;
+      const convertedLeads = leads.filter((l: Lead) => l.status === 'converted').length;
+      const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
 
       // Calculate average time to convert
-      const convertedLeads = leads.filter((l: Lead) => l.conversionDate);
-      const avgTimeToConvert = convertedLeads.length > 0
-        ? convertedLeads.reduce((sum: number, l: Lead) => {
+      const leadsWithConversionDate = leads.filter((l: Lead) => l.conversionDate);
+      const avgTimeToConvert = leadsWithConversionDate.length > 0
+        ? leadsWithConversionDate.reduce((sum: number, l: Lead) => {
           const created = new Date(l.createdAt).getTime();
           const converted = new Date(l.conversionDate!).getTime();
           return sum + (converted - created) / (1000 * 60 * 60 * 24); // days
-        }, 0) / convertedLeads.length
+        }, 0) / leadsWithConversionDate.length
         : 0;
 
       return {
@@ -183,8 +180,8 @@ export function SalesLeads() {
         activeLeads,
         conversionRate: Math.round(conversionRate * 10) / 10,
         avgTimeToConvert: Math.round(avgTimeToConvert),
-        wonLeads,
-        lostLeads: leads.filter((l: Lead) => l.status === 'lost').length,
+        wonLeads: convertedLeads,
+        lostLeads: leads.filter((l: Lead) => l.status === 'discarded').length,
       };
     },
     enabled: !isLoading,
@@ -226,20 +223,39 @@ export function SalesLeads() {
     const mapping: Record<string, Lead['status']> = {
       'new': 'new',
       'contacted': 'contacted',
-      'interested': 'qualified',
-      'negotiating': 'negotiation',
-      'converted': 'won',
-      'lost': 'lost',
+      'qualified': 'active',
+      'interested': 'active',
+      'proposal_sent': 'active',
+      'negotiation': 'active',
+      'negotiating': 'active',
+      'won': 'converted',
+      'converted': 'converted',
+      'lost': 'discarded',
+      'disqualified': 'discarded',
     };
     return mapping[oldStatus] || 'new';
+  }
+
+  // Map old source to new source flow
+  function mapOldSourceToNew(oldSource: string): Lead['source'] {
+    const mapping: Record<string, Lead['source']> = {
+      'Manual': 'manual',
+      'Website': 'direct_signup',
+      'Campaign': 'direct_signup',
+      'Referral': 'referral',
+      'manual': 'manual',
+      'direct_signup': 'direct_signup',
+      'invitation': 'invitation',
+      'referral': 'referral',
+    };
+    return mapping[oldSource] || 'manual';
   }
 
   // Create lead mutation
   const createLeadMutation = useMutation({
     mutationFn: async (data: Partial<Lead> & { cep?: string }) => {
-      const token = generateToken();
-      const response = await apiClient.post('/sales-rep/prospects', {
-        name: data.companyName,
+      const response = await apiClient.post('/sales-rep/leads', {
+        companyName: data.companyName,
         contactName: data.contactName,
         contactEmail: data.contactEmail,
         contactPhone: data.contactPhone,
@@ -248,10 +264,9 @@ export function SalesLeads() {
         address: data.address,
         cep: data.cep,
         source: data.source,
-        status: 'new',
         planInterest: data.planInterest,
         notes: data.notes,
-        token: token,
+        referringUserId: data.referringUserId,
       });
       return response.data;
     },
@@ -269,7 +284,7 @@ export function SalesLeads() {
   // Update lead mutation
   const updateLeadMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Lead> }) => {
-      const response = await apiClient.put(`/sales-rep/prospects/${id}`, data);
+      const response = await apiClient.put(`/sales-rep/leads/${id}`, data);
       return response.data;
     },
     onSuccess: () => {
@@ -305,7 +320,7 @@ export function SalesLeads() {
   // Delete lead mutation
   const deleteLeadMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiClient.delete(`/sales-rep/prospects/${id}`);
+      const response = await apiClient.delete(`/sales-rep/leads/${id}`);
       return response.data;
     },
     onSuccess: () => {
@@ -412,6 +427,7 @@ export function SalesLeads() {
     setFormCity(lead.city || '');
     setFormState(lead.state || '');
     setFormContactEmail(lead.contactEmail || '');
+    setFormReferringUserId(lead.referringUserId || '');
     setEmailVerified(true); // Assume current email is valid
     setEmailError('');
     const phoneValue = lead.contactPhone || '';
@@ -794,7 +810,7 @@ export function SalesLeads() {
                             >
                               <Edit className="w-4 h-4" />
                             </Button>
-                            {lead.status === 'won' && (
+                            {lead.status === 'converted' && (
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -929,6 +945,7 @@ export function SalesLeads() {
                   source: formSource,
                   planInterest: formPlanInterest || undefined,
                   notes: formData.get('notes') as string || undefined,
+                  referringUserId: formReferringUserId && formReferringUserId.trim() !== '' ? formReferringUserId.trim() : undefined,
                 });
               }}
               className="space-y-4"
@@ -1059,6 +1076,20 @@ export function SalesLeads() {
               </div>
 
               <div>
+                <label className="block text-sm font-medium mb-1">ID do Usuário Referenciador (opcional)</label>
+                <Input
+                  name="referringUserId"
+                  type="text"
+                  value={formReferringUserId}
+                  onChange={(e) => setFormReferringUserId(e.target.value)}
+                  placeholder="ID do usuário que indicou este lead"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Deixe em branco se não houver usuário referenciador
+                </p>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium mb-1">Notas (internas)</label>
                 <textarea
                   name="notes"
@@ -1074,13 +1105,14 @@ export function SalesLeads() {
                   variant="outline"
                   onClick={() => {
                     setShowAddModal(false);
-                    setFormSource('Manual');
+                    setFormSource('manual');
                     setFormPlanInterest('');
                     setFormCEP('');
                     setFormAddress('');
                     setFormCity('');
                     setFormState('');
                     setFormContactEmail('');
+                    setFormReferringUserId('');
                     setEmailError('');
                     setEmailVerified(false);
                     setFormContactPhone('');
@@ -1132,6 +1164,7 @@ export function SalesLeads() {
                     status: formStatus,
                     planInterest: formPlanInterest || undefined,
                     notes: formData.get('notes') as string || undefined,
+                    referringUserId: formReferringUserId && formReferringUserId.trim() !== '' ? formReferringUserId.trim() : undefined,
                   },
                 });
               }}
@@ -1279,6 +1312,20 @@ export function SalesLeads() {
               </div>
 
               <div>
+                <label className="block text-sm font-medium mb-1">ID do Usuário Referenciador (opcional)</label>
+                <Input
+                  name="referringUserId"
+                  type="text"
+                  value={formReferringUserId}
+                  onChange={(e) => setFormReferringUserId(e.target.value)}
+                  placeholder="ID do usuário que indicou este lead"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Deixe em branco se não houver usuário referenciador
+                </p>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium mb-1">Notas (internas)</label>
                 <textarea
                   name="notes"
@@ -1301,6 +1348,7 @@ export function SalesLeads() {
                     setFormCity('');
                     setFormState('');
                     setFormContactEmail('');
+                    setFormReferringUserId('');
                     setEmailError('');
                     setEmailVerified(false);
                     setFormContactPhone('');
@@ -1425,6 +1473,15 @@ export function SalesLeads() {
                 </div>
               </div>
 
+              {selectedLead.referringUserId && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">ID do Usuário Referenciador</label>
+                  <div className="px-3 py-2 border rounded-lg bg-gray-50 text-sm">
+                    {selectedLead.referringUserId}
+                  </div>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium mb-1">Notas (internas)</label>
                 <div className="px-3 py-2 border rounded-lg bg-yellow-50 text-sm whitespace-pre-wrap min-h-[80px]">
@@ -1446,7 +1503,7 @@ export function SalesLeads() {
               </Button>
               {!selectedLead.convertedToAgencyId && (
                 <>
-                  {selectedLead.status === 'won' && (
+                  {selectedLead.status === 'converted' && (
                     <Button onClick={() => {
                       setShowDetailModal(false);
                       handleConvertLead(selectedLead);

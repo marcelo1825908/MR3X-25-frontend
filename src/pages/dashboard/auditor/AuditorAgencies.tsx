@@ -30,18 +30,31 @@ export function AuditorAgencies() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedAgency, setSelectedAgency] = useState<Agency | null>(null);
 
-  const { data: agenciesData = { agencies: [], stats: { total: 0, active: 0, inactive: 0, suspended: 0 } }, isLoading } = useQuery({
+  const [activeTab, setActiveTab] = useState<'agencies' | 'owners'>('agencies');
+
+  const { data: agenciesData = { agencies: [], independentOwners: [], stats: { total: 0, active: 0, inactive: 0, suspended: 0, totalOwners: 0 } }, isLoading } = useQuery({
     queryKey: ['auditor', 'agencies', searchTerm],
     queryFn: () => auditorAPI.getAgencies({ search: searchTerm || undefined }),
   });
 
   const agencies = agenciesData.agencies || [];
-  const stats = agenciesData.stats || { total: 0, active: 0, inactive: 0, suspended: 0 };
+  const independentOwners = agenciesData.independentOwners || [];
+  const stats = agenciesData.stats || { total: 0, active: 0, inactive: 0, suspended: 0, totalOwners: 0 };
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  };
 
   const filteredAgencies = agencies.filter((agency: Agency) =>
     agency.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     agency.cnpj.includes(searchTerm) ||
     agency.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredOwners = independentOwners.filter((owner: any) =>
+    owner.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (owner.cpf && owner.cpf.includes(searchTerm)) ||
+    owner.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (isLoading) {
@@ -164,13 +177,13 @@ export function AuditorAgencies() {
           <Building2 className="w-6 h-6 text-blue-700" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold">Visão Geral de Agências</h1>
-          <p className="text-muted-foreground">Lista de todas as agências (somente leitura)</p>
+          <h1 className="text-2xl font-bold">Agências / Proprietários Independentes</h1>
+          <p className="text-muted-foreground">Lista de todas as agências e proprietários independentes (somente leitura)</p>
         </div>
       </div>
 
       {}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2 bg-blue-100 rounded-lg">
@@ -215,6 +228,17 @@ export function AuditorAgencies() {
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="p-2 bg-purple-100 rounded-lg">
+              <Package className="w-5 h-5 text-purple-600" />
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Proprietários</p>
+              <p className="text-xl font-bold">{stats.totalOwners || 0}</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {}
@@ -223,7 +247,7 @@ export function AuditorAgencies() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar agências por nome, CNPJ ou e-mail..."
+              placeholder="Buscar agências ou proprietários por nome, CNPJ/CPF ou e-mail..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-10"
@@ -232,15 +256,39 @@ export function AuditorAgencies() {
         </CardContent>
       </Card>
 
+      <div className="space-y-4">
+        <div className="flex gap-2 border-b">
+          <button
+            onClick={() => setActiveTab('agencies')}
+            className={`px-4 py-2 border-b-2 transition-colors ${
+              activeTab === 'agencies' ? 'border-blue-600 text-blue-600' : 'border-transparent text-muted-foreground'
+            }`}
+          >
+            Agências ({filteredAgencies.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('owners')}
+            className={`px-4 py-2 border-b-2 transition-colors ${
+              activeTab === 'owners' ? 'border-blue-600 text-blue-600' : 'border-transparent text-muted-foreground'
+            }`}
+          >
+            Proprietários Independentes ({filteredOwners.length})
+          </button>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle className="text-base">Lista de Agências ({filteredAgencies.length})</CardTitle>
+            <CardTitle className="text-base">
+              {activeTab === 'agencies' ? `Lista de Agências (${filteredAgencies.length})` : `Proprietários Independentes (${filteredOwners.length})`}
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="divide-y max-h-[500px] overflow-y-auto">
-              {filteredAgencies.map((agency: Agency) => (
+            {activeTab === 'agencies' ? (
+              <div className="divide-y max-h-[500px] overflow-y-auto">
+                {filteredAgencies.map((agency: Agency) => (
                 <div
                   key={agency.id}
                   className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
@@ -272,7 +320,43 @@ export function AuditorAgencies() {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            ) : (
+              <div className="divide-y max-h-[500px] overflow-y-auto">
+                {filteredOwners.map((owner: any) => (
+                  <div
+                    key={owner.id}
+                    className={`p-4 cursor-pointer hover:bg-gray-50 transition-colors ${
+                      selectedAgency?.id === owner.id ? 'bg-blue-50' : ''
+                    }`}
+                    onClick={() => setSelectedAgency(owner as any)}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium">{owner.name}</span>
+                          <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusStyle(owner.status)}`}>
+                            {getStatusLabel(owner.status)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground font-mono mt-1">{owner.cpf || 'N/A'}</p>
+                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Building2 className="w-3 h-3" /> {owner.stats.properties} imóveis
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <FileText className="w-3 h-3" /> {owner.stats.contracts} contratos
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <Package className="w-3 h-3" /> {formatCurrency(owner.stats.totalRevenue || 0)}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -281,7 +365,7 @@ export function AuditorAgencies() {
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <Eye className="w-4 h-4" />
-              Detalhes da Agência
+              {activeTab === 'agencies' ? 'Detalhes da Agência' : 'Detalhes do Proprietário'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -292,10 +376,39 @@ export function AuditorAgencies() {
                   <p className="font-medium">{selectedAgency.name}</p>
                 </div>
 
-                <div>
-                  <p className="text-xs text-muted-foreground">CNPJ</p>
-                  <p className="font-mono">{selectedAgency.cnpj}</p>
-                </div>
+                {activeTab === 'agencies' ? (
+                  <>
+                    <div>
+                      <p className="text-xs text-muted-foreground">CNPJ</p>
+                      <p className="font-mono">{selectedAgency.cnpj}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <span className={`px-2 py-1 rounded text-xs ${getPlanStyle(selectedAgency.plan)}`}>
+                        <Package className="w-3 h-3 inline mr-1" />
+                        {getPlanLabel(selectedAgency.plan)}
+                      </span>
+                      <span className={`px-2 py-1 rounded text-xs ${getStatusStyle(selectedAgency.status)}`}>
+                        {getStatusLabel(selectedAgency.status)}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div>
+                      <p className="text-xs text-muted-foreground">CPF</p>
+                      <p className="font-mono">{(selectedAgency as any).cpf || 'N/A'}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Endereço</p>
+                      <p className="text-sm">{(selectedAgency as any).address || 'N/A'}</p>
+                      <p className="text-sm">{(selectedAgency as any).city || ''} - {(selectedAgency as any).state || ''}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Último Login</p>
+                      <p className="text-sm">{(selectedAgency as any).lastLogin ? new Date((selectedAgency as any).lastLogin).toLocaleString('pt-BR') : 'Nunca'}</p>
+                    </div>
+                  </>
+                )}
 
                 <div>
                   <p className="text-xs text-muted-foreground">Contato</p>
@@ -303,29 +416,21 @@ export function AuditorAgencies() {
                   <p className="text-sm">{selectedAgency.phone}</p>
                 </div>
 
-                <div className="flex gap-2">
-                  <span className={`px-2 py-1 rounded text-xs ${getPlanStyle(selectedAgency.plan)}`}>
-                    <Package className="w-3 h-3 inline mr-1" />
-                    {getPlanLabel(selectedAgency.plan)}
-                  </span>
-                  <span className={`px-2 py-1 rounded text-xs ${getStatusStyle(selectedAgency.status)}`}>
-                    {getStatusLabel(selectedAgency.status)}
-                  </span>
-                </div>
-
                 <div>
                   <p className="text-xs text-muted-foreground">Data de Cadastro</p>
                   <p className="text-sm">{new Date(selectedAgency.createdAt).toLocaleDateString('pt-BR')}</p>
                 </div>
 
-                <div>
-                  <p className="text-xs text-muted-foreground">Última Atividade</p>
-                  <p className="text-sm">{selectedAgency.lastActivity}</p>
-                </div>
+                {activeTab === 'agencies' && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Última Atividade</p>
+                    <p className="text-sm">{selectedAgency.lastActivity}</p>
+                  </div>
+                )}
 
                 <div className="pt-4 border-t">
                   <p className="text-xs text-muted-foreground mb-2">Estatísticas</p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className={`grid gap-3 ${activeTab === 'agencies' ? 'grid-cols-2' : 'grid-cols-2'}`}>
                     <div className="bg-gray-50 p-2 rounded">
                       <p className="text-lg font-bold">{selectedAgency.stats.properties}</p>
                       <p className="text-xs text-muted-foreground">Imóveis</p>
@@ -334,21 +439,37 @@ export function AuditorAgencies() {
                       <p className="text-lg font-bold">{selectedAgency.stats.contracts}</p>
                       <p className="text-xs text-muted-foreground">Contratos</p>
                     </div>
-                    <div className="bg-gray-50 p-2 rounded">
-                      <p className="text-lg font-bold">{selectedAgency.stats.users}</p>
-                      <p className="text-xs text-muted-foreground">Usuários</p>
-                    </div>
-                    <div className="bg-gray-50 p-2 rounded">
-                      <p className="text-lg font-bold">{selectedAgency.stats.documents}</p>
-                      <p className="text-xs text-muted-foreground">Documentos</p>
-                    </div>
+                    {activeTab === 'agencies' && (
+                      <>
+                        <div className="bg-gray-50 p-2 rounded">
+                          <p className="text-lg font-bold">{selectedAgency.stats.users}</p>
+                          <p className="text-xs text-muted-foreground">Usuários</p>
+                        </div>
+                        <div className="bg-gray-50 p-2 rounded">
+                          <p className="text-lg font-bold">{selectedAgency.stats.documents}</p>
+                          <p className="text-xs text-muted-foreground">Documentos</p>
+                        </div>
+                      </>
+                    )}
+                    {activeTab === 'owners' && (
+                      <>
+                        <div className="bg-gray-50 p-2 rounded">
+                          <p className="text-lg font-bold">{selectedAgency.stats.documents}</p>
+                          <p className="text-xs text-muted-foreground">Documentos</p>
+                        </div>
+                        <div className="bg-gray-50 p-2 rounded">
+                          <p className="text-lg font-bold">{formatCurrency((selectedAgency.stats as any).totalRevenue || 0)}</p>
+                          <p className="text-xs text-muted-foreground">Receita Total</p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <Building2 className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                <p>Selecione uma agência para ver os detalhes</p>
+                <p>Selecione {activeTab === 'agencies' ? 'uma agência' : 'um proprietário'} para ver os detalhes</p>
               </div>
             )}
           </CardContent>

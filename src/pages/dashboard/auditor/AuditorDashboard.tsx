@@ -104,9 +104,24 @@ export function AuditorDashboard() {
     queryFn: auditorAPI.getSummaryStats,
   });
 
+  const { data: documentUploadLogs = [], isLoading: documentLogsLoading } = useQuery({
+    queryKey: ['auditor', 'document-upload-logs'],
+    queryFn: () => auditorAPI.getDocumentUploadLogs(20),
+  });
+
+  const { data: extrajudicialNotifications = [], isLoading: notificationsLoading } = useQuery({
+    queryKey: ['auditor', 'extrajudicial-notifications'],
+    queryFn: () => auditorAPI.getExtrajudicialNotifications(20),
+  });
+
+  const { data: criticalAlerts = {}, isLoading: alertsLoading } = useQuery({
+    queryKey: ['auditor', 'critical-alerts'],
+    queryFn: auditorAPI.getCriticalAlerts,
+  });
+
   const isLoading = metricsLoading || agencyLoading || contractLoading || transactionsLoading ||
     signatureLoading || userRoleLoading || paymentLoading || logsLoading || revenueLoading ||
-    activityLoading || statusLoading || summaryLoading;
+    activityLoading || statusLoading || summaryLoading || documentLogsLoading || notificationsLoading || alertsLoading;
 
   if (isLoading) {
     return (
@@ -570,6 +585,121 @@ export function AuditorDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Critical Alerts Section */}
+      {criticalAlerts && criticalAlerts.totalAlerts !== undefined && (
+        <Card className={criticalAlerts.totalAlerts > 0 ? 'border-red-200 bg-red-50' : 'border-green-200 bg-green-50'}>
+          <CardHeader>
+            <CardTitle className="text-base flex items-center gap-2">
+              <AlertTriangle className={`w-5 h-5 ${criticalAlerts.totalAlerts > 0 ? 'text-red-600' : 'text-green-600'}`} />
+              Alertas Críticos
+            </CardTitle>
+            <CardDescription>
+              {criticalAlerts.totalAlerts > 0 
+                ? `${criticalAlerts.totalAlerts} alerta(s) crítico(s) detectado(s)`
+                : 'Nenhum alerta crítico detectado'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-3 bg-white rounded-lg border">
+                <p className="text-xs text-muted-foreground mb-1">Documentos Expirados</p>
+                <p className="text-lg font-bold">{criticalAlerts.expiredDocuments || 0}</p>
+              </div>
+              <div className="p-3 bg-white rounded-lg border">
+                <p className="text-xs text-muted-foreground mb-1">Inconsistências de Assinatura</p>
+                <p className="text-lg font-bold">{criticalAlerts.signatureInconsistencies || 0}</p>
+              </div>
+              <div className="p-3 bg-white rounded-lg border">
+                <p className="text-xs text-muted-foreground mb-1">Falhas de Integridade</p>
+                <p className="text-lg font-bold">{criticalAlerts.integrityFailures || 0}</p>
+              </div>
+              <div className="p-3 bg-white rounded-lg border">
+                <p className="text-xs text-muted-foreground mb-1">Eventos Sensíveis (24h)</p>
+                <p className="text-lg font-bold">{criticalAlerts.sensitiveEvents || 0}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Document Upload Logs Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <FileText className="w-5 h-5" />
+            Logs de Upload de Documentos
+          </CardTitle>
+          <CardDescription>Registros de upload de documentos legais (quem, quando, IP, hash)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {documentUploadLogs.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <FileText className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>Nenhum registro de upload encontrado</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {documentUploadLogs.map((log: any) => (
+                <div key={log.id} className="p-3 bg-gray-50 rounded-lg border text-sm">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium">{log.fileName || log.documentType}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Propriedade: {log.propertyName} | Upload por: {log.uploadedBy} ({log.uploadedByRole})
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(log.uploadedAt).toLocaleString('pt-BR')} | IP: {log.ip} | Hash: {log.hash?.substring(0, 16)}...
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Extrajudicial Notifications Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5" />
+            Notificações Extrajudiciais
+          </CardTitle>
+          <CardDescription>Registros de notificações extrajudiciais enviadas</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {extrajudicialNotifications.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              <AlertTriangle className="w-12 h-12 mx-auto mb-2 opacity-50" />
+              <p>Nenhuma notificação extrajudicial encontrada</p>
+            </div>
+          ) : (
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {extrajudicialNotifications.map((notif: any) => (
+                <div key={notif.id} className="p-3 bg-gray-50 rounded-lg border text-sm">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <p className="font-medium">Token: {notif.token}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Tipo: {notif.type} | Propriedade: {notif.propertyName}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Credor: {notif.creditorName} | Devedor: {notif.debtorName}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Status: {notif.status} | Valor: {formatCurrency(notif.totalAmount || 0)} | 
+                        Criado em: {new Date(notif.createdAt).toLocaleString('pt-BR')}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

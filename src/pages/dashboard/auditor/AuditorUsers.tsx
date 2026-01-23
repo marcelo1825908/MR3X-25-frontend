@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui
 import { Input } from '../../../components/ui/input';
 import { Button } from '../../../components/ui/button';
 import {
-  Users, Search, Eye, Shield, CheckCircle, XCircle, Building2, User
+  Users, Search, Eye, Shield, CheckCircle, XCircle, Building2, User, History as HistoryIcon, Key, AlertTriangle
 } from 'lucide-react';
+import { Badge } from '../../../components/ui/badge';
 import { auditorAPI } from '../../../api';
 
 type UserRole = 'CEO' | 'ADMIN' | 'PLATFORM_MANAGER' | 'REPRESENTATIVE' |
@@ -23,7 +24,29 @@ interface SystemUser {
   status: 'active' | 'inactive';
   createdAt: string;
   lastLogin: string;
+  twoFactorEnabled?: boolean;
   permissions: string[];
+  accessHistory?: {
+    loginLogs: Array<{
+      timestamp: string;
+      event: string;
+      ip: string;
+      success: boolean;
+    }>;
+    recentActions: Array<{
+      timestamp: string;
+      event: string;
+      entity: string;
+      entityId: string;
+      ip: string;
+    }>;
+    statusChanges: Array<{
+      timestamp: string;
+      event: string;
+      ip: string;
+      details: string;
+    }>;
+  };
 }
 
 const INTERNAL_ROLES = ['CEO', 'ADMIN', 'PLATFORM_MANAGER', 'REPRESENTATIVE', 'LEGAL_AUDITOR', 'API_CLIENT'];
@@ -40,7 +63,9 @@ const mapApiUserToSystemUser = (user: any): SystemUser => {
     status: user.status?.toLowerCase() === 'active' ? 'active' : 'inactive',
     createdAt: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : '',
     lastLogin: user.lastLogin ? new Date(user.lastLogin).toLocaleString('pt-BR') : 'Nunca',
-    permissions: [], 
+    twoFactorEnabled: user.twoFactorEnabled || false,
+    permissions: [],
+    accessHistory: user.accessHistory || undefined,
   };
 };
 
@@ -318,14 +343,105 @@ export function AuditorUsers() {
                   <p className="text-sm">{selectedUser.lastLogin}</p>
                 </div>
 
+                {selectedUser.twoFactorEnabled !== undefined && (
+                  <div>
+                    <p className="text-xs text-muted-foreground">Autenticação 2FA</p>
+                    <Badge className={selectedUser.twoFactorEnabled ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}>
+                      {selectedUser.twoFactorEnabled ? 'Ativado' : 'Desativado'}
+                    </Badge>
+                  </div>
+                )}
+
+                {selectedUser.accessHistory && (
+                  <>
+                    <div className="pt-4 border-t">
+                      <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                        <Key className="w-3 h-3" /> Histórico de Acessos
+                      </p>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {selectedUser.accessHistory.loginLogs.length > 0 ? (
+                          selectedUser.accessHistory.loginLogs.slice(0, 5).map((log: any, i: number) => (
+                            <div key={i} className="p-2 bg-gray-50 rounded text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className={log.success ? 'text-green-600' : 'text-red-600'}>
+                                  {log.success ? '✓ Login' : '✗ Falha'}
+                                </span>
+                                <span className="text-muted-foreground">
+                                  {new Date(log.timestamp).toLocaleString('pt-BR')}
+                                </span>
+                              </div>
+                              <p className="text-muted-foreground mt-1">IP: {log.ip}</p>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Nenhum registro de login</p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="pt-4 border-t">
+                      <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                        <HistoryIcon className="w-3 h-3" /> Ações Recentes
+                      </p>
+                      <div className="space-y-2 max-h-32 overflow-y-auto">
+                        {selectedUser.accessHistory.recentActions.length > 0 ? (
+                          selectedUser.accessHistory.recentActions.slice(0, 5).map((action: any, i: number) => (
+                            <div key={i} className="p-2 bg-gray-50 rounded text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium">{action.event}</span>
+                                <span className="text-muted-foreground">
+                                  {new Date(action.timestamp).toLocaleString('pt-BR')}
+                                </span>
+                              </div>
+                              <p className="text-muted-foreground mt-1">
+                                {action.entity} #{action.entityId} | IP: {action.ip}
+                              </p>
+                            </div>
+                          ))
+                        ) : (
+                          <p className="text-xs text-muted-foreground">Nenhuma ação registrada</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {selectedUser.accessHistory.statusChanges.length > 0 && (
+                      <div className="pt-4 border-t">
+                        <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                          <AlertTriangle className="w-3 h-3" /> Mudanças de Status
+                        </p>
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {selectedUser.accessHistory.statusChanges.slice(0, 3).map((change: any, i: number) => (
+                            <div key={i} className="p-2 bg-yellow-50 rounded text-xs">
+                              <div className="flex items-center justify-between">
+                                <span className="font-medium">{change.event}</span>
+                                <span className="text-muted-foreground">
+                                  {new Date(change.timestamp).toLocaleString('pt-BR')}
+                                </span>
+                              </div>
+                              <p className="text-muted-foreground mt-1">IP: {change.ip}</p>
+                              {change.details && change.details !== 'N/A' && (
+                                <p className="text-muted-foreground mt-1 text-xs">{change.details.substring(0, 50)}...</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
                 <div className="pt-4 border-t">
                   <p className="text-xs text-muted-foreground mb-2">Permissões</p>
                   <div className="flex flex-wrap gap-1">
-                    {selectedUser.permissions.map((perm, i) => (
-                      <span key={i} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                        {perm}
-                      </span>
-                    ))}
+                    {selectedUser.permissions.length > 0 ? (
+                      selectedUser.permissions.map((perm, i) => (
+                        <span key={i} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
+                          {perm}
+                        </span>
+                      ))
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Nenhuma permissão específica</span>
+                    )}
                   </div>
                 </div>
               </div>
