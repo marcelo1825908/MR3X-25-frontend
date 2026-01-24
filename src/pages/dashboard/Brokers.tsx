@@ -21,7 +21,9 @@ import {
   AlertTriangle,
   Search,
   Briefcase,
-  Users
+  Users,
+  UserX,
+  UserCheck
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
@@ -116,6 +118,8 @@ export function Brokers() {
   const [creating, setCreating] = useState(false)
   const [updating, setUpdating] = useState(false)
   const [loadingDetailsId, setLoadingDetailsId] = useState<string | null>(null)
+  const [loadingEditId, setLoadingEditId] = useState<string | null>(null)
+  const [changingStatusId, setChangingStatusId] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'table' | 'cards'>('table')
   const [emailError, setEmailError] = useState('')
   const [emailVerified, setEmailVerified] = useState(false)
@@ -308,6 +312,28 @@ export function Brokers() {
     },
   })
 
+  const statusChangeMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string, status: 'ACTIVE' | 'SUSPENDED' }) => 
+      usersAPI.changeStatus(id, status, `Status alterado para ${status === 'ACTIVE' ? 'Ativo' : 'Suspenso'}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['brokers'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      setChangingStatusId(null)
+      toast.success('Status do corretor atualizado com sucesso')
+    },
+    onError: (error: any) => {
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao alterar status do corretor'
+      setChangingStatusId(null)
+      toast.error(errorMessage)
+    },
+  })
+
+  const handleStatusChange = (brokerId: string, currentStatus: string) => {
+    setChangingStatusId(brokerId)
+    const newStatus = currentStatus === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE'
+    statusChangeMutation.mutate({ id: brokerId, status: newStatus })
+  }
+
   const handleCreateBroker = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreating(true)
@@ -398,7 +424,7 @@ export function Brokers() {
     closeAllModals()
     setEmailError('')
     const brokerId = broker.id.toString()
-    setLoadingDetailsId(brokerId)
+    setLoadingEditId(brokerId)
     try {
       const fullBrokerDetails = await usersAPI.getUserById(broker.id)
       setSelectedBroker(fullBrokerDetails)
@@ -421,7 +447,7 @@ export function Brokers() {
     } catch {
       toast.error('Erro ao carregar detalhes do corretor')
     } finally {
-      setLoadingDetailsId(null)
+      setLoadingEditId(null)
     }
   }
 
@@ -677,16 +703,41 @@ export function Brokers() {
                               {loadingDetailsId === broker.id.toString() ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
                             </Button>
                             {canUpdateUsers && !broker.isFrozen && (
-                              <Button size="icon" variant="outline" onClick={() => handleEditBroker(broker)} disabled={loadingDetailsId === broker.id.toString()} className="text-orange-600 border-orange-600 hover:bg-orange-50">
-                                {loadingDetailsId === broker.id.toString() ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit className="w-4 h-4" />}
-                              </Button>
-                            )}
-                            {canUpdateUsers && broker.isFrozen && (
-                              <Button size="icon" variant="outline" disabled className="text-muted-foreground border-muted">
-                                <Edit className="w-4 h-4" />
-                              </Button>
-                            )}
-                            {canDeleteUsers && (
+                              <>
+                                <Button size="icon" variant="outline" onClick={() => handleEditBroker(broker)} disabled={loadingEditId === broker.id.toString()} className="text-orange-600 border-orange-600 hover:bg-orange-50">
+                                  {loadingEditId === broker.id.toString() ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit className="w-4 h-4" />}
+                                </Button>
+                          {broker.status === 'ACTIVE' ? (
+                            <Button 
+                              size="icon" 
+                              variant="outline" 
+                              onClick={() => handleStatusChange(broker.id.toString(), broker.status)} 
+                              disabled={changingStatusId === broker.id.toString()}
+                              className="text-red-600 border-red-600 hover:bg-red-50"
+                              title="Suspender corretor"
+                            >
+                              {changingStatusId === broker.id.toString() ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserX className="w-4 h-4" />}
+                            </Button>
+                          ) : (
+                            <Button 
+                              size="icon" 
+                              variant="outline" 
+                              onClick={() => handleStatusChange(broker.id.toString(), broker.status || 'SUSPENDED')} 
+                              disabled={changingStatusId === broker.id.toString()}
+                              className="text-green-600 border-green-600 hover:bg-green-50"
+                              title="Ativar corretor"
+                            >
+                              {changingStatusId === broker.id.toString() ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+                            </Button>
+                          )}
+                        </>
+                      )}
+                      {canUpdateUsers && broker.isFrozen && (
+                        <Button size="icon" variant="outline" disabled className="text-muted-foreground border-muted">
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {canDeleteUsers && (
                               <Button size="icon" variant="outline" onClick={() => handleDeleteBroker(broker)} className="text-red-600 border-red-600 hover:bg-red-50">
                                 <Trash2 className="w-4 h-4" />
                               </Button>
@@ -730,13 +781,38 @@ export function Brokers() {
                       </div>
                     </div>
                     <div className="flex gap-2 w-full justify-end">
-                      <Button size="icon" variant="outline" onClick={() => handleViewBroker(broker)} disabled={loadingDetailsId === broker.id.toString()} className="text-orange-600 border-orange-600 hover:bg-orange-50">
-                        {loadingDetailsId === broker.id.toString() ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
-                      </Button>
-                      {canUpdateUsers && !broker.isFrozen && (
-                        <Button size="icon" variant="outline" onClick={() => handleEditBroker(broker)} disabled={loadingDetailsId === broker.id.toString()} className="text-orange-600 border-orange-600 hover:bg-orange-50">
-                          {loadingDetailsId === broker.id.toString() ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit className="w-4 h-4" />}
-                        </Button>
+                            <Button size="icon" variant="outline" onClick={() => handleViewBroker(broker)} disabled={loadingDetailsId === broker.id.toString()} className="text-orange-600 border-orange-600 hover:bg-orange-50">
+                              {loadingDetailsId === broker.id.toString() ? <Loader2 className="w-4 h-4 animate-spin" /> : <Eye className="w-4 h-4" />}
+                            </Button>
+                            {canUpdateUsers && !broker.isFrozen && (
+                              <>
+                                <Button size="icon" variant="outline" onClick={() => handleEditBroker(broker)} disabled={loadingEditId === broker.id.toString()} className="text-orange-600 border-orange-600 hover:bg-orange-50">
+                                  {loadingEditId === broker.id.toString() ? <Loader2 className="w-4 h-4 animate-spin" /> : <Edit className="w-4 h-4" />}
+                                </Button>
+                          {broker.status === 'ACTIVE' ? (
+                            <Button 
+                              size="icon" 
+                              variant="outline" 
+                              onClick={() => handleStatusChange(broker.id.toString(), broker.status)} 
+                              disabled={changingStatusId === broker.id.toString()}
+                              className="text-red-600 border-red-600 hover:bg-red-50"
+                              title="Suspender corretor"
+                            >
+                              {changingStatusId === broker.id.toString() ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserX className="w-4 h-4" />}
+                            </Button>
+                          ) : (
+                            <Button 
+                              size="icon" 
+                              variant="outline" 
+                              onClick={() => handleStatusChange(broker.id.toString(), broker.status || 'SUSPENDED')} 
+                              disabled={changingStatusId === broker.id.toString()}
+                              className="text-green-600 border-green-600 hover:bg-green-50"
+                              title="Ativar corretor"
+                            >
+                              {changingStatusId === broker.id.toString() ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+                            </Button>
+                          )}
+                        </>
                       )}
                       {canUpdateUsers && broker.isFrozen && (
                         <Button size="icon" variant="outline" disabled className="text-muted-foreground border-muted">

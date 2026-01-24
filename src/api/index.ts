@@ -1555,6 +1555,8 @@ export const invoicesAPI = {
     startDate?: string;
     endDate?: string;
     search?: string;
+    skip?: number;
+    take?: number;
   }) => {
     const qs = new URLSearchParams();
     if (params) {

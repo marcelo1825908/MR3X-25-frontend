@@ -20,7 +20,8 @@ import {
   Crown,
   AlertTriangle,
   Search,
-  Users
+  Users,
+  BadgeCheck
 } from 'lucide-react'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 
@@ -44,7 +45,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { PasswordInput } from '@/components/ui/password-input'
-import { validateDocument, isValidCEPFormat } from '@/lib/validation'
+import { validateDocument, isValidCEPFormat, formatCRECIInput } from '@/lib/validation'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -87,6 +88,7 @@ export function Managers() {
     neighborhood: '',
     city: '',
     state: '',
+    creci: '',
   })
 
   const [editForm, setEditForm] = useState({
@@ -101,6 +103,7 @@ export function Managers() {
     neighborhood: '',
     city: '',
     state: '',
+    creci: '',
   })
 
   const [selectedManager, setSelectedManager] = useState<any>(null)
@@ -248,7 +251,7 @@ export function Managers() {
       closeAllModals()
       setNewManager({
         document: '', name: '', phone: '', email: '', password: '', birthDate: '',
-        cep: '', address: '', neighborhood: '', city: '', state: ''
+        cep: '', address: '', neighborhood: '', city: '', state: '', creci: ''
       })
       toast.success('Gerente criado com sucesso')
     },
@@ -345,6 +348,10 @@ export function Managers() {
         toast.error('CEP invalido')
         return
       }
+      if (!editForm.creci || editForm.creci.trim() === '') {
+        toast.error('CRECI é obrigatório para Gerente de Agência')
+        return
+      }
       const managerToSend = {
         ...editForm,
         birthDate: editForm.birthDate || undefined,
@@ -410,6 +417,7 @@ export function Managers() {
         neighborhood: fullManagerDetails.neighborhood || '',
         city: fullManagerDetails.city || '',
         state: fullManagerDetails.state || '',
+        creci: fullManagerDetails.creci || '',
       })
       setEmailVerified(true)
       setShowEditModal(true)
@@ -905,6 +913,29 @@ export function Managers() {
                     <Input id="birthDate" name="birthDate" type="date" value={newManager.birthDate} onChange={handleInputChange} />
                   </div>
                 </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="creci">CRECI <span className="text-red-500">*</span></Label>
+                    <div className="relative">
+                      <BadgeCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="creci"
+                        name="creci"
+                        value={newManager.creci}
+                        onChange={(e) =>
+                          setNewManager(prev => ({ ...prev, creci: formatCRECIInput(e.target.value) }))
+                        }
+                        placeholder="123456/SP-F"
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Formato: 123456/SP ou 123456/SP-F
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -1018,6 +1049,29 @@ export function Managers() {
                   <div>
                     <Label htmlFor="edit-birthDate">Data de Nascimento</Label>
                     <Input id="edit-birthDate" name="birthDate" type="date" value={editForm.birthDate} onChange={handleEditInputChange} />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-creci">CRECI <span className="text-red-500">*</span></Label>
+                    <div className="relative">
+                      <BadgeCheck className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="edit-creci"
+                        name="creci"
+                        value={editForm.creci}
+                        onChange={(e) =>
+                          setEditForm(prev => ({ ...prev, creci: formatCRECIInput(e.target.value) }))
+                        }
+                        placeholder="123456/SP-F"
+                        className="pl-10"
+                        required
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Formato: 123456/SP ou 123456/SP-F
+                    </p>
                   </div>
                 </div>
               </div>

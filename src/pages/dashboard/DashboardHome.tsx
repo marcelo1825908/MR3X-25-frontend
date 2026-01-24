@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { dashboardAPI } from '../../api';
 import { formatCurrency } from '../../lib/utils';
-import { Building2, Users, FileText, DollarSign, AlertCircle } from 'lucide-react';
+import { Building2, Users, FileText, DollarSign, AlertCircle, TrendingUp, PieChart as PieChartIcon, Calendar, BarChart3 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Skeleton } from '../../components/ui/skeleton';
-import { ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts';
 import { useAuth } from '../../contexts/AuthContext';
 import { PlanUsageWidget } from '../../components/dashboard/PlanUsageWidget';
 import { useNavigate } from 'react-router-dom';
@@ -18,6 +18,7 @@ import { AdminDashboard } from './AdminDashboard';
 import { CEODashboard } from './CEODashboard';
 import { IndependentOwnerDashboard } from './IndependentOwnerDashboard';
 import { AgencyAdminDashboard } from './AgencyAdminDashboard';
+import { AgencyManagerDashboard } from './AgencyManagerDashboard';
 
 export function DashboardHome() {
   const { hasPermission, user } = useAuth();
@@ -61,6 +62,10 @@ export function DashboardHome() {
 
   if (user?.role === 'AGENCY_ADMIN') {
     return <AgencyAdminDashboard />;
+  }
+
+  if (user?.role === 'AGENCY_MANAGER') {
+    return <AgencyManagerDashboard />;
   }
 
   const canViewDashboard = hasPermission('dashboard:read');
@@ -156,15 +161,6 @@ export function DashboardHome() {
   }
 
   const overview = dashboard?.overview || {};
-
-  const defaultInadimplenciaData = [
-    { month: 'Jan', inadimplencia: 12 },
-    { month: 'Fev', inadimplencia: 8 },
-    { month: 'Mar', inadimplencia: 15 },
-    { month: 'Abr', inadimplencia: 6 },
-    { month: 'Mai', inadimplencia: 10 },
-    { month: 'Jun', inadimplencia: 4 },
-  ];
 
   const pieColors = ['#22c55e', '#fbbf24', '#ef4444']; 
 
@@ -303,8 +299,10 @@ export function DashboardHome() {
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm">
+                    <TrendingUp className="w-12 h-12 mb-2 opacity-50" />
                     <p>Nenhum dado disponível</p>
+                    <p className="text-xs">Não há dados de receita mensal para exibir</p>
                   </div>
                 )}
               </div>
@@ -346,8 +344,10 @@ export function DashboardHome() {
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm">
+                    <PieChartIcon className="w-12 h-12 mb-2 opacity-50" />
                     <p>Nenhum dado disponível</p>
+                    <p className="text-xs">Não há dados de status dos imóveis para exibir</p>
                   </div>
                 )}
               </div>
@@ -369,43 +369,46 @@ export function DashboardHome() {
               <CardDescription className="text-sm sm:text-base">Próximos vencimentos</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="text-left font-semibold p-2">Imóvel</th>
-                      <th className="text-left font-semibold p-2">Inquilino</th>
-                      {isCEO && <th className="text-left font-semibold p-2">Agência</th>}
-                      <th className="text-left font-semibold p-2">Próximo vencimento</th>
-                      <th className="text-left font-semibold p-2">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {dueDatesLoading ? (
-                      <tr>
-                        <td colSpan={isCEO ? 5 : 4} className="text-center text-muted-foreground py-4">
-                          Carregando...
-                        </td>
-                      </tr>
-                    ) : !dueDates || dueDates.length === 0 ? (
-                      <tr>
-                        <td colSpan={isCEO ? 5 : 4} className="text-center text-muted-foreground py-4">
-                          Nenhum vencimento encontrado.
-                        </td>
-                      </tr>
-                    ) : (
-                      dueDates.map((item: any, idx: number) => (
-                        <tr key={idx} className="border-b last:border-0">
-                          <td className="p-2">{item.propertyName || item.name || '-'}</td>
-                          <td className="p-2">{item.tenant?.name || item.tenant || '-'}</td>
-                          {isCEO && <td className="p-2">{item.agency?.name || '-'}</td>}
-                          <td className="p-2">{item.nextDueDate || item.dueDate ? new Date(item.nextDueDate || item.dueDate).toLocaleDateString('pt-BR') : '-'}</td>
-                          <td className="p-2">{getStatusBadge(item.status === 'overdue' ? 'EM_ATRASO' : item.status === 'upcoming' ? 'PENDENTE' : item.status === 'ok' ? 'PAGO' : item.status)}</td>
+              <div className="w-full" style={{ width: '100%', height: '320px', minHeight: '256px', position: 'relative' }}>
+                {dueDatesLoading ? (
+                  <div className="flex items-center justify-center h-full text-muted-foreground">
+                    <p>Carregando...</p>
+                  </div>
+                ) : !dueDates || dueDates.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm">
+                    <Calendar className="w-12 h-12 mb-2 opacity-50" />
+                    <p>Nenhum vencimento encontrado.</p>
+                    <p className="text-xs">Não há vencimentos próximos para exibir</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto h-full">
+                    <table className="min-w-full text-sm">
+                      <thead>
+                        <tr className="border-b">
+                          <th className="text-left font-semibold p-2">Imóvel</th>
+                          <th className="text-left font-semibold p-2">Inquilino</th>
+                          {isCEO && <th className="text-left font-semibold p-2">Agência</th>}
+                          <th className="text-left font-semibold p-2">Próximo vencimento</th>
+                          <th className="text-left font-semibold p-2">Status</th>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+                      </thead>
+                      <tbody>
+                        {dueDates.map((item: any, idx: number) => (
+                          <tr key={idx} className="border-b last:border-0">
+                            <td className="p-2">{item.propertyName || item.name || '-'}</td>
+                            <td className="p-2">{item.tenant?.name || item.tenant || '-'}</td>
+                            {isCEO && <td className="p-2">{item.agency?.name || '-'}</td>}
+                            <td className="p-2">{item.nextDueDate || item.dueDate ? new Date(item.nextDueDate || item.dueDate).toLocaleDateString('pt-BR') : '-'}</td>
+                            <td className="p-2">{getStatusBadge(item.status === 'overdue' ? 'EM_ATRASO' : item.status === 'upcoming' ? 'PENDENTE' : item.status === 'ok' ? 'PAGO' : item.status)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+              <div className="text-center mt-2 font-semibold text-sm sm:text-base">
+                Total de vencimentos: {dueDates?.length ?? 0}
               </div>
             </CardContent>
           </Card>
@@ -420,21 +423,11 @@ export function DashboardHome() {
             </CardHeader>
             <CardContent>
               <div className="w-full" style={{ width: '100%', height: '320px', minHeight: '256px', position: 'relative' }}>
-                {defaultInadimplenciaData && defaultInadimplenciaData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={320} minWidth={200} minHeight={256} debounce={50}>
-                    <BarChart data={defaultInadimplenciaData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" fontSize={12} />
-                      <YAxis fontSize={12} />
-                      <Tooltip />
-                      <Bar dataKey="inadimplencia" fill="#fd8431" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                    <p>Nenhum dado disponível</p>
-                  </div>
-                )}
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground text-sm">
+                  <BarChart3 className="w-12 h-12 mb-2 opacity-50" />
+                  <p>Nenhum dado disponível</p>
+                  <p className="text-xs">Não há dados de inadimplência para exibir</p>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -13,8 +13,6 @@ import {
   Image as ImageIcon,
   Eye,
   FileText,
-  MessageSquare,
-  Calculator,
   Receipt,
   Download,
   ChevronLeft,
@@ -26,7 +24,8 @@ import {
   Crown,
   AlertTriangle,
   MapPin,
-  Grid3X3
+  Grid3X3,
+  DollarSign
 } from 'lucide-react';
 import { FrozenBadge } from '../../components/ui/FrozenBadge';
 import { CEPInput } from '../../components/ui/cep-input';
@@ -75,9 +74,9 @@ export function Properties() {
   const [showDocumentsModal, setShowDocumentsModal] = useState(false);
   const [_showDiscountModal, setShowDiscountModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
-  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentModalLoading, setPaymentModalLoading] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [upgradeErrorMessage, setUpgradeErrorMessage] = useState('');
   const [checkingPlanLimit, setCheckingPlanLimit] = useState(false);
@@ -160,8 +159,7 @@ export function Properties() {
   const [editModalLoading, setEditModalLoading] = useState(false);
   const [assignBrokerModalLoading, setAssignBrokerModalLoading] = useState(false);
   const [assignTenantModalLoading, setAssignTenantModalLoading] = useState(false);
-  const [invoiceModalLoading, setInvoiceModalLoading] = useState(false);
-  const [receiptModalLoading, setReceiptModalLoading] = useState(false);
+  const [receiptModalLoading] = useState(false);
   const [assignModalOpen, setAssignModalOpen] = useState(false);
   const [propertyToAssign, setPropertyToAssign] = useState<any>(null);
   const [selectedBrokerId, setSelectedBrokerId] = useState<string>('none');
@@ -174,15 +172,12 @@ export function Properties() {
     lateFee: '',
     dailyFee: ''
   });
-  const [whatsappMessage, setWhatsappMessage] = useState('');
-  const [invoiceData, setInvoiceData] = useState({
-    amount: '',
-    dueDate: '',
-    description: ''
-  });
   const [receiptData, setReceiptData] = useState({
     amount: '',
     paymentDate: '',
+    paymentMethod: 'PIX'
+  });
+  const [paymentData, setPaymentData] = useState({
     paymentMethod: 'PIX'
   });
   const [_loading, _setLoading] = useState(false);
@@ -226,6 +221,22 @@ export function Properties() {
     refetchOnMount: false,
     refetchOnReconnect: true,
     refetchOnWindowFocus: false, // Prevent refetch on window focus to avoid refresh on typing
+  });
+
+  // Fetch all payments to display payment info in property cards
+  const { data: allPayments } = useQuery({
+    queryKey: ['all-payments', user?.id, user?.role],
+    queryFn: async () => {
+      try {
+        const result = await paymentsAPI.getPayments();
+        return Array.isArray(result) ? result : (result?.data || []);
+      } catch (error) {
+        console.error('Error fetching payments:', error);
+        return [];
+      }
+    },
+    enabled: canViewProperties,
+    staleTime: 30000,
   });
 
   const { data: brokers = [], isLoading: brokersLoading } = useQuery({
@@ -290,9 +301,8 @@ export function Properties() {
     setShowDocumentsModal(false);
     setShowDiscountModal(false);
     setShowSettingsModal(false);
-    setShowWhatsAppModal(false);
-    setShowInvoiceModal(false);
     setShowReceiptModal(false);
+    setShowPaymentModal(false);
     setAssignModalOpen(false);
     setAssignTenantModalOpen(false);
     setSelectedProperty(null);
@@ -570,24 +580,6 @@ export function Properties() {
     },
   });
 
-  const [issuingCharge, setIssuingCharge] = useState(false);
-  const issueChargeMutation = useMutation({
-    mutationFn: (data: any) => paymentsAPI.createPayment(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['properties'] });
-      queryClient.invalidateQueries({ queryKey: ['payments'] });
-      setShowInvoiceModal(false);
-      setInvoiceData({ amount: '', dueDate: '', description: '' });
-      toast.success('Cobrança emitida com sucesso!');
-    },
-    onError: (error: any) => {
-      console.error('Error issuing charge:', error);
-      toast.error('Erro ao emitir cobrança');
-    },
-    onSettled: () => {
-      setIssuingCharge(false);
-    },
-  });
 
   const [generatingReceipt, setGeneratingReceipt] = useState(false);
   const generateReceiptMutation = useMutation({
@@ -605,6 +597,25 @@ export function Properties() {
     },
     onSettled: () => {
       setGeneratingReceipt(false);
+    },
+  });
+
+  const [settingPayment, setSettingPayment] = useState(false);
+  const setPaymentMethodMutation = useMutation({
+    mutationFn: ({ propertyId, paymentMethod }: { propertyId: string; paymentMethod: string }) => 
+      propertiesAPI.updateProperty(propertyId, { paymentMethod }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['properties'] });
+      setShowPaymentModal(false);
+      setPaymentData({ paymentMethod: 'PIX' });
+      toast.success(`Método de pagamento configurado com sucesso!`);
+    },
+    onError: (error: any) => {
+      console.error('Error setting payment method:', error);
+      toast.error('Erro ao configurar método de pagamento');
+    },
+    onSettled: () => {
+      setSettingPayment(false);
     },
   });
 
@@ -1052,139 +1063,34 @@ export function Properties() {
     }
   };
 
-  const handleWhatsAppNotification = (property: any) => {
-    closeAllModals();
-    setSelectedProperty(property);
-    
-    // Auto-generate message using property metadata
-    const propertyName = property.name || property.address || 'Imóvel';
-    const tenantName = property.tenant?.name || 'Inquilino';
-    const monthlyRent = property.monthlyRent ? `R$ ${Number(property.monthlyRent).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '';
-    const dueDay = property.dueDay ? `dia ${property.dueDay}` : '';
-    const nextDueDate = property.nextDueDate ? new Date(property.nextDueDate).toLocaleDateString('pt-BR') : '';
-    
-    // Generate automated message with property metadata
-    let autoMessage = `Olá ${tenantName}! 👋\n\n`;
-    autoMessage += `Este é um lembrete sobre o imóvel: *${propertyName}*\n\n`;
-    
-    if (monthlyRent) {
-      autoMessage += `💰 Valor do aluguel: ${monthlyRent}\n`;
-    }
-    if (dueDay) {
-      autoMessage += `📅 Vencimento: Todo ${dueDay} do mês\n`;
-    }
-    if (nextDueDate) {
-      autoMessage += `📆 Próximo vencimento: ${nextDueDate}\n`;
-    }
-    
-    autoMessage += `\nPor favor, mantenha seus pagamentos em dia.\n\n`;
-    const agencyName = (user as any)?.agencyName || (user as any)?.agency?.name || 'MR3X';
-    autoMessage += `Atenciosamente,\nEquipe ${agencyName}`;
-    
-    setWhatsappMessage(autoMessage);
-    setShowWhatsAppModal(true);
-  };
 
-  const handleIssueInvoice = async (property: any) => {
+
+  const handleSetPayment = async (property: any) => {
     closeAllModals();
     setSelectedProperty(property);
-    setInvoiceModalLoading(true);
-    setShowInvoiceModal(true);
+    setPaymentModalLoading(true);
+    setShowPaymentModal(true);
 
     try {
       const payments = await paymentsAPI.getPaymentsByProperty(property.id);
-      const lastPendingPayment = payments.find((p: any) => p.status === 'PENDING');
+      const lastPayment = payments.find((p: any) => p.status === 'PAID' || p.status === 'PENDING');
 
-      if (lastPendingPayment) {
-        setInvoiceData({
-          amount: lastPendingPayment.valorPago ? String(lastPendingPayment.valorPago) : (property.monthlyRent ? String(property.monthlyRent) : ''),
-          dueDate: lastPendingPayment.dueDate ? new Date(lastPendingPayment.dueDate).toISOString().split('T')[0] : '',
-          description: lastPendingPayment.description || `Aluguel - ${property.name || property.address}`
+      if (lastPayment && lastPayment.paymentMethod) {
+        setPaymentData({
+          paymentMethod: lastPayment.paymentMethod
         });
       } else {
-        let nextDueDate = '';
-        if (property.dueDay) {
-          const today = new Date();
-          const dueDay = parseInt(property.dueDay);
-          let dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
-
-          if (dueDate < today) {
-            dueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
-          }
-          nextDueDate = dueDate.toISOString().split('T')[0];
-        } else if (property.nextDueDate) {
-          nextDueDate = new Date(property.nextDueDate).toISOString().split('T')[0];
-        }
-
-        setInvoiceData({
-          amount: property.monthlyRent ? String(property.monthlyRent) : '',
-          dueDate: nextDueDate,
-          description: `Aluguel - ${property.name || property.address}`
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching payments:', error);
-      toast.error('Erro ao carregar pagamentos');
-
-      let nextDueDate = '';
-      if (property.dueDay) {
-        const today = new Date();
-        const dueDay = parseInt(property.dueDay);
-        let dueDate = new Date(today.getFullYear(), today.getMonth(), dueDay);
-
-        if (dueDate < today) {
-          dueDate = new Date(today.getFullYear(), today.getMonth() + 1, dueDay);
-        }
-        nextDueDate = dueDate.toISOString().split('T')[0];
-      } else if (property.nextDueDate) {
-        nextDueDate = new Date(property.nextDueDate).toISOString().split('T')[0];
-      }
-
-      setInvoiceData({
-        amount: property.monthlyRent ? String(property.monthlyRent) : '',
-        dueDate: nextDueDate,
-        description: `Aluguel - ${property.name || property.address}`
-      });
-    } finally {
-      setInvoiceModalLoading(false);
-    }
-  };
-
-  const handleGenerateReceipt = async (property: any) => {
-    closeAllModals();
-    setSelectedProperty(property);
-    setReceiptModalLoading(true);
-    setShowReceiptModal(true);
-
-    try {
-      const payments = await paymentsAPI.getPaymentsByProperty(property.id);
-      const lastPaidPayment = payments.find((p: any) => p.status === 'PAID');
-
-      if (lastPaidPayment) {
-        setReceiptData({
-          amount: lastPaidPayment.valorPago ? String(lastPaidPayment.valorPago) : (property.monthlyRent ? String(property.monthlyRent) : ''),
-          paymentDate: lastPaidPayment.dataPagamento ? new Date(lastPaidPayment.dataPagamento).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-          paymentMethod: lastPaidPayment.paymentMethod || 'PIX'
-        });
-      } else {
-        setReceiptData({
-          amount: property.monthlyRent ? String(property.monthlyRent) : '',
-          paymentDate: new Date().toISOString().split('T')[0],
+        setPaymentData({
           paymentMethod: 'PIX'
         });
       }
     } catch (error) {
       console.error('Error fetching payments:', error);
-      toast.error('Erro ao carregar pagamentos');
-
-      // Fallback to default values on error
-      setReceiptData({
-        amount: property.monthlyRent ? String(property.monthlyRent) : '',
-        paymentDate: new Date().toISOString().split('T')[0],
+      setPaymentData({
         paymentMethod: 'PIX'
       });
     } finally {
-      setReceiptModalLoading(false);
+      setPaymentModalLoading(false);
     }
   };
 
@@ -1795,6 +1701,46 @@ export function Properties() {
                               <p>{property.tenant?.name || property.tenant?.email || 'Sem inquilino'}</p>
                             </TooltipContent>
                           </Tooltip>
+                          {(() => {
+                            // Get payment method directly from property
+                            const paymentMethod = property.paymentMethod;
+                            const paymentMethodLabels: { [key: string]: string } = {
+                              'PIX': 'PIX',
+                              'BOLETO': 'Boleto',
+                              'TRANSFERENCIA': 'Transferência',
+                              'DINHEIRO': 'Dinheiro',
+                              'CARTAO_CREDITO': 'Cartão de Crédito',
+                              'CARTAO_DEBITO': 'Cartão de Débito'
+                            };
+                            
+                            // Get last paid payment for display
+                            const propertyPayments = (allPayments || []).filter((p: any) => 
+                              p.propertyId === property.id || String(p.propertyId) === String(property.id)
+                            );
+                            const lastPaidPayment = propertyPayments
+                              .filter((p: any) => {
+                                const amount = Number(p.valorPago || p.amount || 0);
+                                return p.status === 'PAID' && amount > 0;
+                              })
+                              .sort((a: any, b: any) => {
+                                const dateA = new Date(a.dataPagamento || a.paymentDate || 0).getTime();
+                                const dateB = new Date(b.dataPagamento || b.paymentDate || 0).getTime();
+                                return dateB - dateA;
+                              })[0];
+                            
+                            return (
+                              <>
+                                <p className="text-xs text-gray-600 truncate">
+                                  Método de pagamento: {paymentMethod ? (paymentMethodLabels[paymentMethod] || paymentMethod) : 'Não configurado'}
+                                </p>
+                                {lastPaidPayment && (
+                                  <p className="text-xs text-green-700 font-medium mt-1 truncate">
+                                    Último pagamento: R$ {Number(lastPaidPayment.valorPago || lastPaidPayment.amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} em {lastPaidPayment.dataPagamento ? new Date(lastPaidPayment.dataPagamento).toLocaleDateString('pt-BR') : '-'}
+                                  </p>
+                                )}
+                              </>
+                            );
+                          })()}
                           <p className="text-xs text-blue-700 font-medium mt-1 truncate">
                             Próx. vencimento: {property.nextDueDate ? new Date(property.nextDueDate).toLocaleDateString('pt-BR') : '-'}
                           </p>
@@ -1862,6 +1808,12 @@ export function Properties() {
                                   Atribuir inquilino (congelado)
                                 </DropdownMenuItem>
                               )}
+                              {(user?.role === 'BROKER' || !property.isFrozen) && (
+                                <DropdownMenuItem onClick={() => handleSetPayment(property)}>
+                                  <DollarSign className="w-4 h-4 mr-2" />
+                                  Configurar Método de Pagamento
+                                </DropdownMenuItem>
+                              )}
                               {/* Ações funcionais obrigatórias - sempre disponíveis para REALTOR */}
                               {user?.role === 'BROKER' || !property.isFrozen ? (
                                 <DropdownMenuItem onClick={() => handleViewDocuments(property)}>
@@ -1873,29 +1825,6 @@ export function Properties() {
                                   <FileText className="w-4 h-4 mr-2" />
                                   Ver documentos (congelado)
                                 </DropdownMenuItem>
-                              )}
-                              {user?.role === 'BROKER' || !property.isFrozen ? (
-                                <DropdownMenuItem onClick={() => handleWhatsAppNotification(property)}>
-                                  <MessageSquare className="w-4 h-4 mr-2" />
-                                  Notificar por WhatsApp
-                                </DropdownMenuItem>
-                              ) : (
-                                <DropdownMenuItem disabled className="text-muted-foreground">
-                                  <MessageSquare className="w-4 h-4 mr-2" />
-                                  Notificar por WhatsApp (congelado)
-                                </DropdownMenuItem>
-                              )}
-                              {(user?.role === 'BROKER' || !property.isFrozen) && (
-                                <>
-                                  <DropdownMenuItem onClick={() => handleIssueInvoice(property)}>
-                                    <Calculator className="w-4 h-4 mr-2" />
-                                    Emitir cobrança
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleGenerateReceipt(property)}>
-                                    <Receipt className="w-4 h-4 mr-2" />
-                                    Gerar recibo
-                                  </DropdownMenuItem>
-                                </>
                               )}
                               {canDeleteProperties && (
                                 <DropdownMenuItem onClick={() => handleDeleteProperty(property)} className="text-red-600 focus:text-red-700">
@@ -3299,155 +3228,6 @@ export function Properties() {
         </Dialog>
 
         { }
-        <Dialog open={showWhatsAppModal} onOpenChange={setShowWhatsAppModal}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Notificar por WhatsApp</DialogTitle>
-            </DialogHeader>
-            {selectedProperty ? (
-              <div className="space-y-4">
-                <div className="text-sm text-muted-foreground">
-                  <strong>Imóvel:</strong> {selectedProperty.name || selectedProperty.address}
-                </div>
-                <div>
-                  <Label htmlFor="whatsapp-message">Mensagem</Label>
-                  <textarea
-                    id="whatsapp-message"
-                    className="w-full p-3 border border-input rounded-md min-h-[120px] resize-none"
-                    value={whatsappMessage}
-                    onChange={(e) => setWhatsappMessage(e.target.value)}
-                    placeholder="Digite sua mensagem aqui..."
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setShowWhatsAppModal(false)}>
-                    Cancelar
-                  </Button>
-                  <Button
-                    className="bg-green-600 hover:bg-green-700 text-white"
-                    onClick={() => {
-                      const phoneNumber = selectedProperty.tenant?.phone || '';
-                      const message = encodeURIComponent(whatsappMessage);
-                      const whatsappUrl = `https://wa.me/${phoneNumber.replace(/\D/g, '')}?text=${message}`;
-                      window.open(whatsappUrl, '_blank');
-                      setShowWhatsAppModal(false);
-                      toast.success('Abrindo WhatsApp...');
-                    }}
-                  >
-                    <MessageSquare className="w-4 h-4 mr-2" />
-                    Enviar
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-          </DialogContent>
-        </Dialog>
-
-        { }
-        <Dialog open={showInvoiceModal} onOpenChange={setShowInvoiceModal}>
-          <DialogContent className="max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Emitir Cobrança</DialogTitle>
-            </DialogHeader>
-            {invoiceModalLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-4 w-64" />
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-16" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-                <div className="space-y-2">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-10 w-full" />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Skeleton className="h-10 w-24" />
-                  <Skeleton className="h-10 w-32" />
-                </div>
-              </div>
-            ) : selectedProperty ? (
-              <form className="space-y-4">
-                <div className="text-sm text-muted-foreground">
-                  <strong>Imóvel:</strong> {selectedProperty.name || selectedProperty.address}
-                </div>
-                <div>
-                  <Label htmlFor="invoice-amount">Valor</Label>
-                  <Input
-                    id="invoice-amount"
-                    type="text"
-                    value={invoiceData.amount}
-                    onChange={(e) => setInvoiceData(prev => ({ ...prev, amount: e.target.value }))}
-                    placeholder="0,00"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="invoice-due-date">Data de Vencimento</Label>
-                  <Input
-                    id="invoice-due-date"
-                    type="date"
-                    value={invoiceData.dueDate}
-                    onChange={(e) => setInvoiceData(prev => ({ ...prev, dueDate: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="invoice-description">Descrição</Label>
-                  <Input
-                    id="invoice-description"
-                    value={invoiceData.description}
-                    onChange={(e) => setInvoiceData(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Descrição da cobrança"
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" onClick={() => setShowInvoiceModal(false)} disabled={issuingCharge}>
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="bg-primary hover:bg-primary/90"
-                    disabled={issuingCharge || !invoiceData.amount || !invoiceData.dueDate}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (!selectedProperty) return;
-
-                      const amountStr = invoiceData.amount.replace(/\./g, '').replace(',', '.');
-                      const amount = parseFloat(amountStr);
-
-                      if (isNaN(amount) || amount <= 0) {
-                        toast.error('Valor inválido');
-                        return;
-                      }
-
-                      setIssuingCharge(true);
-                      issueChargeMutation.mutate({
-                        valorPago: amount,
-                        dataPagamento: new Date().toISOString().split('T')[0],
-                        propertyId: selectedProperty.id,
-                        tipo: 'ALUGUEL',
-                        description: invoiceData.description || 'Cobrança de aluguel',
-                        dueDate: invoiceData.dueDate,
-                        status: 'PENDING',
-                      });
-                    }}
-                  >
-                    {issuingCharge ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Calculator className="w-4 h-4 mr-2" />
-                    )}
-                    {issuingCharge ? 'Emitindo...' : 'Emitir Cobrança'}
-                  </Button>
-                </div>
-              </form>
-            ) : null}
-          </DialogContent>
-        </Dialog>
-
-        { }
         <Dialog open={showReceiptModal} onOpenChange={setShowReceiptModal}>
           <DialogContent className="max-w-2xl">
             <DialogHeader>
@@ -3560,6 +3340,81 @@ export function Properties() {
         </Dialog>
 
         { }
+        <Dialog open={showPaymentModal} onOpenChange={setShowPaymentModal}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Configurar Método de Pagamento</DialogTitle>
+            </DialogHeader>
+            {paymentModalLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-4 w-64" />
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Skeleton className="h-10 w-24" />
+                  <Skeleton className="h-10 w-32" />
+                </div>
+              </div>
+            ) : selectedProperty ? (
+              <form className="space-y-4">
+                <div className="text-sm text-muted-foreground">
+                  <strong>Imóvel:</strong> {selectedProperty.name || selectedProperty.address}
+                </div>
+                <div>
+                  <Label htmlFor="payment-method">Método de Pagamento</Label>
+                  <Select
+                    value={paymentData.paymentMethod}
+                    onValueChange={(value) => setPaymentData(prev => ({ ...prev, paymentMethod: value }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o método" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PIX">PIX</SelectItem>
+                      <SelectItem value="BOLETO">Boleto</SelectItem>
+                      <SelectItem value="TRANSFERENCIA">Transferência</SelectItem>
+                      <SelectItem value="DINHEIRO">Dinheiro</SelectItem>
+                      <SelectItem value="CARTAO_CREDITO">Cartão de Crédito</SelectItem>
+                      <SelectItem value="CARTAO_DEBITO">Cartão de Débito</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={() => setShowPaymentModal(false)} disabled={settingPayment}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    type="submit"
+                    className="bg-primary hover:bg-primary/90"
+                    disabled={settingPayment || !paymentData.paymentMethod}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (!selectedProperty) return;
+
+                      setSettingPayment(true);
+                      // Update property with payment method (no payment record is created)
+                      setPaymentMethodMutation.mutate({
+                        propertyId: selectedProperty.id,
+                        paymentMethod: paymentData.paymentMethod,
+                      });
+                    }}
+                  >
+                    {settingPayment ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <DollarSign className="w-4 h-4 mr-2" />
+                    )}
+                    {settingPayment ? 'Salvando...' : 'Salvar'}
+                  </Button>
+                </div>
+              </form>
+            ) : null}
+          </DialogContent>
+        </Dialog>
+
+        { }
         <Dialog open={assignModalOpen} onOpenChange={setAssignModalOpen}>
           <DialogContent className="max-w-xl">
             <DialogHeader>
@@ -3601,7 +3456,7 @@ export function Properties() {
                       <SelectValue placeholder={brokersLoading ? 'Carregando corretores...' : 'Escolha um corretor'} />
                     </SelectTrigger>
                     <SelectContent position="popper" sideOffset={4}>
-                      <SelectItem value="none">Sem corretor</SelectItem>
+                      <SelectItem value="none" hidden>Sem corretor</SelectItem>
                       {filteredBrokers.map((broker: any) => (
                         <SelectItem key={broker.id} value={broker.id}>
                           {broker.name || broker.email}
@@ -3694,7 +3549,7 @@ export function Properties() {
                       <SelectValue placeholder={tenantsLoading ? 'Carregando inquilinos...' : 'Escolha um inquilino'} />
                     </SelectTrigger>
                     <SelectContent position="popper" sideOffset={4}>
-                      <SelectItem value="none">Sem inquilino</SelectItem>
+                      <SelectItem value="none" hidden>Sem inquilino</SelectItem>
                       {tenants.map((tenant: any) => (
                         <SelectItem key={tenant.id} value={String(tenant.id)}>
                           {tenant.name || tenant.email}

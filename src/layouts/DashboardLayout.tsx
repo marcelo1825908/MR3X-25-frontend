@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate, Outlet } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import {
   Home, Building2, Users, FileText, DollarSign, MessageSquare, Bell,
   LogOut, Menu, X, BarChart3, User, Shield, Building, Briefcase,
@@ -8,10 +9,10 @@ import {
   Crown, Package, Mail, Receipt, ClipboardCheck, FileSignature,
   Code, KeyRound, Activity, Webhook, BookOpen, UserCog2,
   Database, GitCompare, Headphones, UserSearch, Gavel, UsersRound, Handshake,
-  Target
+  Target, ClipboardList
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { chatAPI, notificationsAPI, extrajudicialNotificationsAPI, profileAPI } from '../api';
+import { chatAPI, notificationsAPI, extrajudicialNotificationsAPI, profileAPI, contractsAPI, inspectionsAPI, agreementsAPI } from '../api';
 import { getRoleLabel } from '../lib/role-utils';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 
@@ -134,6 +135,30 @@ export function DashboardLayout() {
     enabled: isAuthenticated,
   });
 
+  // Fetch contracts to count pending signatures
+  const { data: contractsData } = useQuery({
+    queryKey: ['contracts-badge', user?.id, user?.role, user?.agencyId],
+    queryFn: () => contractsAPI.getContracts(),
+    enabled: isAuthenticated,
+    refetchInterval: 30000,
+  });
+
+  // Fetch inspections to count pending signatures
+  const { data: inspectionsData } = useQuery({
+    queryKey: ['inspections-badge', user?.id, user?.role, user?.agencyId],
+    queryFn: () => inspectionsAPI.getInspections(),
+    enabled: isAuthenticated,
+    refetchInterval: 30000,
+  });
+
+  // Fetch agreements to count pending signatures
+  const { data: agreementsData } = useQuery({
+    queryKey: ['agreements-badge', user?.id, user?.role, user?.agencyId],
+    queryFn: () => agreementsAPI.getAgreements(),
+    enabled: isAuthenticated,
+    refetchInterval: 30000,
+  });
+
   const unreadChatsCount = Array.isArray(chatsData)
     ? chatsData.reduce((sum: number, chat: any) => sum + (chat.unreadCount || 0), 0)
     : 0;
@@ -148,6 +173,165 @@ export function DashboardLayout() {
       !n.debtorSignedAt
     ).length;
   })();
+
+  // Count pending contracts (awaiting user's signature)
+  const pendingContractsCount = (() => {
+    if (!contractsData || !user) return 0;
+    const contracts = Array.isArray(contractsData) ? contractsData : [];
+    return contracts.filter((contract: any) => {
+      const status = (contract.status || '').toUpperCase();
+      // Check if contract is awaiting signatures
+      if (status === 'AGUARDANDO_ASSINATURAS' || status === 'PENDENTE') {
+        // For tenants, check if tenant signature is missing
+        if (user.role === 'INQUILINO' && !contract.tenantSignature) {
+          return true;
+        }
+        // For owners, check if owner signature is missing
+        if ((user.role === 'PROPRIETARIO' || user.role === 'INDEPENDENT_OWNER') && !contract.ownerSignature) {
+          return true;
+        }
+        // For agency admin/manager, check if agency signature is missing (after tenant and owner have signed)
+        if ((user.role === 'AGENCY_ADMIN' || user.role === 'AGENCY_MANAGER') && 
+            user.agencyId && 
+            contract.agencyId?.toString() === user.agencyId.toString() &&
+            !contract.agencySignature && 
+            contract.tenantSignature && 
+            contract.ownerSignature) {
+          return true;
+        }
+      }
+      return false;
+    }).length;
+  })();
+
+  // Count pending inspections (awaiting user's signature)
+  const pendingInspectionsCount = (() => {
+    if (!inspectionsData || !user) return 0;
+    const inspections = Array.isArray(inspectionsData) ? inspectionsData : [];
+    return inspections.filter((inspection: any) => {
+      const status = (inspection.status || '').toUpperCase();
+      // Check if inspection is pending signatures
+      if (status === 'PENDENTE' || status === 'AGUARDANDO_ASSINATURAS') {
+        // For tenants, check if tenant signature is missing
+        if (user.role === 'INQUILINO' && !inspection.tenantSignature) {
+          return true;
+        }
+        // For owners, check if owner signature is missing
+        if ((user.role === 'PROPRIETARIO' || user.role === 'INDEPENDENT_OWNER') && !inspection.ownerSignature) {
+          return true;
+        }
+      }
+      return false;
+    }).length;
+  })();
+
+  // Count pending agreements (awaiting user's signature)
+  const pendingAgreementsCount = (() => {
+    if (!agreementsData || !user) return 0;
+    const agreements = Array.isArray(agreementsData) ? agreementsData : [];
+    return agreements.filter((agreement: any) => {
+      const status = (agreement.status || '').toUpperCase();
+      // Check if agreement is pending signatures
+      if (status === 'PENDENTE' || status === 'AGUARDANDO_ASSINATURAS') {
+        // For tenants, check if tenant signature is missing
+        if (user.role === 'INQUILINO' && !agreement.tenantSignature) {
+          return true;
+        }
+        // For owners, check if owner signature is missing
+        if ((user.role === 'PROPRIETARIO' || user.role === 'INDEPENDENT_OWNER') && !agreement.ownerSignature) {
+          return true;
+        }
+      }
+      return false;
+    }).length;
+  })();
+
+  // Track previous counts to detect new items for toast notifications
+  const prevCountsRef = useRef({
+    contracts: 0,
+    inspections: 0,
+    agreements: 0,
+  });
+
+  // Show toast notifications when new items arrive for INQUILINO, PROPRIETARIO, and INDEPENDENT_OWNER
+  useEffect(() => {
+    const shouldShowToasts = (user?.role === 'INQUILINO' || user?.role === 'PROPRIETARIO' || user?.role === 'INDEPENDENT_OWNER') && isAuthenticated;
+    
+    if (shouldShowToasts) {
+      const prev = prevCountsRef.current;
+      const isInitialized = prev.contracts !== 0 || prev.inspections !== 0 || prev.agreements !== 0;
+      
+      // Determine navigation path based on role
+      const contractsPath = user?.role === 'INQUILINO' ? '/dashboard/tenant-contract' : '/dashboard/contracts';
+      
+      // Only show toasts if counts have been initialized (not on first load)
+      if (isInitialized) {
+        // Check for new contracts
+        if (pendingContractsCount > prev.contracts) {
+          const newCount = pendingContractsCount - prev.contracts;
+          toast.info(`Você tem ${newCount} novo${newCount > 1 ? 's' : ''} contrato${newCount > 1 ? 's' : ''} aguardando assinatura`, {
+            duration: 6000,
+            icon: <FileText className="w-5 h-5 text-blue-600" />,
+            action: {
+              label: 'Ver Contratos',
+              onClick: () => navigate(contractsPath),
+            },
+            style: {
+              background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+              border: '1px solid #3b82f6',
+              borderRadius: '0.75rem',
+            },
+            className: 'toast-notification',
+          });
+        }
+        
+        // Check for new inspections
+        if (pendingInspectionsCount > prev.inspections) {
+          const newCount = pendingInspectionsCount - prev.inspections;
+          toast.info(`Você tem ${newCount} nova${newCount > 1 ? 's' : ''} vistoria${newCount > 1 ? 's' : ''} aguardando assinatura`, {
+            duration: 6000,
+            icon: <ClipboardList className="w-5 h-5 text-purple-600" />,
+            action: {
+              label: 'Ver Vistorias',
+              onClick: () => navigate('/dashboard/inspections'),
+            },
+            style: {
+              background: 'linear-gradient(135deg, #faf5ff 0%, #f3e8ff 100%)',
+              border: '1px solid #9333ea',
+              borderRadius: '0.75rem',
+            },
+            className: 'toast-notification',
+          });
+        }
+        
+        // Check for new agreements
+        if (pendingAgreementsCount > prev.agreements) {
+          const newCount = pendingAgreementsCount - prev.agreements;
+          toast.info(`Você tem ${newCount} novo${newCount > 1 ? 's' : ''} acordo${newCount > 1 ? 's' : ''} aguardando assinatura`, {
+            duration: 6000,
+            icon: <Handshake className="w-5 h-5 text-green-600" />,
+            action: {
+              label: 'Ver Acordos',
+              onClick: () => navigate('/dashboard/agreements'),
+            },
+            style: {
+              background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+              border: '1px solid #16a34a',
+              borderRadius: '0.75rem',
+            },
+            className: 'toast-notification',
+          });
+        }
+      }
+      
+      // Update previous counts
+      prevCountsRef.current = {
+        contracts: pendingContractsCount,
+        inspections: pendingInspectionsCount,
+        agreements: pendingAgreementsCount,
+      };
+    }
+  }, [pendingContractsCount, pendingInspectionsCount, pendingAgreementsCount, user?.role, isAuthenticated, navigate]);
 
   useEffect(() => {
     setSidebarOpen(false);
@@ -542,6 +726,12 @@ export function DashboardLayout() {
                 badgeCount = unreadNotificationsCount;
               } else if (item.href === '/dashboard/extrajudicial-notifications' && user?.role === 'INQUILINO') {
                 badgeCount = pendingExtrajudicialCount;
+              } else if (item.href === '/dashboard/contracts' || item.href === '/dashboard/tenant-contract') {
+                badgeCount = pendingContractsCount;
+              } else if (item.href === '/dashboard/inspections') {
+                badgeCount = pendingInspectionsCount;
+              } else if (item.href === '/dashboard/agreements') {
+                badgeCount = pendingAgreementsCount;
               }
 
               return (

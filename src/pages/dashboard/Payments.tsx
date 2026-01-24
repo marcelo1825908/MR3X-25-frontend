@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { paymentsAPI, propertiesAPI, contractsAPI } from '../../api';
-import { useState, useEffect, useCallback } from 'react';
+import { paymentsAPI, propertiesAPI, contractsAPI, invoicesAPI } from '../../api';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
 import { useOwnerPermissions } from '../../hooks/useOwnerPermissions';
@@ -107,11 +107,36 @@ export function Payments() {
     );
   }
 
-  const { data: payments, isLoading } = useQuery({
+  const { data: payments, isLoading: paymentsLoading } = useQuery({
     queryKey: ['payments', searchQuery],
     queryFn: () => paymentsAPI.getPayments(searchQuery ? { search: searchQuery } : undefined),
     enabled: canViewPayments,
   });
+
+  // Also fetch invoices (automatically generated when contracts are signed)
+  const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
+    queryKey: ['invoices', user?.id, user?.role, user?.agencyId, searchQuery],
+    queryFn: async () => {
+      try {
+        const result = await invoicesAPI.getInvoices({ take: 1000 });
+        // Handle different response formats
+        if (Array.isArray(result)) {
+          return result;
+        } else if (result?.data && Array.isArray(result.data)) {
+          return result.data;
+        } else if (result?.items && Array.isArray(result.items)) {
+          return result.items;
+        }
+        return [];
+      } catch (error) {
+        console.error('Error fetching invoices:', error);
+        return [];
+      }
+    },
+    enabled: canViewPayments,
+  });
+
+  const isLoading = paymentsLoading || invoicesLoading;
 
   const { data: annualReport } = useQuery({
     queryKey: ['annual-report', selectedYear],
@@ -278,6 +303,63 @@ export function Payments() {
         return <Badge className="bg-gray-500 text-white">{type}</Badge>;
     }
   };
+
+  const getPaymentMethodBadge = (method: string) => {
+    if (!method) return null;
+    return getPaymentTypeBadge(method);
+  };
+
+  // Combine payments and invoices into a single list
+  const allPaymentsAndInvoices = useMemo(() => {
+    const paymentsList = Array.isArray(payments) ? payments : [];
+    const invoicesList = Array.isArray(invoicesData) ? invoicesData : [];
+    
+    // Convert invoices to payment-like format for display
+    const formattedInvoices = invoicesList.map((invoice: any) => ({
+      id: `invoice_${invoice.id}`,
+      isInvoice: true,
+      invoiceId: invoice.id,
+      amount: invoice.paidValue || invoice.updatedValue || invoice.originalValue || 0,
+      valorPago: invoice.paidValue || invoice.updatedValue || invoice.originalValue || 0,
+      paymentDate: invoice.paidAt || invoice.dueDate,
+      dataPagamento: invoice.paidAt || invoice.dueDate,
+      tipo: invoice.paymentMethod || 'FATURA',
+      paymentType: invoice.paymentMethod || 'FATURA',
+      paymentMethod: invoice.paymentMethod, // Include paymentMethod for display
+      status: invoice.status,
+      property: invoice.property,
+      user: invoice.tenant,
+      tenantUser: invoice.tenant,
+      contract: invoice.contract,
+      referenceMonth: invoice.referenceMonth,
+      invoiceNumber: invoice.invoiceNumber,
+    }));
+
+    // Ensure paymentMethod is included in payments list
+    const paymentsWithMethod = paymentsList.map((payment: any) => ({
+      ...payment,
+      paymentMethod: payment.paymentMethod || payment.payment_method, // Support both formats
+    }));
+
+    // Combine and sort by date (most recent first)
+    const combined = [...paymentsWithMethod, ...formattedInvoices].sort((a: any, b: any) => {
+      const dateA = new Date(a.paymentDate || a.dataPagamento || 0).getTime();
+      const dateB = new Date(b.paymentDate || b.dataPagamento || 0).getTime();
+      return dateB - dateA;
+    });
+
+    // Apply search filter if needed
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      return combined.filter((item: any) => {
+        const propertyName = (item.property?.name || item.property?.address || '').toLowerCase();
+        const tenantName = (item.user?.name || item.tenantUser?.name || '').toLowerCase();
+        return propertyName.includes(query) || tenantName.includes(query);
+      });
+    }
+
+    return combined;
+  }, [payments, invoicesData, searchQuery]);
 
   if (isLoading) {
     return (
@@ -466,8 +548,8 @@ export function Payments() {
 
         <div className="w-full">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-            {payments && payments.length > 0 ? (
-              payments.map((payment: any) => (
+            {allPaymentsAndInvoices && allPaymentsAndInvoices.length > 0 ? (
+              allPaymentsAndInvoices.map((payment: any) => (
                 <Card key={payment.id} className="transition-all hover:shadow-md overflow-hidden">
                   <CardContent className="p-0">
                     <div className="flex">
@@ -497,7 +579,30 @@ export function Payments() {
                           </div>
                         </div>
                         <div className="flex items-center justify-between mt-2 gap-2">
-                          {getPaymentTypeBadge(payment.paymentType || payment.tipo)}
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {payment.isInvoice && (
+                              <Badge className="bg-indigo-500 text-white text-xs">Fatura</Badge>
+                            )}
+                            {/* Display payment method if available */}
+                            {(payment.paymentMethod || payment.payment_method) && 
+                             getPaymentMethodBadge(payment.paymentMethod || payment.payment_method)}
+                            {/* Display payment type if method not available or if type is different */}
+                            {(!payment.paymentMethod && !payment.payment_method) && 
+                             getPaymentTypeBadge(payment.paymentType || payment.tipo)}
+                            {payment.status && (
+                              <Badge className={
+                                payment.status === 'PAID' ? 'bg-green-500 text-white' :
+                                payment.status === 'PENDING' ? 'bg-yellow-500 text-white' :
+                                payment.status === 'OVERDUE' ? 'bg-red-500 text-white' :
+                                'bg-gray-500 text-white'
+                              }>
+                                {payment.status === 'PAID' ? 'Pago' :
+                                 payment.status === 'PENDING' ? 'Pendente' :
+                                 payment.status === 'OVERDUE' ? 'Vencido' :
+                                 payment.status}
+                              </Badge>
+                            )}
+                          </div>
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button size="icon" variant="outline" className="h-8 w-8 sm:h-10 sm:w-10">
@@ -509,13 +614,13 @@ export function Payments() {
                                 <Eye className="w-4 h-4 mr-2" />
                                 Visualizar
                               </DropdownMenuItem>
-                              {canUpdatePayments && (
+                              {!payment.isInvoice && canUpdatePayments && (
                                 <DropdownMenuItem onClick={() => handleEditPayment(payment)}>
                                   <Edit className="w-4 h-4 mr-2" />
                                   Editar pagamento
                                 </DropdownMenuItem>
                               )}
-                              {canDeletePayments && (
+                              {!payment.isInvoice && canDeletePayments && (
                                 <DropdownMenuItem onClick={() => handleDeletePayment(payment)} className="text-red-600 focus:text-red-700">
                                   <Trash2 className="w-4 h-4 mr-2" />
                                   Excluir pagamento

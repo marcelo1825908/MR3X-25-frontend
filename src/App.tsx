@@ -141,7 +141,24 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <Toaster position="top-right" richColors />
+        <Toaster 
+          position="top-right" 
+          richColors 
+          expand={true}
+          closeButton
+          toastOptions={{
+            style: {
+              background: 'white',
+              border: '1px solid #e5e7eb',
+              borderRadius: '0.75rem',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+              padding: '1rem',
+              fontSize: '0.875rem',
+            },
+            className: 'toast-custom',
+            duration: 5000,
+          }}
+        />
         <BrowserRouter>
           <Routes>
             {}

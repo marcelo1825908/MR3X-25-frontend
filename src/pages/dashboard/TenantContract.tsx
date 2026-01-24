@@ -850,9 +850,37 @@ export function TenantContract() {
           }
         },
         (error) => {
+          // Handle different geolocation error types
+          if (error instanceof GeolocationPositionError || ('code' in error && typeof error.code === 'number')) {
+            const geoError = error as GeolocationPositionError;
+            if (geoError.code === 1) {
+              // PERMISSION_DENIED - User denied the request
+              console.warn('Geolocation permission denied by user');
+              toast.warning('Permissão de localização negada. Você pode continuar sem localização.');
+              setGeoLocation(null);
+              // Don't reset geoConsent, allow user to try again if they want
+            } else if (geoError.code === 2) {
+              // POSITION_UNAVAILABLE - Location unavailable
+              console.error('Geolocation position unavailable:', error);
+              toast.error('Localização indisponível. Verifique se o GPS está habilitado.');
+              setGeoConsent(false);
+            } else if (geoError.code === 3) {
+              // TIMEOUT - Request timeout
+              console.error('Geolocation timeout:', error);
+              toast.error('Tempo esgotado ao obter localização. Tente novamente.');
+              setGeoConsent(false);
+            } else {
+              // Other errors
           console.error('Error getting geolocation:', error);
           toast.error('Erro ao obter localização.');
           setGeoConsent(false);
+            }
+          } else {
+            // Generic Error type
+            console.error('Error getting geolocation:', error);
+            toast.error('Erro ao obter localização.');
+            setGeoConsent(false);
+          }
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
@@ -1300,7 +1328,7 @@ export function TenantContract() {
                 <Button
                   className="flex-1 bg-green-600 hover:bg-green-700"
                   onClick={handleSignContract}
-                  disabled={signing || !signature || (isSecureOrigin() && (!geoConsent || !geoLocation))}
+                  disabled={signing || !signature || (isSecureOrigin() && !geoConsent)}
                 >
                   {signing ? 'Assinando...' : 'Confirmar Assinatura'}
                 </Button>
@@ -1336,6 +1364,18 @@ export function TenantContract() {
           </DialogHeader>
           {contractPreview ? (
             <div id="contract-preview-content" className="space-y-4">
+              {/* Contract Image */}
+              <div className="flex justify-center items-center mb-4">
+                <img 
+                  src="/contract.png" 
+                  alt="Contrato" 
+                  className="max-w-full h-auto max-h-16 object-contain"
+                  onError={(e) => {
+                    // Hide image if it fails to load
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+              </div>
               {/* Security Information */}
               <div className="bg-muted p-3 sm:p-4 rounded-lg border">
                 <h3 className="font-semibold mb-3">Informações de Segurança</h3>

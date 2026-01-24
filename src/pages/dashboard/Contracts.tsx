@@ -184,13 +184,20 @@ export function Contracts() {
   }, []);
 
   const isCreateFormValid = useMemo(() => {
+    const monthlyRentValue = parseFloat(newContract.monthlyRent) || 0;
+    const depositValue = parseFloat(newContract.deposit) || 0;
+    
     return !!(
       newContract.propertyId &&
       newContract.tenantId &&
       newContract.startDate &&
       newContract.endDate &&
       newContract.monthlyRent &&
-      parseFloat(newContract.monthlyRent) > 0 &&
+      monthlyRentValue > 0 &&
+      newContract.deposit &&
+      depositValue > 0 &&
+      depositValue > monthlyRentValue && // Depth must be greater than monthly rent
+      newContract.templateId && // Contrast Model (template) is required
       newContract.dueDay &&
       newContract.contractDate &&
       newContract.readjustmentIndex &&
@@ -926,7 +933,10 @@ export function Contracts() {
 
     setUpdating(true);
     try {
-      const resolvedCreci = newContract.creci || contractToEdit.creci || undefined;
+      // Resolve CRECI: use newContract.creci if it's not empty, otherwise use existing contract's CRECI
+      const resolvedCreci = (newContract.creci && newContract.creci.trim() !== '') 
+        ? newContract.creci 
+        : (contractToEdit.creci || undefined);
 
       const contractToSend = {
         ...newContract,
@@ -999,12 +1009,16 @@ export function Contracts() {
       setSelectedContract(fullContract);
       setContractDetail(fullContract);
 
+      // Always show preview modal - prioritize contentSnapshot, then template
       if (fullContract.contentSnapshot) {
+        // Use existing contentSnapshot (most reliable)
         setPreviewContent(fullContract.contentSnapshot);
         setPreviewToken(fullContract.contractToken || '');
         setIsCreatePreview(false);
         setShowPreviewModal(true);
+        setShowDetailModal(false);
       } else if (fullContract.templateId) {
+        // Try to generate preview from template
         let template = templates?.find((t: any) => t.id?.toString() === fullContract.templateId?.toString());
 
         if (!template) {
@@ -1019,17 +1033,40 @@ export function Contracts() {
           generateContractPreview(template, fullContract);
           setIsCreatePreview(false);
           setShowPreviewModal(true);
+          setShowDetailModal(false);
         } else {
-          setShowDetailModal(true);
+          // Template not found - still show preview modal with basic info
+          setPreviewContent('Visualização do contrato. Informações básicas disponíveis.');
+          setPreviewToken(fullContract.contractToken || '');
+          setIsCreatePreview(false);
+          setShowPreviewModal(true);
+          setShowDetailModal(false);
         }
       } else {
-        setShowDetailModal(true);
+        // No template or contentSnapshot - still show preview modal with available info
+        setPreviewContent('Visualização do contrato. Informações básicas disponíveis.');
+        setPreviewToken(fullContract.contractToken || '');
+        setIsCreatePreview(false);
+        setShowPreviewModal(true);
+        setShowDetailModal(false);
       }
     } catch (error: any) {
       console.error('Error loading contract:', error);
       toast.error(error?.message || 'Erro ao carregar contrato');
+      setSelectedContract(contract);
       setContractDetail(contract);
+      // Even on error, try to show preview modal if we have contract data
+      if (contract.contentSnapshot) {
+        setPreviewContent(contract.contentSnapshot);
+        setPreviewToken(contract.contractToken || '');
+        setIsCreatePreview(false);
+        setShowPreviewModal(true);
+        setShowDetailModal(false);
+      } else {
+        // Last resort: show detail modal
       setShowDetailModal(true);
+        setShowPreviewModal(false);
+      }
     } finally {
       setLoadingDetailId(null);
     }
@@ -1468,7 +1505,10 @@ export function Contracts() {
       setPreparingContractId(null);
     },
     onError: (error: any) => {
-      toast.error(error?.response?.data?.message || error?.message || 'Erro ao enviar contrato para assinatura');
+      const errorMessage = error?.response?.data?.message || error?.message || 'Erro ao enviar contrato para assinatura';
+      console.error('Error preparing contract for signing:', error);
+      console.error('Error details:', error?.response?.data);
+      toast.error(errorMessage);
       setPreparingContractId(null);
     },
   });
@@ -1571,6 +1611,7 @@ export function Contracts() {
     setSignature(null);
     setGeoConsent(false);
     setGeoLocation(null);
+    setSigningContractId(null); // Reset loading state when closing modal
   };
 
   // Handle geolocation consent change
@@ -1598,9 +1639,37 @@ export function Contracts() {
           }
         },
         (error) => {
+          // Handle different geolocation error types
+          if (error instanceof GeolocationPositionError || ('code' in error && typeof error.code === 'number')) {
+            const geoError = error as GeolocationPositionError;
+            if (geoError.code === 1) {
+              // PERMISSION_DENIED - User denied the request
+              console.warn('Geolocation permission denied by user');
+              toast.warning('Permissão de localização negada. Você pode continuar sem localização.');
+              setGeoLocation(null);
+              // Don't reset geoConsent, allow user to try again if they want
+            } else if (geoError.code === 2) {
+              // POSITION_UNAVAILABLE - Location unavailable
+              console.error('Geolocation position unavailable:', error);
+              toast.error('Localização indisponível. Verifique se o GPS está habilitado.');
+              setGeoConsent(false);
+            } else if (geoError.code === 3) {
+              // TIMEOUT - Request timeout
+              console.error('Geolocation timeout:', error);
+              toast.error('Tempo esgotado ao obter localização. Tente novamente.');
+              setGeoConsent(false);
+            } else {
+              // Other errors
           console.error('Error getting geolocation:', error);
           toast.error('Erro ao obter localização.');
           setGeoConsent(false);
+            }
+          } else {
+            // Generic Error type
+            console.error('Error getting geolocation:', error);
+            toast.error('Erro ao obter localização.');
+            setGeoConsent(false);
+          }
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
@@ -1644,12 +1713,37 @@ export function Contracts() {
         geoConsent: geoConsent,
       });
 
-      toast.success('Contrato assinado com sucesso');
+      toast.success('Contrato assinado com sucesso', {
+        icon: '✅',
+        style: {
+          background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+          border: '1px solid #16a34a',
+          borderRadius: '0.75rem',
+        },
+      });
+      
+      // Show additional notification for AGENCY_ADMIN
+      if (user?.role === 'AGENCY_ADMIN' && signContractData.type === 'agency') {
+        const propertyName = signContractData.contract.property?.name || signContractData.contract.property?.address || 'o imóvel';
+        toast.info(`Contrato assinado pela agência para ${propertyName}. Notificação enviada para todas as partes.`, {
+          duration: 6000,
+          icon: '📋',
+          style: {
+            background: 'linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)',
+            border: '1px solid #3b82f6',
+            borderRadius: '0.75rem',
+          },
+        });
+      }
+      
       queryClient.invalidateQueries({
         queryKey: ['contracts', user?.id ?? 'anonymous', user?.role ?? 'unknown', user?.agencyId ?? 'none', user?.brokerId ?? 'none']
       });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       queryClient.invalidateQueries({ queryKey: ['audit-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread'] });
+      queryClient.invalidateQueries({ queryKey: ['contracts-badge'] });
 
       // Refresh current contract details if viewing
       if (selectedContract && selectedContract.id === signContractData.contract.id) {
@@ -2048,9 +2142,13 @@ export function Contracts() {
             updated.dueDay = selectedProperty.dueDay.toString();
           }
 
+          // Set tenantId only if property has a tenantId
           if (selectedProperty.tenantId) {
             const tenantIdStr = selectedProperty.tenantId?.toString() || String(selectedProperty.tenantId);
             updated.tenantId = tenantIdStr;
+          } else {
+            // Clear tenantId if property doesn't have a tenant
+            updated.tenantId = '';
           }
 
           if (selectedProperty.deposit) {
@@ -2060,6 +2158,9 @@ export function Contracts() {
           if (selectedProperty.city) {
             updated.jurisdiction = selectedProperty.city;
           }
+        } else {
+          // Property not found, clear tenantId
+          updated.tenantId = '';
         }
       }
 
@@ -2596,19 +2697,10 @@ export function Contracts() {
             <form className="space-y-4" onSubmit={handleCreateContract}>
               {}
               <div>
-                <Label htmlFor="templateId">Modelo de Contrato</Label>
+                <Label htmlFor="templateId">Modelo de Contrato <span className="text-red-500">*</span></Label>
                 <Select
-                  value={newContract.templateId || 'none'}
+                  value={newContract.templateId || ''}
                   onValueChange={(value) => {
-                    if (value === 'none') {
-                      setNewContract(prev => ({
-                        ...prev,
-                        templateId: '',
-                        templateType: 'CTR'
-                      }));
-                      setSelectedTemplate(null);
-                      setPreviewContent('');
-                    } else {
                       const template = templates.find((t: any) => t.id === value);
                       setNewContract(prev => ({
                         ...prev,
@@ -2618,7 +2710,6 @@ export function Contracts() {
                       setSelectedTemplate(template || null);
                       if (template) {
                         generatePreview(template);
-                      }
                     }
                   }}
                 >
@@ -2626,7 +2717,6 @@ export function Contracts() {
                     <SelectValue placeholder={templatesLoading ? 'Carregando modelos...' : 'Selecione um modelo'} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none" hidden>Sem modelo (padrão)</SelectItem>
                     {templates
                       .filter((template: any) =>
                         !template.allowedUserTypes ||
@@ -2712,12 +2802,42 @@ export function Contracts() {
                   <Select
                     value={newContract.tenantId}
                     onValueChange={(value) => setNewContract(prev => ({ ...prev, tenantId: value }))}
+                    disabled={!newContract.propertyId}
                   >
                     <SelectTrigger className="[&>span]:text-left [&>span]:truncate">
-                      <SelectValue placeholder="Selecione um inquilino" />
+                      <SelectValue placeholder={newContract.propertyId ? "Selecione um inquilino" : "Selecione um imóvel primeiro"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {tenants.map((tenant) => {
+                      {(() => {
+                        // Filter tenants based on selected property
+                        const selectedProperty = properties.find(p => {
+                          const pId = p.id?.toString() || String(p.id);
+                          const vId = newContract.propertyId?.toString() || String(newContract.propertyId);
+                          return pId === vId;
+                        });
+
+                        let filteredTenants = tenants;
+
+                        // If property has a tenantId, show only that tenant
+                        if (selectedProperty?.tenantId) {
+                          const propertyTenantId = selectedProperty.tenantId?.toString() || String(selectedProperty.tenantId);
+                          filteredTenants = tenants.filter((tenant: any) => {
+                            const tenantId = tenant.id?.toString() || String(tenant.id);
+                            return tenantId === propertyTenantId;
+                          });
+                        }
+
+                        if (filteredTenants.length === 0) {
+                          return (
+                            <div className="p-4 text-sm text-muted-foreground text-center">
+                              {selectedProperty?.tenantId 
+                                ? "Nenhum inquilino encontrado para este imóvel"
+                                : "Selecione um imóvel primeiro"}
+                            </div>
+                          );
+                        }
+
+                        return filteredTenants.map((tenant: any) => {
                         const tenantId = tenant.id?.toString() || String(tenant.id);
                         return (
                           <SelectItem
@@ -2730,9 +2850,25 @@ export function Contracts() {
                             {tenant.isFrozen && <span className="ml-2 text-xs text-red-500">(Congelado)</span>}
                           </SelectItem>
                         );
-                      })}
+                        });
+                      })()}
                     </SelectContent>
                   </Select>
+                  {newContract.propertyId && (() => {
+                    const selectedProperty = properties.find(p => {
+                      const pId = p.id?.toString() || String(p.id);
+                      const vId = newContract.propertyId?.toString() || String(newContract.propertyId);
+                      return pId === vId;
+                    });
+                    if (selectedProperty?.tenantId) {
+                      return (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Mostrando apenas o inquilino vinculado a este imóvel
+                        </p>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
               </div>
 
@@ -2776,16 +2912,29 @@ export function Contracts() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="deposit">Depósito</Label>
+                  <Label htmlFor="deposit">Depósito <span className="text-red-500">*</span></Label>
                   <Input
                     id="deposit"
                     name="deposit"
                     type="number"
                     step="0.01"
+                    min="0"
                     value={newContract.deposit}
                     onChange={handleInputChange}
                     placeholder="0.00"
+                    required
                   />
+                  {newContract.deposit && newContract.monthlyRent && (
+                    <p className={`text-xs mt-1 ${
+                      parseFloat(newContract.deposit) > parseFloat(newContract.monthlyRent || '0')
+                        ? 'text-green-600'
+                        : 'text-red-600'
+                    }`}>
+                      {parseFloat(newContract.deposit) > parseFloat(newContract.monthlyRent || '0')
+                        ? '✓ Depósito maior que o valor do aluguel'
+                        : '⚠ Depósito deve ser maior que o valor do aluguel'}
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -3537,6 +3686,7 @@ export function Contracts() {
                 </div>
               </div>
 
+
               {selectedTemplate?.id === 'contrato-locacao-residencial-padrao' && (
                 <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
                   <h4 className="font-semibold text-sm">FIADOR</h4>
@@ -3669,6 +3819,18 @@ export function Contracts() {
             {previewContent ? (
               <div id="contract-preview-content" className="space-y-4">
                 {}
+                <div className="flex justify-center items-center mb-4">
+                  <img 
+                    src="/contract.png" 
+                    alt="Contrato" 
+                    className="max-w-full h-auto max-h-16 object-contain"
+                    onError={(e) => {
+                      // Hide image if it fails to load
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
+                  />
+                </div>
+                {}
                 <div className="bg-muted p-3 sm:p-4 rounded-lg border">
                   <h3 className="font-semibold mb-3">Informações de Segurança</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-sm">
@@ -3722,11 +3884,6 @@ export function Contracts() {
                       </span>
                     </div>
                   </div>
-                  {!(selectedContract?.creci || newContract.creci || agencyData?.creci || user?.creci) && (
-                    <p className="text-red-500 text-xs mt-2">
-                      * O CRECI do corretor é obrigatório por lei para validade do contrato
-                    </p>
-                  )}
                 </div>
 
                 {}
@@ -4065,7 +4222,7 @@ export function Contracts() {
                   <Button
                     className="flex-1 bg-green-600 hover:bg-green-700"
                     onClick={confirmSign}
-                    disabled={signingContractId !== null || !signature || (isSecureOrigin() && (!geoConsent || !geoLocation))}
+                    disabled={signingContractId !== null || !signature || (isSecureOrigin() && !geoConsent)}
                   >
                     {signingContractId !== null ? 'Assinando...' : 'Confirmar Assinatura'}
                   </Button>

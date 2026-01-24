@@ -914,8 +914,10 @@ export default function ExtrajudicialNotifications() {
               ))}
             </div>
           ) : filteredNotifications.length === 0 ? (
-            <div className="text-center p-8 text-muted-foreground">
-              Nenhuma notificacao encontrada
+            <div className="flex flex-col items-center justify-center p-12 text-muted-foreground text-sm">
+              <Gavel className="w-12 h-12 mb-2 opacity-50" />
+              <p>Nenhuma notificacao encontrada</p>
+              <p className="text-xs">Não há notificações extrajudiciais para exibir</p>
             </div>
           ) : (
             <>

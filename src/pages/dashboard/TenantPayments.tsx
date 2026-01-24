@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { dashboardAPI, invoicesAPI } from '../../api';
+import { dashboardAPI, invoicesAPI, paymentsAPI } from '../../api';
+import { useMemo } from 'react';
 import { formatCurrency } from '../../lib/utils';
 import {
   DollarSign, Calendar, Download, CheckCircle, Clock,
@@ -42,11 +43,129 @@ interface Receipt {
 export function TenantPayments() {
   const { user } = useAuth();
 
-  const { data: dashboard, isLoading } = useQuery({
+  const { data: dashboard, isLoading: dashboardLoading } = useQuery({
     queryKey: ['tenant-dashboard', user?.id],
     queryFn: () => dashboardAPI.getDashboard(),
   });
 
+  // Fetch invoices separately
+  const { data: invoicesData, isLoading: invoicesLoading } = useQuery({
+    queryKey: ['invoices', user?.id],
+    queryFn: async () => {
+      try {
+        const result = await invoicesAPI.getInvoices({ tenantId: user?.id, take: 1000 });
+        if (Array.isArray(result)) {
+          return result;
+        } else if (result?.data && Array.isArray(result.data)) {
+          return result.data;
+        } else if (result?.items && Array.isArray(result.items)) {
+          return result.items;
+        }
+        return [];
+      } catch (error) {
+        console.error('Error fetching invoices:', error);
+        return [];
+      }
+    },
+    enabled: !!user?.id,
+  });
+
+  // Fetch manual payments separately
+  const { data: paymentsData, isLoading: paymentsLoading } = useQuery({
+    queryKey: ['payments', user?.id],
+    queryFn: async () => {
+      try {
+        const result = await paymentsAPI.getPayments();
+        const paymentsArray = Array.isArray(result) ? result : (result?.data || []);
+        // Filter to only show payments for this tenant
+        return paymentsArray.filter((p: any) => 
+          p.tenantId === user?.id || 
+          String(p.tenantId) === String(user?.id) ||
+          p.userId === user?.id ||
+          String(p.userId) === String(user?.id)
+        );
+      } catch (error) {
+        console.error('Error fetching payments:', error);
+        return [];
+      }
+    },
+    enabled: !!user?.id,
+  });
+
+  const isLoading = dashboardLoading || invoicesLoading || paymentsLoading;
+
+  const property = dashboard?.property;
+  const dashboardPaymentHistory = dashboard?.paymentHistory || [];
+  const manualPayments = Array.isArray(paymentsData) ? paymentsData : [];
+  const invoices = Array.isArray(invoicesData) ? invoicesData : [];
+
+  // Combine payments and invoices into a single list
+  // IMPORTANT: This useMemo must be called before any conditional returns to follow Rules of Hooks
+  const allPaymentsAndInvoices = useMemo(() => {
+    // Format invoices to match payment structure
+    const formattedInvoices = invoices.map((invoice: any) => ({
+      id: `invoice_${invoice.id}`,
+      isInvoice: true,
+      invoiceId: invoice.id,
+      amount: invoice.paidValue || invoice.updatedValue || invoice.originalValue || 0,
+      valorPago: invoice.paidValue || invoice.updatedValue || invoice.originalValue || 0,
+      date: invoice.paidAt || invoice.dueDate,
+      dataPagamento: invoice.paidAt || invoice.dueDate,
+      type: invoice.paymentMethod || 'FATURA',
+      tipo: invoice.paymentMethod || 'FATURA',
+      status: invoice.status === 'PAID' ? 'PAGO' : invoice.status,
+      referenceMonth: invoice.referenceMonth,
+      invoiceNumber: invoice.invoiceNumber,
+    }));
+
+    // Format manual payments
+    const formattedPayments = manualPayments.map((payment: any) => ({
+      id: payment.id,
+      isInvoice: false,
+      amount: payment.valorPago || payment.amount || 0,
+      valorPago: payment.valorPago || payment.amount || 0,
+      date: payment.dataPagamento || payment.paymentDate || payment.date,
+      dataPagamento: payment.dataPagamento || payment.paymentDate || payment.date,
+      type: payment.tipo || payment.paymentType || 'ALUGUEL',
+      tipo: payment.tipo || payment.paymentType || 'ALUGUEL',
+      status: payment.status || 'PAGO',
+    }));
+
+    // Also include dashboard payment history (for backward compatibility)
+    const dashboardPayments = dashboardPaymentHistory.map((payment: Payment) => ({
+      id: payment.id || `dashboard_${payment.date}`,
+      isInvoice: false,
+      amount: Number(payment.amount) || 0,
+      valorPago: Number(payment.amount) || 0,
+      date: payment.date,
+      dataPagamento: payment.date,
+      type: payment.type || 'ALUGUEL',
+      tipo: payment.type || 'ALUGUEL',
+      status: payment.status || 'PAGO',
+    }));
+
+    // Combine all and remove duplicates (by id or date+amount)
+    const combined = [...formattedInvoices, ...formattedPayments, ...dashboardPayments];
+    const unique = combined.filter((item, index, self) => 
+      index === self.findIndex((t) => 
+        t.id === item.id || 
+        (t.date === item.date && Math.abs(Number(t.amount) - Number(item.amount)) < 0.01)
+      )
+    );
+
+    // Sort by date (most recent first)
+    return unique.sort((a, b) => {
+      const dateA = new Date(a.date || a.dataPagamento || 0).getTime();
+      const dateB = new Date(b.date || b.dataPagamento || 0).getTime();
+      return dateB - dateA;
+    });
+  }, [invoices, manualPayments, dashboardPaymentHistory]);
+
+  const paymentHistory = allPaymentsAndInvoices;
+  const totalPaid = paymentHistory.reduce((sum: number, p: any) => sum + (Number(p.amount || p.valorPago) || 0), 0);
+  const paymentsCount = paymentHistory.length;
+
+  // Early return AFTER all hooks are called (Rules of Hooks)
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -54,12 +173,6 @@ export function TenantPayments() {
       </div>
     );
   }
-
-  const property = dashboard?.property;
-  const paymentHistory = dashboard?.paymentHistory || [];
-
-  const totalPaid = paymentHistory.reduce((sum: number, p: Payment) => sum + (Number(p.amount) || 0), 0);
-  const paymentsCount = paymentHistory.length;
 
   const getPaymentStatus = () => {
     if (!property?.nextDueDate) return { status: 'unknown', label: 'Sem data', color: 'gray' };
@@ -82,32 +195,56 @@ export function TenantPayments() {
     try {
       toast.info('Gerando comprovante...');
       
-      // Try to find invoice ID from payment
-      // First, get invoices to find the one related to this payment
-      const invoices = await invoicesAPI.getInvoices({ tenantId: user?.id });
-      const paidInvoices = invoices.filter((inv: Invoice) => inv.status === 'PAID');
+      // Check if it's an invoice ID (starts with "invoice_")
+      if (paymentId.startsWith('invoice_')) {
+        const invoiceId = paymentId.replace('invoice_', '');
+        const receiptData = await invoicesAPI.downloadReceipt(invoiceId);
+        
+        if (receiptData.receiptUrl) {
+          window.open(receiptData.receiptUrl, '_blank');
+          toast.success('Recibo aberto em nova aba');
+        } else {
+          toast.error('Recibo não disponível para esta fatura');
+        }
+        return;
+      }
       
-      // Try to match payment with invoice (by date or amount)
-      const payment = paymentHistory.find((p: Payment) => p.id === paymentId);
+      // For regular payments, try to find matching invoice
+      const payment = paymentHistory.find((p: any) => p.id === paymentId);
       if (!payment) {
         toast.error('Pagamento não encontrado');
         return;
       }
       
-      // Find invoice that matches this payment
+      // If payment already has invoiceId, use it directly
+      if (payment.invoiceId) {
+        const receiptData = await invoicesAPI.downloadReceipt(payment.invoiceId);
+        if (receiptData.receiptUrl) {
+          window.open(receiptData.receiptUrl, '_blank');
+          toast.success('Recibo aberto em nova aba');
+        } else {
+          toast.error('Recibo não disponível para este pagamento');
+        }
+        return;
+      }
+      
+      // Try to find invoice by matching date or amount
+      const invoices = await invoicesAPI.getInvoices({ tenantId: user?.id });
+      const paidInvoices = invoices.filter((inv: Invoice) => inv.status === 'PAID');
+      
       const matchingInvoice = paidInvoices.find((inv: Invoice) => {
         const dateValue = inv.paidAt || inv.dueDate;
         if (!dateValue) return false;
         const invDate = new Date(dateValue).toISOString().split('T')[0];
-        const payDate = new Date(payment.date).toISOString().split('T')[0];
-        return invDate === payDate || Math.abs(Number(inv.paidValue || inv.originalValue) - Number(payment.amount)) < 0.01;
+        const payDate = new Date(payment.date || payment.dataPagamento).toISOString().split('T')[0];
+        const amountMatch = Math.abs(Number(inv.paidValue || inv.originalValue) - Number(payment.amount || payment.valorPago)) < 0.01;
+        return invDate === payDate || amountMatch;
       });
       
       if (matchingInvoice) {
         const receiptData = await invoicesAPI.downloadReceipt(matchingInvoice.id);
         
         if (receiptData.receiptUrl) {
-          // Open receipt URL in new tab
           window.open(receiptData.receiptUrl, '_blank');
           toast.success('Recibo aberto em nova aba');
         } else {
@@ -283,25 +420,41 @@ export function TenantPayments() {
         <CardContent>
           {paymentHistory.length > 0 ? (
             <div className="space-y-3">
-              {paymentHistory.map((payment: Payment, index: number) => (
+              {paymentHistory.map((payment: any, index: number) => (
                 <div
                   key={payment.id || index}
                   className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                      <CreditCard className="w-6 h-6 text-green-600" />
+                      {payment.isInvoice ? (
+                        <FileText className="w-6 h-6 text-green-600" />
+                      ) : (
+                        <CreditCard className="w-6 h-6 text-green-600" />
+                      )}
                     </div>
                     <div>
-                      <p className="font-medium">
-                        {payment.type === 'ALUGUEL' ? 'Aluguel' :
-                         payment.type === 'CONDOMINIO' ? 'Condomínio' :
-                         payment.type === 'IPTU' ? 'IPTU' :
-                         payment.type === 'OUTROS' ? 'Outros' : payment.type}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">
+                          {payment.type === 'ALUGUEL' || payment.type === 'FATURA' || payment.tipo === 'FATURA' ? 'Aluguel' :
+                           payment.type === 'CONDOMINIO' ? 'Condomínio' :
+                           payment.type === 'IPTU' ? 'IPTU' :
+                           payment.type === 'OUTROS' ? 'Outros' : payment.type || payment.tipo || 'Pagamento'}
+                        </p>
+                        {payment.isInvoice && (
+                          <Badge className="bg-indigo-500 text-white text-xs">Fatura</Badge>
+                        )}
+                        {payment.referenceMonth && (
+                          <Badge variant="outline" className="text-xs">
+                            {payment.referenceMonth}
+                          </Badge>
+                        )}
+                      </div>
                       <p className="text-sm text-muted-foreground">
-                        Pago em {payment.date
-                          ? new Date(payment.date).toLocaleDateString('pt-BR')
+                        {payment.status === 'PAID' || payment.status === 'PAGO' ? 'Pago' : 
+                         payment.status === 'PENDING' ? 'Pendente' :
+                         payment.status === 'OVERDUE' ? 'Vencido' : 'Pago'} em {payment.date || payment.dataPagamento
+                          ? new Date(payment.date || payment.dataPagamento).toLocaleDateString('pt-BR')
                           : '-'}
                       </p>
                     </div>
@@ -309,22 +462,46 @@ export function TenantPayments() {
                   <div className="flex items-center gap-4">
                     <div className="text-right">
                       <p className="font-semibold text-green-600">
-                        {formatCurrency(Number(payment.amount) || 0)}
+                        {formatCurrency(Number(payment.amount || payment.valorPago) || 0)}
                       </p>
-                      <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Pago
+                      <Badge variant="outline" className={`text-xs ${
+                        payment.status === 'PAID' || payment.status === 'PAGO' || !payment.status
+                          ? 'bg-green-50 text-green-700 border-green-200'
+                          : payment.status === 'PENDING'
+                          ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                          : 'bg-red-50 text-red-700 border-red-200'
+                      }`}>
+                        {payment.status === 'PAID' || payment.status === 'PAGO' || !payment.status ? (
+                          <>
+                            <CheckCircle className="w-3 h-3 mr-1" />
+                            Pago
+                          </>
+                        ) : payment.status === 'PENDING' ? (
+                          <>
+                            <Clock className="w-3 h-3 mr-1" />
+                            Pendente
+                          </>
+                        ) : (
+                          <>
+                            <AlertTriangle className="w-3 h-3 mr-1" />
+                            Vencido
+                          </>
+                        )}
                       </Badge>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => payment.id && handleDownloadReceipt(payment.id)}
-                      title="Baixar comprovante"
-                      disabled={!payment.id}
-                    >
-                      <Download className="w-4 h-4" />
-                    </Button>
+                    {(payment.isInvoice ? payment.invoiceId : payment.id) && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          const id = payment.isInvoice ? payment.invoiceId : payment.id;
+                          if (id) handleDownloadReceipt(id);
+                        }}
+                        title="Baixar comprovante"
+                      >
+                        <Download className="w-4 h-4" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               ))}

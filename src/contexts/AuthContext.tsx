@@ -135,6 +135,10 @@ const ROLE_PERMISSIONS: Record<string, string[]> = {
     'settings:read',
     
     'billing:read',
+    
+    'inspections:read', 'inspections:create', 'inspections:update', 'inspections:approve',
+    
+    'audit:read',
   ],
   BROKER: [
     'dashboard:read',

@@ -10,7 +10,8 @@ import {
 } from 'recharts';
 import {
   TrendingUp, Users, FileText, DollarSign, Target, Award,
-  Clock, CheckCircle, Inbox, Building2, Home, Phone, AlertCircle
+  Clock, CheckCircle, Inbox, Building2, Home, Phone, AlertCircle,
+  PieChart as PieChartIcon
 } from 'lucide-react';
 
 const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#EF4444', '#8B5CF6'];
@@ -473,8 +474,10 @@ export function SalesRepDashboard() {
                 </AreaChart>
               </ChartContainer>
             ) : (
-              <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
-                <p>Nenhum dado disponível</p>
+              <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
+                <TrendingUp className="w-12 h-12 mb-3 opacity-50" />
+                <p className="text-sm font-medium">Nenhum dado disponível</p>
+                <p className="text-xs mt-1">Não há dados de desempenho semanal para exibir</p>
               </div>
             )}
           </CardContent>
@@ -534,8 +537,10 @@ export function SalesRepDashboard() {
                 </div>
               </div>
             ) : (
-              <div className="flex items-center justify-center h-[200px] text-muted-foreground text-sm">
-                <p>Nenhum dado disponível</p>
+              <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
+                <PieChartIcon className="w-12 h-12 mb-3 opacity-50" />
+                <p className="text-sm font-medium">Nenhum dado disponível</p>
+                <p className="text-xs mt-1">Não há dados de pipeline para exibir</p>
               </div>
             )}
           </CardContent>
@@ -601,8 +606,10 @@ export function SalesRepDashboard() {
                 </BarChart>
               </ChartContainer>
             ) : (
-              <div className="flex items-center justify-center h-[180px] text-muted-foreground text-sm">
-                <p>Nenhuma proposta encontrada</p>
+              <div className="flex flex-col items-center justify-center h-[180px] text-muted-foreground">
+                <FileText className="w-12 h-12 mb-3 opacity-50" />
+                <p className="text-sm font-medium">Nenhuma proposta encontrada</p>
+                <p className="text-xs mt-1">Não há propostas para exibir</p>
               </div>
             )}
           </CardContent>

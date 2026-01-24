@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../..
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select'
 import { Button } from '../../components/ui/button'
 import { Skeleton } from '../../components/ui/skeleton'
-import { paymentsAPI, propertiesAPI, usersAPI, financialReportsAPI } from '../../api'
+import { paymentsAPI, propertiesAPI, usersAPI, financialReportsAPI, invoicesAPI } from '../../api'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
 import { toast } from 'sonner'
 import { useAuth } from '../../contexts/AuthContext'
@@ -42,6 +42,7 @@ export default function Reports() {
   const [properties, setProperties] = useState<Array<{ id: string; name?: string; address?: string }>>([])
   const [tenants, setTenants] = useState<Array<{ id: string; name: string }>>([])
   const [payments, setPayments] = useState<Array<{ propertyId?: string; tenantId?: string; amount?: number; valorPago?: number; paymentType?: string; tipo?: string }>>([])
+  const [invoices, setInvoices] = useState<Array<{ propertyId?: string; tenantId?: string; amount?: number; valorPago?: number; paymentType?: string; tipo?: string; isInvoice?: boolean }>>([])
   const [reportType] = useState<'monthly' | 'property' | 'tenant'>('monthly')
   const [financialReportType, setFinancialReportType] = useState<'daily' | 'monthly' | 'annual'>('annual')
   const [isChartReady, setIsChartReady] = useState<boolean>(false)
@@ -121,35 +122,76 @@ export default function Reports() {
     loadData()
   }, [canViewProperties, canViewUsers, canViewReports, properties.length, tenants.length, user?.id, user?.role])
 
-  // Load payments separately after properties are loaded (for INQUILINO filtering)
+  // Load payments and invoices separately after properties are loaded (for INQUILINO filtering)
   useEffect(() => {
-    if (!canViewReports || !canViewPayments || payments.length > 0) return
+    if (!canViewReports || !canViewPayments) return
 
-    const loadPayments = async () => {
+    const loadPaymentsAndInvoices = async () => {
       try {
-        const paymentsData = await paymentsAPI.getPayments()
-        const paymentsArray = ensureArray(paymentsData)
-        
-        // For INQUILINO, filter to show only payments for their properties or their own payments
-        if (user?.role === 'INQUILINO' && user?.id && properties.length > 0) {
-          const tenantProperties = properties.map((p: any) => p.id)
+        // Load payments
+        if (payments.length === 0) {
+          const paymentsData = await paymentsAPI.getPayments()
+          const paymentsArray = ensureArray(paymentsData)
           
-          const filteredPayments = paymentsArray.filter((p: any) => 
-            tenantProperties.includes(p.propertyId) || 
-            tenantProperties.includes(String(p.propertyId)) ||
-            p.tenantId === user.id || 
-            String(p.tenantId) === String(user.id)
-          )
-          setPayments(filteredPayments)
-        } else if (user?.role !== 'INQUILINO') {
-          setPayments(paymentsArray)
+          // For INQUILINO, filter to show only payments for their properties or their own payments
+          if (user?.role === 'INQUILINO' && user?.id && properties.length > 0) {
+            const tenantProperties = properties.map((p: any) => p.id)
+            
+            const filteredPayments = paymentsArray.filter((p: any) => 
+              tenantProperties.includes(p.propertyId) || 
+              tenantProperties.includes(String(p.propertyId)) ||
+              p.tenantId === user.id || 
+              String(p.tenantId) === String(user.id)
+            )
+            setPayments(filteredPayments)
+          } else if (user?.role !== 'INQUILINO') {
+            setPayments(paymentsArray)
+          }
+        }
+
+        // Load invoices
+        if (invoices.length === 0) {
+          try {
+            const invoicesData = await invoicesAPI.getInvoices({ take: 1000 })
+            const invoicesArray = ensureArray(invoicesData)
+            
+            // Format invoices to match payment structure
+            const formattedInvoices = invoicesArray.map((invoice: any) => ({
+              id: `invoice_${invoice.id}`,
+              isInvoice: true,
+              propertyId: invoice.propertyId || invoice.property?.id,
+              tenantId: invoice.tenantId || invoice.tenant?.id,
+              amount: invoice.paidValue || invoice.updatedValue || invoice.originalValue || 0,
+              valorPago: invoice.paidValue || invoice.updatedValue || invoice.originalValue || 0,
+              paymentType: invoice.paymentMethod || 'FATURA',
+              tipo: invoice.paymentMethod || 'FATURA',
+            }))
+            
+            // For INQUILINO, filter to show only invoices for their properties or their own invoices
+            if (user?.role === 'INQUILINO' && user?.id && properties.length > 0) {
+              const tenantProperties = properties.map((p: any) => p.id)
+              
+              const filteredInvoices = formattedInvoices.filter((inv: any) => 
+                tenantProperties.includes(inv.propertyId) || 
+                tenantProperties.includes(String(inv.propertyId)) ||
+                inv.tenantId === user.id || 
+                String(inv.tenantId) === String(user.id)
+              )
+              setInvoices(filteredInvoices)
+            } else if (user?.role !== 'INQUILINO') {
+              setInvoices(formattedInvoices)
+            }
+          } catch (err) {
+            console.error('Error loading invoices:', err)
+            setInvoices([])
+          }
         }
       } catch (err) {
         console.error('Error loading payments:', err)
       }
     }
-    loadPayments()
-  }, [canViewPayments, canViewReports, payments.length, properties, user?.id, user?.role])
+    loadPaymentsAndInvoices()
+  }, [canViewPayments, canViewReports, payments.length, invoices.length, properties, user?.id, user?.role])
 
   useEffect(() => {
     if (!canViewReports) return
@@ -461,8 +503,12 @@ export default function Reports() {
 
   const propertyPerformance = useMemo(() => {
     if (!Array.isArray(properties)) return []
+    // Combine payments and invoices
+    const allPaymentsAndInvoices = [...payments, ...invoices]
     return properties.map(property => {
-      const propertyPayments = payments.filter(p => p.propertyId === property.id)
+      const propertyPayments = allPaymentsAndInvoices.filter(p => 
+        p.propertyId === property.id || String(p.propertyId) === String(property.id)
+      )
       const totalRevenue = propertyPayments.reduce((sum, p) => sum + Number(p.amount || p.valorPago || 0), 0)
       return {
         name: property.name || property.address || '',
@@ -470,12 +516,16 @@ export default function Reports() {
         payments: propertyPayments.length
       }
     }).sort((a, b) => b.revenue - a.revenue)
-  }, [properties, payments])
+  }, [properties, payments, invoices])
 
   const tenantPerformance = useMemo(() => {
     if (!Array.isArray(tenants)) return []
+    // Combine payments and invoices
+    const allPaymentsAndInvoices = [...payments, ...invoices]
     return tenants.map(tenant => {
-      const tenantPayments = payments.filter(p => p.tenantId === tenant.id)
+      const tenantPayments = allPaymentsAndInvoices.filter(p => 
+        p.tenantId === tenant.id || String(p.tenantId) === String(tenant.id)
+      )
       const totalPaid = tenantPayments.reduce((sum, p) => sum + Number(p.amount || p.valorPago || 0), 0)
       return {
         name: tenant.name,
@@ -483,11 +533,13 @@ export default function Reports() {
         payments: tenantPayments.length
       }
     }).sort((a, b) => b.totalPaid - a.totalPaid)
-  }, [tenants, payments])
+  }, [tenants, payments, invoices])
 
   const paymentTypeData = useMemo(() => {
-    if (!Array.isArray(payments)) return []
-    const types = payments.reduce((acc, payment) => {
+    // Combine payments and invoices
+    const allPaymentsAndInvoices = [...payments, ...invoices]
+    if (!Array.isArray(allPaymentsAndInvoices) || allPaymentsAndInvoices.length === 0) return []
+    const types = allPaymentsAndInvoices.reduce((acc, payment) => {
       const type = payment.paymentType || payment.tipo || 'Outros'
       acc[type] = (acc[type] || 0) + 1
       return acc
@@ -499,7 +551,7 @@ export default function Reports() {
       value: count,
       color: colors[index % colors.length]
     }))
-  }, [payments])
+  }, [payments, invoices])
 
   const handleExportReport = async (format: 'csv' | 'pdf') => {
     if (!canAccessFinancialReports) {

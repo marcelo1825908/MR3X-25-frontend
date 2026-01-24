@@ -279,7 +279,7 @@ export function MandatoryTenantBanner({ upcomingDueDate, daysUntilUpcoming }: Ma
           </p>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
+        <DialogFooter className="flex-col sm:flex-row gap-2 mt-5">
           <Button
             variant="outline"
             onClick={() => {

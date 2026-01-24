@@ -31,7 +31,15 @@ export const safeGetCurrentPosition = (
   navigator.geolocation.getCurrentPosition(
     (position) => onSuccess(position),
     (error) => {
-      console.error('Geolocation error:', error);
+      // Handle permission denial gracefully (not an error, just user choice)
+      if (error.code === 1) {
+        // PERMISSION_DENIED - User denied the request
+        console.warn('Geolocation permission denied by user');
+      } else {
+        // Other errors (unavailable, timeout, etc.)
+        console.error('Geolocation error:', error);
+      }
+      
       if (onError) {
         onError(error);
       } else {

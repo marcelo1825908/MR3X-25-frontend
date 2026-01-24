@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationsAPI } from '@/api'
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import {
@@ -52,6 +53,7 @@ function formatDateTime(dateString: string) {
 export function Notifications() {
   const { hasPermission } = useAuth()
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
 
   const canViewNotifications = hasPermission('notifications:read')
 
@@ -478,12 +480,21 @@ export function Notifications() {
                         {formatDateTime(notification.creationDate || notification.createdAt)}
                       </div>
                       {notification.actionUrl && notification.actionLabel && (
-                        <a
-                          href={notification.actionUrl}
+                        <button
+                          onClick={() => {
+                            // If it's "Assinar Contrato", navigate to contracts page
+                            if (notification.actionLabel?.includes('Assinar Contrato')) {
+                              navigate('/dashboard/contracts')
+                            } else if (notification.actionUrl?.startsWith('/')) {
+                              navigate(notification.actionUrl)
+                            } else if (notification.actionUrl) {
+                              window.location.href = notification.actionUrl
+                            }
+                          }}
                           className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
                         >
                           {notification.actionLabel} →
-                        </a>
+                        </button>
                       )}
                     </div>
                   </div>

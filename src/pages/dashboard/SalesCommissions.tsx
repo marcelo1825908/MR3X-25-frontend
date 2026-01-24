@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import apiClient from '../../api/client';
 import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -10,7 +11,7 @@ import {
 import type { PieLabelRenderProps } from 'recharts';
 import {
   DollarSign, Award, Clock, CheckCircle, Calendar, Building2,
-  TrendingUp, Download, Filter, X
+  TrendingUp, Download, Filter, X, BarChart3
 } from 'lucide-react';
 
 interface Commission {
@@ -20,7 +21,7 @@ interface Commission {
   dealValue: number;
   commissionRate: number;
   commissionValue: number;
-  status: 'pending' | 'processing' | 'paid';
+  status: 'calculated' | 'pending' | 'released' | 'processing' | 'paid' | 'canceled' | 'rejected';
   closedAt: string;
   paidAt: string | null;
   paymentMonth: string;
@@ -40,19 +41,19 @@ const emptySummary = {
   byPlan: [],
 };
 
-const statusConfig = {
+const statusConfig: Record<string, { label: string; color: string; icon: typeof Clock }> = {
   calculated: { label: 'Calculada', color: 'bg-purple-100 text-purple-800', icon: Clock },
   pending: { label: 'Pendente', color: 'bg-yellow-100 text-yellow-800', icon: Clock },
   released: { label: 'Liberada', color: 'bg-blue-100 text-blue-800', icon: CheckCircle },
   processing: { label: 'Processando', color: 'bg-indigo-100 text-indigo-800', icon: Clock },
   paid: { label: 'Pago', color: 'bg-green-100 text-green-800', icon: CheckCircle },
   canceled: { label: 'Cancelada', color: 'bg-red-100 text-red-800', icon: X },
+  rejected: { label: 'Rejeitada', color: 'bg-red-100 text-red-800', icon: X },
 };
 
 const COLORS = ['#94A3B8', '#3B82F6', '#8B5CF6', '#10B981'];
 
 export function SalesCommissions() {
-  const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
   const { data: commissions = [], isLoading: loadingCommissions } = useQuery({
@@ -72,9 +73,8 @@ export function SalesCommissions() {
   });
 
   const filteredCommissions = commissions.filter((commission: Commission) => {
-    const matchesMonth = selectedMonth === 'all' || commission.paymentMonth === selectedMonth;
     const matchesStatus = selectedStatus === 'all' || commission.status === selectedStatus;
-    return matchesMonth && matchesStatus;
+    return matchesStatus;
   });
 
   const formatCurrency = (value: number) => {
@@ -87,7 +87,7 @@ export function SalesCommissions() {
   };
 
   const getStatusBadge = (status: Commission['status']) => {
-    const config = statusConfig[status];
+    const config = statusConfig[status] || { label: status, color: 'bg-gray-100 text-gray-800', icon: Clock };
     const Icon = config.icon;
     return (
       <span className={`inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full ${config.color}`}>
@@ -96,8 +96,6 @@ export function SalesCommissions() {
       </span>
     );
   };
-
-  const uniqueMonths = [...new Set(commissions.map((c: Commission) => c.paymentMonth))].sort().reverse() as string[];
 
   const isLoading = loadingCommissions || loadingSummary;
 
@@ -252,25 +250,33 @@ export function SalesCommissions() {
           </CardHeader>
           <CardContent>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={summary.byPlan}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="value"
-                    label={({ name, percent }: PieLabelRenderProps) => `${name || ''}: ${((percent as number) * 100).toFixed(0)}%`}
-                  >
-                    {summary.byPlan.map((entry: { name: string; value: number; color: string }, index: number) => (
-                      <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: number) => [formatCurrency(value), 'Comissão']} />
-                </PieChart>
-              </ResponsiveContainer>
+              {summary.byPlan && summary.byPlan.length > 0 && summary.byPlan.some((entry: { name: string; value: number; color: string }) => entry.value > 0) ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={summary.byPlan}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={5}
+                      dataKey="value"
+                      label={({ name, percent }: PieLabelRenderProps) => `${name || ''}: ${((percent as number) * 100).toFixed(0)}%`}
+                    >
+                      {summary.byPlan.map((entry: { name: string; value: number; color: string }, index: number) => (
+                        <Cell key={`cell-${index}`} fill={entry.color || COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value: number) => [formatCurrency(value), 'Comissão']} />
+                  </PieChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
+                  <BarChart3 className="w-16 h-16 mb-4 opacity-50" />
+                  <p className="text-sm font-medium">Nenhum dado disponível</p>
+                  <p className="text-xs mt-1">Não há comissões por plano para exibir</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -301,33 +307,26 @@ export function SalesCommissions() {
       {}
       <Card>
         <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 items-center">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Filtrar:</span>
+              <span className="text-sm font-medium text-muted-foreground">Filtrar por Status:</span>
             </div>
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="px-3 py-2 border rounded-lg bg-background"
-            >
-              <option value="all">Todos os Meses</option>
-              {uniqueMonths.map((month: string) => (
-                <option key={month} value={month}>
-                  {new Date(month + '-01').toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-                </option>
-              ))}
-            </select>
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-3 py-2 border rounded-lg bg-background"
-            >
-              <option value="all">Todos os Status</option>
-              <option value="pending">Pendente</option>
-              <option value="processing">Processando</option>
-              <option value="paid">Pago</option>
-            </select>
+            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+              <SelectTrigger className="w-[200px]">
+                <SelectValue placeholder="Todos os Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os Status</SelectItem>
+                <SelectItem value="calculated">Calculada</SelectItem>
+                <SelectItem value="pending">Pendente</SelectItem>
+                <SelectItem value="released">Liberada</SelectItem>
+                <SelectItem value="processing">Processando</SelectItem>
+                <SelectItem value="paid">Pago</SelectItem>
+                <SelectItem value="canceled">Cancelada</SelectItem>
+                <SelectItem value="rejected">Rejeitada</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
