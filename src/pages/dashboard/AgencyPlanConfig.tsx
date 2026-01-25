@@ -1538,6 +1538,7 @@ export function AgencyPlanConfig() {
                 setPaymentData(null);
                 setSelectedPlan(null);
               }}
+              className='mt-5'
             >
               Fechar
             </Button>

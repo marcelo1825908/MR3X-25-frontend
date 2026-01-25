@@ -1707,10 +1707,9 @@ export function Properties() {
                             const paymentMethodLabels: { [key: string]: string } = {
                               'PIX': 'PIX',
                               'BOLETO': 'Boleto',
-                              'TRANSFERENCIA': 'Transferência',
-                              'DINHEIRO': 'Dinheiro',
                               'CARTAO_CREDITO': 'Cartão de Crédito',
-                              'CARTAO_DEBITO': 'Cartão de Débito'
+                              'CREDIT_CARD': 'Cartão de Crédito',
+                              'CARD': 'Cartão de Crédito'
                             };
                             
                             // Get last paid payment for display
@@ -3289,8 +3288,7 @@ export function Properties() {
                     <SelectContent>
                       <SelectItem value="PIX">PIX</SelectItem>
                       <SelectItem value="BOLETO">Boleto</SelectItem>
-                      <SelectItem value="TRANSFERENCIA">Transferência</SelectItem>
-                      <SelectItem value="DINHEIRO">Dinheiro</SelectItem>
+                      <SelectItem value="CARTAO_CREDITO">Cartão de Crédito</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -3374,10 +3372,7 @@ export function Properties() {
                     <SelectContent>
                       <SelectItem value="PIX">PIX</SelectItem>
                       <SelectItem value="BOLETO">Boleto</SelectItem>
-                      <SelectItem value="TRANSFERENCIA">Transferência</SelectItem>
-                      <SelectItem value="DINHEIRO">Dinheiro</SelectItem>
                       <SelectItem value="CARTAO_CREDITO">Cartão de Crédito</SelectItem>
-                      <SelectItem value="CARTAO_DEBITO">Cartão de Débito</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

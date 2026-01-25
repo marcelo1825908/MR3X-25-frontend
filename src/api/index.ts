@@ -1616,6 +1616,16 @@ export const invoicesAPI = {
     return response.data;
   },
 
+  syncPaymentStatus: async (id: string) => {
+    const response = await apiClient.post(`/invoices/${id}/sync-payment-status`);
+    return response.data;
+  },
+
+  createPaymentWithMethod: async (id: string, billingType: 'PIX' | 'BOLETO' | 'CREDIT_CARD') => {
+    const response = await apiClient.post(`/invoices/${id}/create-payment`, { billingType });
+    return response.data;
+  },
+
   getStatistics: async () => {
     const response = await apiClient.get('/invoices/statistics');
     return response.data;

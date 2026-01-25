@@ -18,7 +18,7 @@ export default function Reports() {
   const canViewProperties = hasPermission('properties:read')
   const canViewUsers = hasPermission('users:read')
   const canViewPayments = hasPermission('payments:read')
-  
+
   // INQUILINO cannot access financial reports
   const canAccessFinancialReports = canViewReports && user?.role !== 'INQUILINO'
 
@@ -37,12 +37,14 @@ export default function Reports() {
       setDay(daysInMonth)
     }
   }, [year, month, day])
-  const [data, setData] = useState<Array<{ month: string; total: number }>>([])
+  const [data, setData] = useState<Array<{ month: string; total: number; completed?: number; pending?: number }>>([])
   const [error, setError] = useState<string | null>(null)
   const [properties, setProperties] = useState<Array<{ id: string; name?: string; address?: string }>>([])
   const [tenants, setTenants] = useState<Array<{ id: string; name: string }>>([])
-  const [payments, setPayments] = useState<Array<{ propertyId?: string; tenantId?: string; amount?: number; valorPago?: number; paymentType?: string; tipo?: string }>>([])
-  const [invoices, setInvoices] = useState<Array<{ propertyId?: string; tenantId?: string; amount?: number; valorPago?: number; paymentType?: string; tipo?: string; isInvoice?: boolean }>>([])
+  const [payments, setPayments] = useState<Array<{ propertyId?: string; tenantId?: string; amount?: number; valorPago?: number; paymentType?: string; tipo?: string; status?: string }>>([])
+  const [invoices, setInvoices] = useState<Array<{ propertyId?: string; tenantId?: string; amount?: number; valorPago?: number; paymentType?: string; tipo?: string; isInvoice?: boolean; status?: string }>>([])
+  const [pendingPayments, setPendingPayments] = useState<Array<{ propertyId?: string; tenantId?: string; amount?: number; valorPago?: number; paymentType?: string; tipo?: string; status?: string; dueDate?: string | Date }>>([])
+  const [pendingInvoices, setPendingInvoices] = useState<Array<{ propertyId?: string; tenantId?: string; amount?: number; valorPago?: number; paymentType?: string; tipo?: string; isInvoice?: boolean; status?: string; dueDate?: string | Date }>>([])
   const [reportType] = useState<'monthly' | 'property' | 'tenant'>('monthly')
   const [financialReportType, setFinancialReportType] = useState<'daily' | 'monthly' | 'annual'>('annual')
   const [isChartReady, setIsChartReady] = useState<boolean>(false)
@@ -87,6 +89,56 @@ export default function Reports() {
     return []
   }
 
+  // Helper function to check if a payment is completed (only completed payments count as income)
+  const isCompletedPayment = (payment: any): boolean => {
+    // For invoices: must be PAID status and have paidAt date
+    if (payment.isInvoice) {
+      return payment.status === 'PAID' && !!payment.paidAt && !!payment.paidValue
+    }
+    // For payments: must be PAID or PAGO status
+    const status = payment.status?.toUpperCase()
+    return status === 'PAID' || status === 'PAGO'
+  }
+
+  // Helper function to check if a payment/invoice should be excluded due to duplication
+  // If an invoice is PAID and there's a corresponding Payment record, exclude the invoice
+  const shouldExcludeForDuplication = (item: any, allItems: any[]): boolean => {
+    // Only check invoices that are PAID
+    if (!item.isInvoice || item.status !== 'PAID') {
+      return false
+    }
+
+    // Check if there's a matching Payment record (created from this invoice)
+    const hasMatchingPayment = allItems.some((p: any) => {
+      // Skip if it's also an invoice
+      if (p.isInvoice) return false
+
+      // Match by contract, date (same day), and similar value
+      const invoiceContractId = item.contractId?.toString() || item.contract?.id?.toString()
+      const paymentContractId = p.contratoId?.toString() || p.contractId?.toString()
+      
+      const invoiceDate = item.paidAt || item.paymentDate || item.dataPagamento
+      const paymentDate = p.dataPagamento || p.paymentDate
+      
+      const invoiceValue = Number(item.paidValue || item.amount || item.valorPago || 0)
+      const paymentValue = Number(p.valorPago || p.amount || 0)
+      
+      const invoicePropertyId = item.propertyId?.toString() || item.property?.id?.toString()
+      const paymentPropertyId = p.propertyId?.toString() || p.property?.id?.toString()
+      
+      const contractMatch = invoiceContractId && paymentContractId && invoiceContractId === paymentContractId
+      const propertyMatch = invoicePropertyId && paymentPropertyId && invoicePropertyId === paymentPropertyId
+      const dateMatch = invoiceDate && paymentDate && 
+        new Date(invoiceDate).toDateString() === new Date(paymentDate).toDateString()
+      const valueMatch = Math.abs(invoiceValue - paymentValue) < 0.01
+      
+      return (contractMatch || propertyMatch) && dateMatch && valueMatch
+    })
+
+    // Exclude invoice if there's a matching payment
+    return hasMatchingPayment
+  }
+
 
   // Load properties, tenants and payments for stats display (regardless of reportType)
   useEffect(() => {
@@ -98,11 +150,20 @@ export default function Reports() {
         if (canViewProperties && properties.length === 0) {
           const propertiesData = await propertiesAPI.getProperties()
           const propertiesArray = ensureArray(propertiesData)
-          
+
           // For INQUILINO, filter to show only properties linked to their contracts
           if (user?.role === 'INQUILINO' && user?.id) {
-            const filteredProperties = propertiesArray.filter((p: any) => 
+            const filteredProperties = propertiesArray.filter((p: any) =>
               p.tenantId === user.id || String(p.tenantId) === String(user.id)
+            )
+            setProperties(filteredProperties)
+          } else if (user?.role === 'PROPRIETARIO' && user?.id) {
+            // For PROPRIETARIO, filter to show only owned properties
+            const filteredProperties = propertiesArray.filter((p: any) =>
+              p.ownerId === user.id ||
+              String(p.ownerId) === String(user.id) ||
+              p.owner?.id === user.id ||
+              String(p.owner?.id) === String(user.id)
             )
             setProperties(filteredProperties)
           } else {
@@ -129,57 +190,172 @@ export default function Reports() {
     const loadPaymentsAndInvoices = async () => {
       try {
         // Load payments
-        if (payments.length === 0) {
+        if (payments.length === 0 && pendingPayments.length === 0) {
           const paymentsData = await paymentsAPI.getPayments()
           const paymentsArray = ensureArray(paymentsData)
-          
+
+          // Separate completed and pending payments
+          const completedPayments = paymentsArray.filter((p: any) => {
+            const status = p.status?.toUpperCase()
+            return status === 'PAID' || status === 'PAGO'
+          })
+
+          const pendingPaymentsList = paymentsArray.filter((p: any) => {
+            const status = p.status?.toUpperCase()
+            return status === 'PENDING' || status === 'OVERDUE'
+          })
+
           // For INQUILINO, filter to show only payments for their properties or their own payments
           if (user?.role === 'INQUILINO' && user?.id && properties.length > 0) {
             const tenantProperties = properties.map((p: any) => p.id)
-            
-            const filteredPayments = paymentsArray.filter((p: any) => 
-              tenantProperties.includes(p.propertyId) || 
+
+            const filteredCompleted = completedPayments.filter((p: any) =>
+              tenantProperties.includes(p.propertyId) ||
               tenantProperties.includes(String(p.propertyId)) ||
-              p.tenantId === user.id || 
+              p.tenantId === user.id ||
               String(p.tenantId) === String(user.id)
             )
-            setPayments(filteredPayments)
-          } else if (user?.role !== 'INQUILINO') {
-            setPayments(paymentsArray)
+
+            const filteredPending = pendingPaymentsList.filter((p: any) =>
+              tenantProperties.includes(p.propertyId) ||
+              tenantProperties.includes(String(p.propertyId)) ||
+              p.tenantId === user.id ||
+              String(p.tenantId) === String(user.id)
+            )
+
+            setPayments(filteredCompleted)
+            setPendingPayments(filteredPending)
+          } else if (user?.role === 'PROPRIETARIO' && user?.id && properties.length > 0) {
+            // For PROPRIETARIO, filter to show only payments for their owned properties
+            const ownedPropertyIds = properties.map((p: any) => 
+              p.id?.toString() || String(p.id)
+            )
+
+            const filteredCompleted = completedPayments.filter((p: any) => {
+              const propertyId = p.propertyId?.toString() || String(p.propertyId)
+              return ownedPropertyIds.includes(propertyId)
+            })
+
+            const filteredPending = pendingPaymentsList.filter((p: any) => {
+              const propertyId = p.propertyId?.toString() || String(p.propertyId)
+              return ownedPropertyIds.includes(propertyId)
+            })
+
+            setPayments(filteredCompleted)
+            setPendingPayments(filteredPending)
+          } else if (user?.role !== 'INQUILINO' && user?.role !== 'PROPRIETARIO') {
+            setPayments(completedPayments)
+            setPendingPayments(pendingPaymentsList)
           }
         }
 
         // Load invoices
         if (invoices.length === 0) {
           try {
-            const invoicesData = await invoicesAPI.getInvoices({ take: 1000 })
+            // For PROPRIETARIO role, filter invoices by ownerId
+            const params: any = { take: 1000 }
+            if (user?.role === 'PROPRIETARIO' && user?.id) {
+              params.ownerId = user.id
+            }
+            const invoicesData = await invoicesAPI.getInvoices(params)
             const invoicesArray = ensureArray(invoicesData)
-            
-            // Format invoices to match payment structure
-            const formattedInvoices = invoicesArray.map((invoice: any) => ({
-              id: `invoice_${invoice.id}`,
-              isInvoice: true,
-              propertyId: invoice.propertyId || invoice.property?.id,
-              tenantId: invoice.tenantId || invoice.tenant?.id,
-              amount: invoice.paidValue || invoice.updatedValue || invoice.originalValue || 0,
-              valorPago: invoice.paidValue || invoice.updatedValue || invoice.originalValue || 0,
-              paymentType: invoice.paymentMethod || 'FATURA',
-              tipo: invoice.paymentMethod || 'FATURA',
-            }))
-            
+
+            // Separate completed and pending invoices
+            const completedInvoices = invoicesArray
+              .filter((invoice: any) => invoice.status === 'PAID' && invoice.paidAt && invoice.paidValue)
+              .map((invoice: any) => ({
+                id: `invoice_${invoice.id}`,
+                isInvoice: true,
+                status: invoice.status,
+                propertyId: invoice.propertyId || invoice.property?.id,
+                tenantId: invoice.tenantId || invoice.tenant?.id,
+                ownerId: invoice.ownerId || invoice.owner?.id, // Include ownerId for filtering
+                amount: invoice.paidValue || 0, // Only use paidValue for completed invoices
+                valorPago: invoice.paidValue || 0,
+                paymentType: invoice.paymentMethod || 'FATURA',
+                tipo: invoice.paymentMethod || 'FATURA',
+                paymentDate: invoice.paidAt, // Only use paidAt for completed invoices
+                dataPagamento: invoice.paidAt,
+                paidAt: invoice.paidAt,
+                dueDate: invoice.dueDate,
+                paidValue: invoice.paidValue,
+                updatedValue: invoice.updatedValue,
+                originalValue: invoice.originalValue,
+              }))
+
+            const pendingInvoicesList = invoicesArray
+              .filter((invoice: any) => invoice.status === 'PENDING' || invoice.status === 'OVERDUE')
+              .map((invoice: any) => ({
+                id: `invoice_${invoice.id}`,
+                isInvoice: true,
+                status: invoice.status,
+                propertyId: invoice.propertyId || invoice.property?.id,
+                tenantId: invoice.tenantId || invoice.tenant?.id,
+                ownerId: invoice.ownerId || invoice.owner?.id, // Include ownerId for filtering
+                amount: invoice.updatedValue || invoice.originalValue || 0,
+                valorPago: invoice.updatedValue || invoice.originalValue || 0,
+                paymentType: invoice.paymentMethod || 'FATURA',
+                tipo: invoice.paymentMethod || 'FATURA',
+                paymentDate: invoice.dueDate, // Use dueDate for pending invoices
+                dataPagamento: invoice.dueDate,
+                paidAt: invoice.paidAt,
+                dueDate: invoice.dueDate,
+                paidValue: invoice.paidValue,
+                updatedValue: invoice.updatedValue,
+                originalValue: invoice.originalValue,
+              }))
+
             // For INQUILINO, filter to show only invoices for their properties or their own invoices
             if (user?.role === 'INQUILINO' && user?.id && properties.length > 0) {
               const tenantProperties = properties.map((p: any) => p.id)
-              
-              const filteredInvoices = formattedInvoices.filter((inv: any) => 
-                tenantProperties.includes(inv.propertyId) || 
+
+              const filteredCompleted = completedInvoices.filter((inv: any) =>
+                tenantProperties.includes(inv.propertyId) ||
                 tenantProperties.includes(String(inv.propertyId)) ||
-                inv.tenantId === user.id || 
+                inv.tenantId === user.id ||
                 String(inv.tenantId) === String(user.id)
               )
-              setInvoices(filteredInvoices)
-            } else if (user?.role !== 'INQUILINO') {
-              setInvoices(formattedInvoices)
+
+              const filteredPending = pendingInvoicesList.filter((inv: any) =>
+                tenantProperties.includes(inv.propertyId) ||
+                tenantProperties.includes(String(inv.propertyId)) ||
+                inv.tenantId === user.id ||
+                String(inv.tenantId) === String(user.id)
+              )
+
+              setInvoices(filteredCompleted)
+              setPendingInvoices(filteredPending)
+            } else if (user?.role === 'PROPRIETARIO' && user?.id && properties.length > 0) {
+              // For PROPRIETARIO, filter to show only invoices for their owned properties
+              const ownedPropertyIds = properties.map((p: any) => 
+                p.id?.toString() || String(p.id)
+              )
+
+              const filteredCompleted = completedInvoices.filter((inv: any) => {
+                // Check if invoice has ownerId matching user
+                if (inv.ownerId && (inv.ownerId === user.id || String(inv.ownerId) === String(user.id))) {
+                  return true
+                }
+                // Check if invoice property is owned by user
+                const propertyId = inv.propertyId?.toString() || String(inv.propertyId)
+                return ownedPropertyIds.includes(propertyId)
+              })
+
+              const filteredPending = pendingInvoicesList.filter((inv: any) => {
+                // Check if invoice has ownerId matching user
+                if (inv.ownerId && (inv.ownerId === user.id || String(inv.ownerId) === String(user.id))) {
+                  return true
+                }
+                // Check if invoice property is owned by user
+                const propertyId = inv.propertyId?.toString() || String(inv.propertyId)
+                return ownedPropertyIds.includes(propertyId)
+              })
+
+              setInvoices(filteredCompleted)
+              setPendingInvoices(filteredPending)
+            } else if (user?.role !== 'INQUILINO' && user?.role !== 'PROPRIETARIO') {
+              setInvoices(completedInvoices)
+              setPendingInvoices(pendingInvoicesList)
             }
           } catch (err) {
             console.error('Error loading invoices:', err)
@@ -191,7 +367,7 @@ export default function Reports() {
       }
     }
     loadPaymentsAndInvoices()
-  }, [canViewPayments, canViewReports, payments.length, invoices.length, properties, user?.id, user?.role])
+  }, [canViewPayments, canViewReports, payments.length, invoices.length, pendingPayments.length, pendingInvoices.length, properties, user?.id, user?.role])
 
   useEffect(() => {
     if (!canViewReports) return
@@ -210,7 +386,7 @@ export default function Reports() {
             // In a production system, you'd want to fetch payment timestamps from the backend
             const totalsByHour: Record<number, number> = {}
             const transactions = financialReport.transactions.filter((t: any) => t.type === 'REVENUE')
-            
+
             if (transactions.length > 0) {
               // Distribute transactions evenly across hours, or show total in a single hour
               // For now, show all transactions in hour 12 (noon) as a placeholder
@@ -239,7 +415,8 @@ export default function Reports() {
               .filter((t: any) => t.type === 'REVENUE')
               .forEach((t: any) => {
                 const date = new Date(t.date)
-                const day = date.getDate()
+                // Use UTC methods to avoid timezone issues
+                const day = date.getUTCDate()
                 totalsByDay[day] = (totalsByDay[day] || 0) + (t.amount || 0)
               })
 
@@ -267,7 +444,9 @@ export default function Reports() {
               .filter((t: any) => t.type === 'REVENUE')
               .forEach((t: any) => {
                 const date = new Date(t.date)
-                const month = date.getMonth() + 1
+                // Use UTC methods to avoid timezone issues
+                // getUTCMonth() returns 0-11, so add 1 to get 1-12
+                const month = date.getUTCMonth() + 1
                 totalsByMonth[month] = (totalsByMonth[month] || 0) + (t.amount || 0)
               })
 
@@ -381,19 +560,19 @@ export default function Reports() {
 
   // Fetch previous period data for comparison
   const [previousData, setPreviousData] = useState<Array<{ month: string; total: number }>>([])
-  
+
   useEffect(() => {
     if (!canAccessFinancialReports || !financialReport) return
 
     const fetchPreviousData = async () => {
       try {
         let previousReport: any = null
-        
+
         if (financialReportType === 'daily') {
           // Get previous day
           const yesterday = new Date()
           yesterday.setDate(yesterday.getDate() - 1)
-          previousReport = await financialReportsAPI.generateReport({ 
+          previousReport = await financialReportsAPI.generateReport({
             type: 'daily',
             startDate: yesterday.toISOString().split('T')[0],
             endDate: yesterday.toISOString().split('T')[0]
@@ -402,7 +581,7 @@ export default function Reports() {
           // Get previous month
           const lastMonth = new Date()
           lastMonth.setMonth(lastMonth.getMonth() - 1)
-          previousReport = await financialReportsAPI.generateReport({ 
+          previousReport = await financialReportsAPI.generateReport({
             type: 'monthly',
             startDate: new Date(lastMonth.getFullYear(), lastMonth.getMonth(), 1).toISOString().split('T')[0],
             endDate: new Date(lastMonth.getFullYear(), lastMonth.getMonth() + 1, 0).toISOString().split('T')[0]
@@ -410,7 +589,7 @@ export default function Reports() {
         } else if (financialReportType === 'annual') {
           // Get previous year
           const lastYear = year - 1
-          previousReport = await financialReportsAPI.generateReport({ 
+          previousReport = await financialReportsAPI.generateReport({
             type: 'annual',
             startDate: new Date(lastYear, 0, 1).toISOString().split('T')[0],
             endDate: new Date(lastYear, 11, 31).toISOString().split('T')[0]
@@ -423,7 +602,7 @@ export default function Reports() {
           if (financialReportType === 'daily') {
             const totalsByHour: Record<number, number> = {}
             const transactions = previousReport.transactions.filter((t: any) => t.type === 'REVENUE')
-            
+
             if (transactions.length > 0) {
               const totalDaily = transactions.reduce((sum: number, t: any) => sum + (t.amount || 0), 0)
               totalsByHour[12] = totalDaily
@@ -439,7 +618,8 @@ export default function Reports() {
               .filter((t: any) => t.type === 'REVENUE')
               .forEach((t: any) => {
                 const date = new Date(t.date)
-                const day = date.getDate()
+                // Use UTC methods to avoid timezone issues
+                const day = date.getUTCDate()
                 totalsByDay[day] = (totalsByDay[day] || 0) + (t.amount || 0)
               })
 
@@ -456,7 +636,9 @@ export default function Reports() {
               .filter((t: any) => t.type === 'REVENUE')
               .forEach((t: any) => {
                 const date = new Date(t.date)
-                const month = date.getMonth() + 1
+                // Use UTC methods to avoid timezone issues
+                // getUTCMonth() returns 0-11, so add 1 to get 1-12
+                const month = date.getUTCMonth() + 1
                 totalsByMonth[month] = (totalsByMonth[month] || 0) + (t.amount || 0)
               })
 
@@ -492,40 +674,297 @@ export default function Reports() {
     fetchPreviousData()
   }, [financialReport, financialReportType, year, canAccessFinancialReports])
 
-  const totalAno = useMemo(() => data.reduce((acc, cur) => acc + (Number(cur.total) || 0), 0), [data])
-
-  const currentMonth = new Date().getMonth() + 1
-  const currentMonthData = data.find(d => {
-    const monthIndex = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].indexOf(d.month) + 1
-    return monthIndex === currentMonth
-  })
-  const currentMonthTotal = currentMonthData?.total || 0
-
+  // Calculate property performance first (used for Top Imóveis)
   const propertyPerformance = useMemo(() => {
     if (!Array.isArray(properties)) return []
-    // Combine payments and invoices
+    // Combine payments and invoices (already filtered to only completed payments)
     const allPaymentsAndInvoices = [...payments, ...invoices]
+    // Combine pending payments and invoices
+    const allPending = [...pendingPayments, ...pendingInvoices]
+
     return properties.map(property => {
-      const propertyPayments = allPaymentsAndInvoices.filter(p => 
-        p.propertyId === property.id || String(p.propertyId) === String(property.id)
-      )
-      const totalRevenue = propertyPayments.reduce((sum, p) => sum + Number(p.amount || p.valorPago || 0), 0)
+      const propertyPayments = allPaymentsAndInvoices.filter(p => {
+        const matchesProperty = p.propertyId === property.id || String(p.propertyId) === String(property.id)
+        if (!matchesProperty) return false
+
+        // Only count completed payments
+        if (!isCompletedPayment(p)) return false
+
+        // Exclude invoices that have corresponding Payment records (avoid duplication)
+        if (shouldExcludeForDuplication(p, allPaymentsAndInvoices)) return false
+
+        // Filter by current year using actual payment date
+        const paymentDate = (p as any).paymentDate || (p as any).dataPagamento || (p as any).paidAt
+        if (!paymentDate) return false
+
+        const date = new Date(paymentDate)
+        return date.getUTCFullYear() === currentYear
+      })
+
+      // Calculate pending payments for this property
+      const propertyPending = allPending.filter(p => {
+        const matchesProperty = p.propertyId === property.id || String(p.propertyId) === String(property.id)
+        return matchesProperty
+      })
+
+      // Use same value calculation as before for consistency
+      // For invoices, use paidValue; for payments, use amount or valorPago
+      const totalRevenue = propertyPayments.reduce((sum, p) => {
+        if ((p as any).isInvoice) {
+          return sum + Number((p as any).paidValue || 0)
+        }
+        return sum + Number(p.amount || p.valorPago || 0)
+      }, 0)
+      const totalPending = propertyPending.reduce((sum, p) => {
+        const amount = (p as any).isInvoice
+          ? Number((p as any).updatedValue || (p as any).originalValue || p.amount || p.valorPago || 0)
+          : Number(p.amount || p.valorPago || 0)
+        return sum + amount
+      }, 0)
+
       return {
         name: property.name || property.address || '',
         revenue: totalRevenue,
-        payments: propertyPayments.length
+        payments: propertyPayments.length,
+        pendingAmount: totalPending,
+        pendingCount: propertyPending.length
       }
     }).sort((a, b) => b.revenue - a.revenue)
-  }, [properties, payments, invoices])
+  }, [properties, payments, invoices, pendingPayments, pendingInvoices, currentYear])
+
+  // Calculate totals from all payments and invoices
+  // IMPORTANT: Only count PAID payments - pending payments are NOT income
+  // DO NOT use financialReport.summary.totalRevenue as it may include duplicates
+  const totalAno = useMemo(() => {
+    // Calculate directly from payments and invoices for the year
+    // CRITICAL: Only count completed payments (PAID/PAGO status) - pending payments are NOT income
+    const allPaymentsAndInvoices = [...payments, ...invoices]
+
+    const totalFromPayments = allPaymentsAndInvoices.reduce((sum, p) => {
+      // ONLY count completed payments - skip pending/overdue
+      if (!isCompletedPayment(p)) return sum
+
+      // Exclude invoices that have corresponding Payment records (avoid duplication)
+      // When a paid invoice creates a Payment record, we should only count the Payment, not the invoice
+      if (shouldExcludeForDuplication(p, allPaymentsAndInvoices)) return sum
+
+      // Use actual payment date (not due date) - only count payments that were actually paid
+      const paymentDate = (p as any).paymentDate || (p as any).dataPagamento || (p as any).paidAt
+      if (!paymentDate) return sum
+
+      const date = new Date(paymentDate)
+      // Only count payments from the selected year
+      if (date.getUTCFullYear() === year) {
+        // For invoices, use paidValue (only available for paid invoices)
+        if ((p as any).isInvoice) {
+          return sum + Number((p as any).paidValue || 0)
+        }
+        // For payments, use amount or valorPago
+        return sum + Number(p.amount || p.valorPago || 0)
+      }
+      return sum
+    }, 0)
+
+    // Return calculated total (only includes paid payments, no duplicates)
+    return totalFromPayments
+  }, [payments, invoices, year])
+
+  const currentMonth = new Date().getMonth() + 1
+
+  // Calculate pending totals
+  const pendingTotal = useMemo(() => {
+    const allPending = [...pendingPayments, ...pendingInvoices]
+    return allPending.reduce((sum, p) => {
+      const amount = (p as any).isInvoice
+        ? Number((p as any).updatedValue || (p as any).originalValue || 0)
+        : Number(p.amount || p.valorPago || 0)
+      return sum + amount
+    }, 0)
+  }, [pendingPayments, pendingInvoices])
+
+  const pendingCurrentMonth = useMemo(() => {
+    const allPending = [...pendingPayments, ...pendingInvoices]
+    return allPending.reduce((sum, p) => {
+      // For pending items, use dueDate (when payment is due)
+      // For invoices, dueDate is already set in the mapping
+      // For payments, use dueDate field (which exists in the Payment model)
+      let dueDate = (p as any).dueDate
+
+      // For pending invoices, paymentDate was set to dueDate in the mapping
+      // For pending payments, dueDate should be available from the API
+      if (!dueDate) {
+        // Try to get from paymentDate (which was set to dueDate for pending invoices)
+        dueDate = (p as any).paymentDate
+      }
+
+      // If still no dueDate, try dataPagamento (though this shouldn't exist for pending payments)
+      if (!dueDate) {
+        dueDate = (p as any).dataPagamento
+      }
+
+      if (!dueDate) {
+        // Skip if no due date available
+        return sum
+      }
+
+      const date = new Date(dueDate)
+      // Check if date is valid
+      if (isNaN(date.getTime())) {
+        return sum
+      }
+
+      // Use UTC methods to avoid timezone issues
+      const dueYear = date.getUTCFullYear()
+      const dueMonth = date.getUTCMonth() + 1 // getUTCMonth() returns 0-11, so add 1
+
+      if (dueYear === currentYear && dueMonth === currentMonth) {
+        const amount = (p as any).isInvoice
+          ? Number((p as any).updatedValue || (p as any).originalValue || 0)
+          : Number(p.amount || p.valorPago || 0)
+        return sum + amount
+      }
+      return sum
+    }, 0)
+  }, [pendingPayments, pendingInvoices, currentMonth, currentYear])
+
+  const currentMonthTotal = useMemo(() => {
+    // First try to use financial report summary if available
+    if (canAccessFinancialReports && financialReport?.summary?.totalRevenue && financialReportType === 'monthly') {
+      // For monthly report, check if it matches current month
+      const reportStartDate = financialReport.summary.startDate
+      if (reportStartDate) {
+        const reportDate = new Date(reportStartDate)
+        if (reportDate.getFullYear() === currentYear && reportDate.getMonth() === currentMonth + 1) {
+          return Number(financialReport.summary.totalRevenue) || 0
+        }
+      }
+    }
+
+    // Otherwise, calculate from all payments and invoices for the current month
+    // Only count completed payments (already filtered when loading)
+    const allPaymentsAndInvoices = [...payments, ...invoices]
+
+    const totalFromPayments = allPaymentsAndInvoices.reduce((sum, p) => {
+      // Only count completed payments
+      if (!isCompletedPayment(p)) return sum
+
+      // Exclude invoices that have corresponding Payment records (avoid duplication)
+      if (shouldExcludeForDuplication(p, allPaymentsAndInvoices)) return sum
+
+      // Use actual payment date (not due date)
+      const paymentDate = (p as any).paymentDate || (p as any).dataPagamento || (p as any).paidAt
+      if (!paymentDate) return sum
+
+      const date = new Date(paymentDate)
+      // Use UTC methods to avoid timezone issues
+      if (date.getUTCFullYear() === currentYear && date.getUTCMonth() + 1 === currentMonth) {
+        // For invoices, only use paidValue; for payments, use amount or valorPago
+        if ((p as any).isInvoice) {
+          return sum + Number((p as any).paidValue || 0)
+        }
+        return sum + Number(p.amount || p.valorPago || 0)
+      }
+      return sum
+    }, 0)
+
+    // Fallback to chart data if no payments/invoices found
+    if (totalFromPayments > 0) {
+      return totalFromPayments
+    }
+
+    const currentMonthData = data.find(d => {
+      const monthIndex = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].indexOf(d.month) + 1
+      return monthIndex === currentMonth
+    })
+    return currentMonthData?.total || 0
+  }, [financialReport, financialReportType, payments, invoices, currentMonth, currentYear, canAccessFinancialReports, data])
+
+  // Calculate monthly data for completed and pending payments for the annual chart
+  const monthlyChartData = useMemo(() => {
+    const months = [
+      { label: 'Jan', index: 1 },
+      { label: 'Fev', index: 2 },
+      { label: 'Mar', index: 3 },
+      { label: 'Abr', index: 4 },
+      { label: 'Mai', index: 5 },
+      { label: 'Jun', index: 6 },
+      { label: 'Jul', index: 7 },
+      { label: 'Ago', index: 8 },
+      { label: 'Set', index: 9 },
+      { label: 'Out', index: 10 },
+      { label: 'Nov', index: 11 },
+      { label: 'Dez', index: 12 },
+    ]
+
+    // Calculate completed payments by month
+    const allPaymentsAndInvoices = [...payments, ...invoices]
+    const completedByMonth: Record<number, number> = {}
+    
+    allPaymentsAndInvoices.forEach((p) => {
+      // Only count completed payments
+      if (!isCompletedPayment(p)) return
+      
+      // Exclude invoices that have corresponding Payment records (avoid duplication)
+      if (shouldExcludeForDuplication(p, allPaymentsAndInvoices)) return
+      
+      // Use actual payment date
+      const paymentDate = (p as any).paymentDate || (p as any).dataPagamento || (p as any).paidAt
+      if (!paymentDate) return
+      
+      const date = new Date(paymentDate)
+      if (date.getUTCFullYear() === year) {
+        const month = date.getUTCMonth() + 1
+        const amount = (p as any).isInvoice
+          ? Number((p as any).paidValue || 0)
+          : Number(p.amount || p.valorPago || 0)
+        completedByMonth[month] = (completedByMonth[month] || 0) + amount
+      }
+    })
+
+    // Calculate pending payments by month
+    const allPending = [...pendingPayments, ...pendingInvoices]
+    const pendingByMonth: Record<number, number> = {}
+    
+    allPending.forEach((p) => {
+      // Use dueDate for pending items
+      let dueDate = (p as any).dueDate
+      if (!dueDate) {
+        dueDate = (p as any).paymentDate || (p as any).dataPagamento
+      }
+      if (!dueDate) return
+      
+      const date = new Date(dueDate)
+      if (isNaN(date.getTime())) return
+      
+      const dueYear = date.getUTCFullYear()
+      const dueMonth = date.getUTCMonth() + 1
+      
+      if (dueYear === year) {
+        const amount = (p as any).isInvoice
+          ? Number((p as any).updatedValue || (p as any).originalValue || 0)
+          : Number(p.amount || p.valorPago || 0)
+        pendingByMonth[dueMonth] = (pendingByMonth[dueMonth] || 0) + amount
+      }
+    })
+
+    return months.map(({ label, index }) => ({
+      month: label,
+      completed: Number(completedByMonth[index] || 0),
+      pending: Number(pendingByMonth[index] || 0),
+      total: Number(completedByMonth[index] || 0) + Number(pendingByMonth[index] || 0), // Keep for backward compatibility
+    }))
+  }, [payments, invoices, pendingPayments, pendingInvoices, year])
 
   const tenantPerformance = useMemo(() => {
     if (!Array.isArray(tenants)) return []
-    // Combine payments and invoices
+    // Combine payments and invoices (already filtered to only completed payments)
     const allPaymentsAndInvoices = [...payments, ...invoices]
     return tenants.map(tenant => {
-      const tenantPayments = allPaymentsAndInvoices.filter(p => 
-        p.tenantId === tenant.id || String(p.tenantId) === String(tenant.id)
-      )
+      // Only count completed payments for each tenant
+      const tenantPayments = allPaymentsAndInvoices.filter(p => {
+        const matchesTenant = p.tenantId === tenant.id || String(p.tenantId) === String(tenant.id)
+        return matchesTenant && isCompletedPayment(p)
+      })
       const totalPaid = tenantPayments.reduce((sum, p) => sum + Number(p.amount || p.valorPago || 0), 0)
       return {
         name: tenant.name,
@@ -536,14 +975,17 @@ export default function Reports() {
   }, [tenants, payments, invoices])
 
   const paymentTypeData = useMemo(() => {
-    // Combine payments and invoices
+    // Combine payments and invoices (already filtered to only completed payments)
     const allPaymentsAndInvoices = [...payments, ...invoices]
     if (!Array.isArray(allPaymentsAndInvoices) || allPaymentsAndInvoices.length === 0) return []
-    const types = allPaymentsAndInvoices.reduce((acc, payment) => {
-      const type = payment.paymentType || payment.tipo || 'Outros'
-      acc[type] = (acc[type] || 0) + 1
-      return acc
-    }, {} as Record<string, number>)
+    // Only count completed payments in the distribution
+    const types = allPaymentsAndInvoices
+      .filter(p => isCompletedPayment(p))
+      .reduce((acc, payment) => {
+        const type = payment.paymentType || payment.tipo || 'Outros'
+        acc[type] = (acc[type] || 0) + 1
+        return acc
+      }, {} as Record<string, number>)
 
     const colors = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8']
     return Object.entries(types).map(([type, count], index) => ({
@@ -601,13 +1043,13 @@ export default function Reports() {
           dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
         }
         filename = `relatorio-financeiro-${financialReportType}-${dateStr}.csv`;
-        
+
         const details = [
           hash ? `Hash: ${hash.substring(0, 16)}...` : '',
           generatedAt ? `Gerado em: ${new Date(generatedAt).toLocaleString('pt-BR')}` : '',
           ip ? `IP: ${ip}` : '',
         ].filter(Boolean).join(' | ');
-        
+
         toast.success(`CSV exportado! ${details}`);
       } else {
         const response = await fetch(
@@ -625,13 +1067,13 @@ export default function Reports() {
         const ip = response.headers.get('X-Generated-By-IP');
         const dateStr = financialReportType === 'annual' ? year.toString() : new Date().toISOString().split('T')[0];
         filename = `relatorio-financeiro-${financialReportType}-${dateStr}.pdf`;
-        
+
         const details = [
           hash ? `Hash: ${hash.substring(0, 16)}...` : '',
           generatedAt ? `Gerado em: ${new Date(generatedAt).toLocaleString('pt-BR')}` : '',
           ip ? `IP: ${ip}` : '',
         ].filter(Boolean).join(' | ');
-        
+
         toast.success(`PDF exportado! ${details}`);
       }
 
@@ -741,7 +1183,7 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      {}
+      { }
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-3 bg-purple-100 rounded-lg">
@@ -750,7 +1192,7 @@ export default function Reports() {
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold">Relatórios</h1>
             <p className="text-sm sm:text-base text-muted-foreground mt-1">
-              {canAccessFinancialReports 
+              {canAccessFinancialReports
                 ? 'Relatórios de receitas e despesas para a Receita Federal (diário, mensal, anual) com hash de integridade'
                 : 'Visualize relatórios de pagamentos e performance'}
             </p>
@@ -784,48 +1226,48 @@ export default function Reports() {
       {canAccessFinancialReports && financialReport && (
         <>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">{formatCurrency(financialReport.summary.totalRevenue)}</div>
-              <p className="text-xs text-muted-foreground mt-1">{financialReport.summary.revenueTransactions || 0} transações</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Despesas Total</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-red-600">{formatCurrency(financialReport.summary.totalExpenses)}</div>
-              <p className="text-xs text-muted-foreground mt-1">{financialReport.summary.expenseTransactions || 0} transações</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Lucro Líquido</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{formatCurrency(financialReport.summary.netIncome)}</div>
-              <p className="text-xs text-muted-foreground mt-1">Receita - Despesas</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Hash de Integridade</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-xs font-mono break-all">{financialReport.hash?.substring(0, 32)}...</div>
-              <p className="text-xs text-muted-foreground mt-1">Gerado em: {new Date(financialReport.generatedAt).toLocaleString('pt-BR')}</p>
-              <p className="text-xs text-muted-foreground">IP: {financialReport.ip}</p>
-            </CardContent>
-          </Card>
-        </div>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{formatCurrency(financialReport.summary.totalRevenue)}</div>
+                <p className="text-xs text-muted-foreground mt-1">{financialReport.summary.revenueTransactions || 0} transações</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Despesas Total</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">{formatCurrency(financialReport.summary.totalExpenses)}</div>
+                <p className="text-xs text-muted-foreground mt-1">{financialReport.summary.expenseTransactions || 0} transações</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Lucro Líquido</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatCurrency(financialReport.summary.netIncome)}</div>
+                <p className="text-xs text-muted-foreground mt-1">Receita - Despesas</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">Hash de Integridade</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-xs font-mono break-all">{financialReport.hash?.substring(0, 32)}...</div>
+                <p className="text-xs text-muted-foreground mt-1">Gerado em: {new Date(financialReport.generatedAt).toLocaleString('pt-BR')}</p>
+                <p className="text-xs text-muted-foreground">IP: {financialReport.ip}</p>
+              </CardContent>
+            </Card>
+          </div>
         </>
       )}
 
-      {}
+      { }
       <Card>
         <CardHeader>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -885,8 +1327,8 @@ export default function Reports() {
                   </Select>
                 )}
                 {financialReportType === 'daily' && (
-                  <Select 
-                    value={String(day)} 
+                  <Select
+                    value={String(day)}
                     onValueChange={(v: any) => setDay(Number(v))}
                   >
                     <SelectTrigger className="w-full sm:w-24">
@@ -926,89 +1368,116 @@ export default function Reports() {
             </div>
           ) : (
             <>
-              <div 
-              ref={chartContainerRef}
-              className="w-full" 
-              style={{ width: '100%', height: '320px', minHeight: '256px', minWidth: '200px', position: 'relative', overflow: 'hidden' }}
-            >
-                {(data.length > 0 || propertyPerformance.length > 0 || tenantPerformance.length > 0) && isChartReady && (
+              <div
+                ref={chartContainerRef}
+                className="w-full"
+                style={{ width: '100%', height: '320px', minHeight: '256px', minWidth: '200px', position: 'relative', overflow: 'hidden' }}
+              >
+                {((reportType === 'monthly' && financialReportType === 'annual' && monthlyChartData.length > 0) || 
+                  (reportType === 'monthly' && financialReportType !== 'annual' && data.length > 0) || 
+                  propertyPerformance.length > 0 || 
+                  tenantPerformance.length > 0) && isChartReady && (
                   <ResponsiveContainer width="100%" height={300} minWidth={200} minHeight={256} debounce={50}>
-                  {reportType === 'monthly' ? (
-                    <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="month"
-                        fontSize={12}
-                        tick={{ fontSize: 12 }}
-                        angle={canAccessFinancialReports && (financialReportType === 'daily' || financialReportType === 'monthly') ? -45 : 0}
-                        textAnchor={canAccessFinancialReports && (financialReportType === 'daily' || financialReportType === 'monthly') ? 'end' : 'middle'}
-                        height={canAccessFinancialReports && (financialReportType === 'daily' || financialReportType === 'monthly') ? 60 : 30}
-                      />
-                      <YAxis
-                        tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`}
-                        fontSize={12}
-                        tick={{ fontSize: 12 }}
-                      />
-                      <Tooltip
-                        formatter={(v: number, name: string) => {
-                          const label = name === 'total' ? 'Atual' : name === 'previous' ? 'Anterior' : 'Total pago'
-                          return [`R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, label]
-                        }}
-                        labelStyle={{ fontSize: 12 }}
-                        contentStyle={{ fontSize: 12 }}
-                      />
-                      <Bar dataKey="total" name="Atual" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                      {previousData.length > 0 && (
-                        <Bar dataKey="previous" name="Anterior" fill="hsl(var(--muted))" radius={[4, 4, 0, 0]} opacity={0.7} />
-                      )}
-                    </BarChart>
-                  ) : reportType === 'property' ? (
-                    <BarChart data={propertyPerformance.slice(0, 10)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="name"
-                        fontSize={10}
-                        tick={{ fontSize: 10 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                      />
-                      <YAxis
-                        tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`}
-                        fontSize={12}
-                        tick={{ fontSize: 12 }}
-                      />
-                      <Tooltip
-                        formatter={(v: number) => [`R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Receita']}
-                        labelStyle={{ fontSize: 12 }}
-                        contentStyle={{ fontSize: 12 }}
-                      />
-                      <Bar dataKey="revenue" name="Receita" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  ) : (
-                    <BarChart data={tenantPerformance.slice(0, 10)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis
-                        dataKey="name"
-                        fontSize={10}
-                        tick={{ fontSize: 10 }}
-                        angle={-45}
-                        textAnchor="end"
-                        height={80}
-                      />
-                      <YAxis
-                        tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`}
-                        fontSize={12}
-                        tick={{ fontSize: 12 }}
-                      />
-                      <Tooltip
-                        formatter={(v: number) => [`R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Total pago']}
-                        labelStyle={{ fontSize: 12 }}
-                        contentStyle={{ fontSize: 12 }}
-                      />
-                      <Bar dataKey="totalPaid" name="Total pago" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  )}
+                    {reportType === 'monthly' && financialReportType === 'annual' ? (
+                      <BarChart data={monthlyChartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="month"
+                          fontSize={12}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis
+                          tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`}
+                          fontSize={12}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <Tooltip
+                          formatter={(v: number, name: string) => {
+                            const label = name === 'completed' ? 'Completados' : name === 'pending' ? 'Pendentes' : 'Total'
+                            return [`R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, label]
+                          }}
+                          labelStyle={{ fontSize: 12 }}
+                          contentStyle={{ fontSize: 12 }}
+                        />
+                        <Bar dataKey="completed" name="Completados" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="pending" name="Pendentes" fill="#ef4444" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    ) : reportType === 'monthly' ? (
+                      <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="month"
+                          fontSize={12}
+                          tick={{ fontSize: 12 }}
+                          angle={canAccessFinancialReports && (financialReportType === 'daily' || financialReportType === 'monthly') ? -45 : 0}
+                          textAnchor={canAccessFinancialReports && (financialReportType === 'daily' || financialReportType === 'monthly') ? 'end' : 'middle'}
+                          height={canAccessFinancialReports && (financialReportType === 'daily' || financialReportType === 'monthly') ? 60 : 30}
+                        />
+                        <YAxis
+                          tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`}
+                          fontSize={12}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <Tooltip
+                          formatter={(v: number, name: string) => {
+                            const label = name === 'total' ? 'Atual' : name === 'previous' ? 'Anterior' : 'Total pago'
+                            return [`R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, label]
+                          }}
+                          labelStyle={{ fontSize: 12 }}
+                          contentStyle={{ fontSize: 12 }}
+                        />
+                        <Bar dataKey="total" name="Atual" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                        {previousData.length > 0 && (
+                          <Bar dataKey="previous" name="Anterior" fill="hsl(var(--muted))" radius={[4, 4, 0, 0]} opacity={0.7} />
+                        )}
+                      </BarChart>
+                    ) : reportType === 'property' ? (
+                      <BarChart data={propertyPerformance.slice(0, 10)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="name"
+                          fontSize={10}
+                          tick={{ fontSize: 10 }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis
+                          tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`}
+                          fontSize={12}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <Tooltip
+                          formatter={(v: number) => [`R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Receita']}
+                          labelStyle={{ fontSize: 12 }}
+                          contentStyle={{ fontSize: 12 }}
+                        />
+                        <Bar dataKey="revenue" name="Receita" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    ) : (
+                      <BarChart data={tenantPerformance.slice(0, 10)} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis
+                          dataKey="name"
+                          fontSize={10}
+                          tick={{ fontSize: 10 }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={80}
+                        />
+                        <YAxis
+                          tickFormatter={(v) => `R$ ${Number(v).toLocaleString('pt-BR')}`}
+                          fontSize={12}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <Tooltip
+                          formatter={(v: number) => [`R$ ${Number(v).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`, 'Total pago']}
+                          labelStyle={{ fontSize: 12 }}
+                          contentStyle={{ fontSize: 12 }}
+                        />
+                        <Bar dataKey="totalPaid" name="Total pago" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    )}
                   </ResponsiveContainer>
                 )}
                 {data.length === 0 && propertyPerformance.length === 0 && tenantPerformance.length === 0 && (
@@ -1019,7 +1488,23 @@ export default function Reports() {
               </div>
               <div className="mt-4 text-center">
                 <div className="text-sm sm:text-base font-semibold text-primary">
-                  {reportType === 'monthly' && `Total no ano: R$ ${totalAno.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  {reportType === 'monthly' && (
+                    <div className="flex items-center justify-center gap-4 flex-wrap">
+                      <span>Total no ano: R$ {totalAno.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                      {financialReportType === 'annual' && (
+                        <div className="flex items-center gap-3 text-xs">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded-sm bg-[#22c55e]"></div>
+                            <span className="text-muted-foreground">Completados</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded-sm bg-[#ef4444]"></div>
+                            <span className="text-muted-foreground">Pendentes</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                   {reportType === 'property' && `Total de imóveis: ${properties.length}`}
                   {reportType === 'tenant' && `Total de inquilinos: ${tenants.length}`}
                 </div>
@@ -1029,8 +1514,8 @@ export default function Reports() {
         </CardContent>
       </Card>
 
-      {}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      { }
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4 sm:gap-6">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base sm:text-lg flex items-center gap-2">
@@ -1091,30 +1576,79 @@ export default function Reports() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-              <Users className="w-4 h-4" />
-              Inquilinos
-            </CardTitle>
-            <CardDescription className="text-xs sm:text-sm">
-              Total de inquilinos
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl sm:text-3xl font-bold text-purple-600">
-              {tenants.length}
-            </div>
-            <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-              Inquilinos ativos
-            </p>
-          </CardContent>
-        </Card>
+        {/* Hide Inquilinos card for PROPRIETARIO and INQUILINO roles */}
+        {user?.role !== 'PROPRIETARIO' && user?.role !== 'INQUILINO' && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <Users className="w-4 h-4" />
+                Inquilinos
+              </CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Total de inquilinos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl sm:text-3xl font-bold text-purple-600">
+                {tenants.length}
+              </div>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                Inquilinos ativos
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Pending Payments Section */}
+        {/* {(pendingPayments.length > 0 || pendingInvoices.length > 0) && (
+          <div className="flex gap-4 sm:gap-6"> */}
+            <Card className="border-orange-200 bg-orange-50/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-orange-600" />
+                  Pendentes Total
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Pagamentos pendentes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl sm:text-3xl font-bold text-orange-600">
+                  {formatCurrency(pendingTotal)}
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  {pendingPayments.length + pendingInvoices.length} pendências
+                </p>
+              </CardContent>
+            </Card>
+
+            <Card className="border-orange-200 bg-orange-50/50">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-orange-600" />
+                  Pendentes Este Mês
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  {new Date().toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl sm:text-3xl font-bold text-orange-600">
+                  {formatCurrency(pendingCurrentMonth)}
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                  Vencimentos do mês
+                </p>
+              </CardContent>
+            </Card>
+          {/* </div>
+        )} */}
       </div>
 
-      {}
+
+      { }
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {}
+        { }
         {paymentTypeData.length > 0 && (
           <Card>
             <CardHeader>
@@ -1124,9 +1658,9 @@ export default function Reports() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div 
+              <div
                 ref={pieChartContainerRef}
-                className="w-full" 
+                className="w-full"
                 style={{ width: '100%', height: '256px', minHeight: '256px', minWidth: '200px', position: 'relative', overflow: 'hidden' }}
               >
                 {paymentTypeData.length > 0 && isChartReady && (
@@ -1160,7 +1694,7 @@ export default function Reports() {
           </Card>
         )}
 
-        {}
+        { }
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Top Imóveis</CardTitle>
@@ -1179,10 +1713,20 @@ export default function Reports() {
                     <div>
                       <p className="font-medium text-sm">{property.name}</p>
                       <p className="text-xs text-muted-foreground">{property.payments} pagamentos</p>
+                      {property.pendingCount > 0 && (
+                        <p className="text-xs text-orange-600 font-medium">
+                          {property.pendingCount} pendente{property.pendingCount > 1 ? 's' : ''}: {formatCurrency(property.pendingAmount || 0)}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="font-bold text-sm">{formatCurrency(property.revenue)}</p>
+                    {property.pendingAmount > 0 && (
+                      <p className="text-xs text-orange-600 font-medium">
+                        {formatCurrency(property.pendingAmount)}
+                      </p>
+                    )}
                   </div>
                 </div>
               ))}

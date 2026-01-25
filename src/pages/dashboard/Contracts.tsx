@@ -670,13 +670,15 @@ export function Contracts() {
     const profileCreci = profileData?.creci || '';
 
     const defaultCreci = agencyCreci || profileCreci || user?.creci || '';
-    if (defaultCreci && !newContract.creci) {
+    // Set CRECI if we have a default value and the current value is empty
+    // This ensures CRECI is set when form is reset or when modal opens
+    if (defaultCreci && (!newContract.creci || newContract.creci === '')) {
       setNewContract(prev => ({
         ...prev,
         creci: defaultCreci,
       }));
     }
-  }, [agencyData?.creci, profileData?.creci, user?.creci]);
+  }, [agencyData?.creci, profileData?.creci, user?.creci, newContract.creci]);
 
   useEffect(() => {
     const fetchIp = async () => {
@@ -752,12 +754,32 @@ export function Contracts() {
       } else {
         // For other roles (like BROKER), allow creating
         closeAllModals();
+        // Set CRECI when opening create modal
+        const agencyCreci = agencyData ? formatCreci(agencyData.creci) : '';
+        const profileCreci = profileData?.creci || '';
+        const defaultCreci = agencyCreci || profileCreci || user?.creci || '';
+        if (defaultCreci) {
+          setNewContract(prev => ({
+            ...prev,
+            creci: defaultCreci,
+          }));
+        }
         setShowCreateModal(true);
         return;
       }
 
       if (result.allowed) {
         closeAllModals();
+        // Set CRECI when opening create modal
+        const agencyCreci = agencyData ? formatCreci(agencyData.creci) : '';
+        const profileCreci = profileData?.creci || '';
+        const defaultCreci = agencyCreci || profileCreci || user?.creci || '';
+        if (defaultCreci) {
+          setNewContract(prev => ({
+            ...prev,
+            creci: defaultCreci,
+          }));
+        }
         setShowCreateModal(true);
       } else {
         setUpgradeErrorMessage(result.message || 'Você atingiu o limite de contratos do seu plano.');

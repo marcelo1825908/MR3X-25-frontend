@@ -40,6 +40,8 @@ export function Agencies() {
   const { hasPermission, user } = useAuth()
 
   const isCEO = user?.role === 'CEO'
+  const isAdmin = user?.role === 'ADMIN'
+  const isCEOOrAdmin = isCEO || isAdmin
   const canView = hasPermission('agencies:read')
   const canUpdate = hasPermission('agencies:update') && !isCEO
   const canDelete = hasPermission('agencies:delete') && !isCEO
@@ -117,7 +119,7 @@ export function Agencies() {
   const { data: agenciesData, isLoading: agenciesLoading } = useQuery({
     queryKey: ['agencies'],
     queryFn: () => agenciesAPI.getAgencies(),
-    enabled: canView && isCEO,
+    enabled: canView && isCEOOrAdmin,
   })
 
   const owners = ownersData?.items || []
