@@ -221,7 +221,7 @@ export function IndependentOwnerDashboard() {
                   className="text-xl font-bold text-green-600 hover:text-green-700 transition-colors cursor-pointer text-left"
                   title="Clique para ver opções de saque"
                 >
-                  {formatCurrency(balanceData?.availableBalance ?? (overview?.roleSpecificIncome ?? overview?.monthlyRevenue ?? 0))}
+                  {formatCurrency(balanceData?.availableBalance ?? 0)}
                 </button>
               </div>
             </div>
@@ -597,7 +597,7 @@ export function IndependentOwnerDashboard() {
       <WithdrawModal
         open={showWithdrawModal}
         onOpenChange={setShowWithdrawModal}
-        availableBalance={balanceData?.availableBalance ?? (overview?.roleSpecificIncome ?? overview?.monthlyRevenue ?? 0)}
+        availableBalance={balanceData?.availableBalance ?? 0}
       />
     </div>
   );

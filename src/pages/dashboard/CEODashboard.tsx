@@ -21,7 +21,7 @@ export function CEODashboard() {
   const withdrawRef = useRef<HTMLDivElement>(null);
   
   // Get available balance for withdrawal
-  const { data: balanceData } = useQuery({
+  const { data: balanceData, isLoading: isBalanceLoading } = useQuery({
     queryKey: ['withdraw-balance'],
     queryFn: () => withdrawAPI.getAvailableBalance(),
   });
@@ -156,8 +156,13 @@ export function CEODashboard() {
                   onClick={() => setShowWithdrawButton(!showWithdrawButton)}
                   className="text-xl font-bold text-green-600 hover:text-green-700 transition-colors cursor-pointer text-left"
                   title="Clique para ver opções de saque"
+                  disabled={isBalanceLoading}
                 >
-                  {formatCurrency(overview.roleSpecificIncome ?? overview.platformFee ?? 0)}
+                  {isBalanceLoading ? (
+                    <span className="text-sm text-green-500">Carregando...</span>
+                  ) : (
+                    formatCurrency(balanceData?.availableBalance ?? 0)
+                  )}
                 </button>
               </div>
             </div>
@@ -246,11 +251,11 @@ export function CEODashboard() {
           isAmount
         />
         <KPICard
-          title="Sua Receita (2%)"
-          value={formatCurrency(overview.roleSpecificIncome ?? overview.platformFee ?? 0)}
+          title="Sua Receita"
+          value={isBalanceLoading ? "Carregando..." : formatCurrency(balanceData?.availableBalance ?? (overview.roleSpecificIncome ?? (overview.platformFee ?? 0) + (overview.planPaymentsRevenue ?? 0)))}
           icon={Award}
           color="yellow"
-          subtitle="Receita da plataforma"
+          subtitle={overview.planPaymentsRevenue ? `2% aluguéis + R$ ${formatCurrency(overview.planPaymentsRevenue)} planos` : "Receita da plataforma"}
           isAmount
         />
         <KPICard
@@ -453,7 +458,7 @@ export function CEODashboard() {
       <WithdrawModal
         open={showWithdrawModal}
         onOpenChange={setShowWithdrawModal}
-        availableBalance={balanceData?.availableBalance ?? (overview.roleSpecificIncome ?? overview.platformFee ?? 0)}
+        availableBalance={balanceData?.availableBalance ?? 0}
       />
     </div>
   );

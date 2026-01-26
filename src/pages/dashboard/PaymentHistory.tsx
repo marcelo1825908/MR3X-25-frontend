@@ -72,9 +72,15 @@ export function PaymentHistory() {
 
   // Process payments received (rent payments)
   // For Agency Admin, we need to calculate only their share (8%), not the total
+  // For CEO, use platformFee (2% from rents) NOT roleSpecificIncome (which includes plan payments)
   // We'll use the dashboard's roleSpecificIncome to get the correct total, then calculate per-payment share
-  const roleSpecificIncomeFromRents = dashboardData?.overview?.roleSpecificIncome || 0;
   const totalRentPayments = (paymentsData || []).reduce((sum: number, p: any) => sum + Number(p.valorPago || p.amount || 0), 0);
+  
+  // For CEO, use platformFee (2% from rents) instead of roleSpecificIncome (which includes plan payments)
+  const roleSpecificIncomeFromRents = user?.role === 'CEO' 
+    ? (dashboardData?.overview?.platformFee || 0)  // Use platformFee (2% from rents) for CEO
+    : (dashboardData?.overview?.roleSpecificIncome || 0);  // For other roles, use roleSpecificIncome
+  
   const rolePercentage = totalRentPayments > 0 ? roleSpecificIncomeFromRents / totalRentPayments : 0;
 
   const paymentsReceived = (paymentsData || []).map((payment: any) => {
