@@ -30,6 +30,8 @@ interface Agency {
   plan: string;
   subscriptionStatus: string;
   totalSpent: number;
+  totalPaid?: number;
+  totalPending?: number;
   lastPaymentAt: string | null;
   lastPaymentAmount: number;
   nextBillingDate: string | null;
@@ -85,7 +87,24 @@ export function CEOPayments() {
 
   const { data: platformRevenue, isLoading } = useQuery({
     queryKey: ['platform-revenue'],
-    queryFn: () => dashboardAPI.getPlatformRevenue(),
+    queryFn: async () => {
+      const data = await dashboardAPI.getPlatformRevenue();
+      console.log('[CEOPayments] Platform revenue data received:', data);
+      console.log('[CEOPayments] Agencies:', data?.agencies);
+      console.log('[CEOPayments] Recent payments:', data?.recentPayments);
+      if (data?.agencies) {
+        data.agencies.forEach((agency: any, idx: number) => {
+          console.log(`[CEOPayments] Agency ${idx + 1} (${agency.name}):`);
+          console.log(`  - totalPaid: ${agency.totalPaid} (type: ${typeof agency.totalPaid})`);
+          console.log(`  - totalPending: ${agency.totalPending} (type: ${typeof agency.totalPending})`);
+          console.log(`  - totalSpent: ${agency.totalSpent} (type: ${typeof agency.totalSpent})`);
+          console.log(`  - lastPaymentAmount: ${agency.lastPaymentAmount} (type: ${typeof agency.lastPaymentAmount})`);
+          console.log(`  - lastPaymentAt: ${agency.lastPaymentAt}`);
+          console.log(`  - Full agency object:`, JSON.stringify(agency, null, 2));
+        });
+      }
+      return data;
+    },
     enabled: user?.role === 'CEO',
   });
 
@@ -432,21 +451,26 @@ export function CEOPayments() {
                           <span>{agency.stats.users} usuários</span>
                         </div>
                       </div>
-                      <div className="flex flex-col items-end gap-1">
-                        <p className="text-sm text-muted-foreground">Total Gasto</p>
-                        <p className="font-semibold text-lg text-primary">
-                          {formatCurrency(agency.totalSpent)}
-                        </p>
+                      <div className="flex flex-col items-end gap-2">
+                        <div className="flex flex-col items-end gap-1">
+                          <p className="text-xs text-muted-foreground">Total Pago</p>
+                          <p className="font-semibold text-lg text-green-600">
+                            {formatCurrency(agency.totalPaid ?? agency.totalSpent ?? 0)}
+                          </p>
+                        </div>
+                        {(agency.totalPending ?? 0) > 0 && (
+                          <div className="flex flex-col items-end gap-1">
+                            <p className="text-xs text-muted-foreground">Total Pendente</p>
+                            <p className="font-semibold text-base text-orange-600">
+                              {formatCurrency(agency.totalPending ?? 0)}
+                            </p>
+                          </div>
+                        )}
                         {agency.lastPaymentAt && (
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Calendar className="w-3 h-3" />
                             <span>Último: {formatDate(agency.lastPaymentAt)}</span>
                           </div>
-                        )}
-                        {agency.lastPaymentAmount > 0 && (
-                          <p className="text-xs text-green-600">
-                            +{formatCurrency(agency.lastPaymentAmount)}
-                          </p>
                         )}
                       </div>
                     </div>

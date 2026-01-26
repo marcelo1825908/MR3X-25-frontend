@@ -4,6 +4,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Button } from '../../components/ui/button'
 import { Skeleton } from '../../components/ui/skeleton'
 import { paymentsAPI, propertiesAPI, usersAPI, financialReportsAPI, invoicesAPI } from '../../api'
+import apiClient from '../../api/client'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell } from 'recharts'
 import { toast } from 'sonner'
 import { useAuth } from '../../contexts/AuthContext'
@@ -14,7 +15,7 @@ import { useQuery } from '@tanstack/react-query'
 export default function Reports() {
   const { hasPermission, user } = useAuth()
 
-  const canViewReports = hasPermission('reports:read')
+  const canViewReports = hasPermission('reports:read') || user?.role === 'CEO' || user?.role === 'ADMIN'
   const canViewProperties = hasPermission('properties:read')
   const canViewUsers = hasPermission('users:read')
   const canViewPayments = hasPermission('payments:read')
@@ -147,50 +148,78 @@ export default function Reports() {
     const loadData = async () => {
       try {
         // Always load properties for stats display
-        if (canViewProperties && properties.length === 0) {
-          const propertiesData = await propertiesAPI.getProperties()
-          const propertiesArray = ensureArray(propertiesData)
+        // For ADMIN/CEO, always reload to ensure all properties are loaded (including from agencies and independent owners)
+        // ADMIN/CEO should be able to see properties count even without properties:read permission (for stats display)
+        const shouldLoadProperties = (canViewProperties || user?.role === 'ADMIN' || user?.role === 'CEO') && (properties.length === 0 || user?.role === 'ADMIN' || user?.role === 'CEO')
+        
+        if (shouldLoadProperties) {
+          try {
+            // For ADMIN/CEO, fetch all properties (use a large take value to get all)
+            // For other roles, use default pagination
+            const takeValue = (user?.role === 'ADMIN' || user?.role === 'CEO') ? 10000 : undefined
+            const propertiesData = await propertiesAPI.getProperties({ take: takeValue })
+            const propertiesArray = ensureArray(propertiesData)
 
-          // For INQUILINO, filter to show only properties linked to their contracts
-          if (user?.role === 'INQUILINO' && user?.id) {
-            const filteredProperties = propertiesArray.filter((p: any) =>
-              p.tenantId === user.id || String(p.tenantId) === String(user.id)
-            )
-            setProperties(filteredProperties)
-          } else if (user?.role === 'PROPRIETARIO' && user?.id) {
-            // For PROPRIETARIO, filter to show only owned properties
-            const filteredProperties = propertiesArray.filter((p: any) =>
-              p.ownerId === user.id ||
-              String(p.ownerId) === String(user.id) ||
-              p.owner?.id === user.id ||
-              String(p.owner?.id) === String(user.id)
-            )
-            setProperties(filteredProperties)
-          } else {
-            setProperties(propertiesArray)
+            // For INQUILINO, filter to show only properties linked to their contracts
+            if (user?.role === 'INQUILINO' && user?.id) {
+              const filteredProperties = propertiesArray.filter((p: any) =>
+                p.tenantId === user.id || String(p.tenantId) === String(user.id)
+              )
+              setProperties(filteredProperties)
+            } else if (user?.role === 'PROPRIETARIO' && user?.id) {
+              // For PROPRIETARIO, filter to show only owned properties
+              const filteredProperties = propertiesArray.filter((p: any) =>
+                p.ownerId === user.id ||
+                String(p.ownerId) === String(user.id) ||
+                p.owner?.id === user.id ||
+                String(p.owner?.id) === String(user.id)
+              )
+              setProperties(filteredProperties)
+            } else {
+              // For ADMIN, CEO, AGENCY_ADMIN, AGENCY_MANAGER, etc. - show all properties
+              // This includes properties from agencies (Diretor Agência) and independent owners (Proprietários Independentes)
+              setProperties(propertiesArray)
+            }
+          } catch (err) {
+            console.error('Error loading properties:', err)
+            // Set empty array on error to avoid undefined
+            setProperties([])
           }
         }
 
         // Always load tenants for stats display
-        if (canViewUsers && tenants.length === 0) {
-          const tenantsData = await usersAPI.getTenants()
-          setTenants(ensureArray(tenantsData))
+        // For ADMIN/CEO, always reload to ensure all tenants are loaded (including from agencies and independent owners)
+        const shouldLoadTenants = canViewUsers && (tenants.length === 0 || user?.role === 'ADMIN' || user?.role === 'CEO')
+        if (shouldLoadTenants) {
+          try {
+            const tenantsData = await usersAPI.getTenants()
+            const tenantsArray = ensureArray(tenantsData)
+            // For ADMIN, CEO, etc. - show all tenants (no filtering needed)
+            // This includes tenants from agencies (Diretor Agência) and independent owners (Proprietários Independentes)
+            setTenants(tenantsArray)
+          } catch (err) {
+            console.error('Error loading tenants:', err)
+            // Set empty array on error to avoid undefined
+            setTenants([])
+          }
         }
       } catch (err) {
         console.error('Error loading data:', err)
       }
     }
     loadData()
-  }, [canViewProperties, canViewUsers, canViewReports, properties.length, tenants.length, user?.id, user?.role])
+  }, [canViewProperties, canViewUsers, canViewReports, user?.id, user?.role])
 
   // Load payments and invoices separately after properties are loaded (for INQUILINO filtering)
   useEffect(() => {
-    if (!canViewReports || !canViewPayments) return
+    // ADMIN/CEO should be able to load payments/invoices for stats even without payments:read permission
+    if (!canViewReports || (!canViewPayments && user?.role !== 'ADMIN' && user?.role !== 'CEO')) return
 
     const loadPaymentsAndInvoices = async () => {
       try {
-        // Load payments
-        if (payments.length === 0 && pendingPayments.length === 0) {
+        // Load payments - always reload if arrays are empty or if user role is ADMIN/CEO
+        const shouldLoadPayments = (payments.length === 0 && pendingPayments.length === 0) || user?.role === 'ADMIN' || user?.role === 'CEO'
+        if (shouldLoadPayments) {
           const paymentsData = await paymentsAPI.getPayments()
           const paymentsArray = ensureArray(paymentsData)
 
@@ -244,19 +273,27 @@ export default function Reports() {
             setPayments(filteredCompleted)
             setPendingPayments(filteredPending)
           } else if (user?.role !== 'INQUILINO' && user?.role !== 'PROPRIETARIO') {
+            // For ADMIN, CEO, AGENCY_ADMIN, AGENCY_MANAGER, etc. - show all payments
             setPayments(completedPayments)
             setPendingPayments(pendingPaymentsList)
+          } else {
+            // If no role match, still set empty arrays to avoid undefined
+            setPayments([])
+            setPendingPayments([])
           }
         }
 
-        // Load invoices
-        if (invoices.length === 0) {
+        // Load invoices - always reload if array is empty or if user role is ADMIN/CEO
+        const shouldLoadInvoices = (invoices.length === 0 && pendingInvoices.length === 0) || user?.role === 'ADMIN' || user?.role === 'CEO'
+        if (shouldLoadInvoices) {
           try {
             // For PROPRIETARIO role, filter invoices by ownerId
-            const params: any = { take: 1000 }
+            // For ADMIN/CEO, don't filter - get all invoices (use large take to get all)
+            const params: any = { take: (user?.role === 'ADMIN' || user?.role === 'CEO') ? 10000 : 1000 }
             if (user?.role === 'PROPRIETARIO' && user?.id) {
               params.ownerId = user.id
             }
+            // For ADMIN/CEO, no filter needed - they can see all invoices
             const invoicesData = await invoicesAPI.getInvoices(params)
             const invoicesArray = ensureArray(invoicesData)
 
@@ -354,8 +391,13 @@ export default function Reports() {
               setInvoices(filteredCompleted)
               setPendingInvoices(filteredPending)
             } else if (user?.role !== 'INQUILINO' && user?.role !== 'PROPRIETARIO') {
+              // For ADMIN, CEO, AGENCY_ADMIN, AGENCY_MANAGER, etc. - show all invoices
               setInvoices(completedInvoices)
               setPendingInvoices(pendingInvoicesList)
+            } else {
+              // If no role match, still set empty arrays to avoid undefined
+              setInvoices([])
+              setPendingInvoices([])
             }
           } catch (err) {
             console.error('Error loading invoices:', err)
@@ -734,9 +776,29 @@ export default function Reports() {
 
   // Calculate totals from all payments and invoices
   // IMPORTANT: Only count PAID payments - pending payments are NOT income
-  // DO NOT use financialReport.summary.totalRevenue as it may include duplicates
+  // Use financialReport.summary.totalRevenue when available (duplication is now fixed in backend)
   const totalAno = useMemo(() => {
-    // Calculate directly from payments and invoices for the year
+    // First, try to use financialReport data if available and it's an annual report
+    if (canAccessFinancialReports && financialReport && financialReportType === 'annual') {
+      // Check if the report is for the selected year
+      const reportStartDate = financialReport.period?.start
+      if (reportStartDate) {
+        const reportDate = new Date(reportStartDate)
+        // The report should be for the selected year
+        if (reportDate.getUTCFullYear() === year) {
+          // Use totalRevenue from financialReport if available (even if 0, use it to be consistent)
+          const reportTotal = Number(financialReport.summary?.totalRevenue || 0)
+          return reportTotal
+        }
+      }
+      // If report exists but date check fails, still try to use it if it's the current year
+      // This handles edge cases where date parsing might fail
+      if (year === currentYear && financialReport.summary?.totalRevenue !== undefined) {
+        return Number(financialReport.summary.totalRevenue) || 0
+      }
+    }
+
+    // Fallback: Calculate directly from payments and invoices for the year
     // CRITICAL: Only count completed payments (PAID/PAGO status) - pending payments are NOT income
     const allPaymentsAndInvoices = [...payments, ...invoices]
 
@@ -767,7 +829,7 @@ export default function Reports() {
 
     // Return calculated total (only includes paid payments, no duplicates)
     return totalFromPayments
-  }, [payments, invoices, year])
+  }, [payments, invoices, year, financialReport, financialReportType, canAccessFinancialReports])
 
   const currentMonth = new Date().getMonth() + 1
 
@@ -896,32 +958,51 @@ export default function Reports() {
       { label: 'Dez', index: 12 },
     ]
 
-    // Calculate completed payments by month
-    const allPaymentsAndInvoices = [...payments, ...invoices]
-    const completedByMonth: Record<number, number> = {}
+    // First, try to use financialReport data if available and it's an annual report
+    // But we still need to use local data for pending payments since financialReport doesn't include them
+    // So we'll process both financialReport transactions and local pending data
+    let completedByMonth: Record<number, number> = {}
     
-    allPaymentsAndInvoices.forEach((p) => {
-      // Only count completed payments
-      if (!isCompletedPayment(p)) return
-      
-      // Exclude invoices that have corresponding Payment records (avoid duplication)
-      if (shouldExcludeForDuplication(p, allPaymentsAndInvoices)) return
-      
-      // Use actual payment date
-      const paymentDate = (p as any).paymentDate || (p as any).dataPagamento || (p as any).paidAt
-      if (!paymentDate) return
-      
-      const date = new Date(paymentDate)
-      if (date.getUTCFullYear() === year) {
-        const month = date.getUTCMonth() + 1
-        const amount = (p as any).isInvoice
-          ? Number((p as any).paidValue || 0)
-          : Number(p.amount || p.valorPago || 0)
-        completedByMonth[month] = (completedByMonth[month] || 0) + amount
-      }
-    })
+    if (canAccessFinancialReports && financialReport && financialReportType === 'annual' && financialReport.transactions) {
+      // Process revenue transactions (completed payments) from financialReport
+      financialReport.transactions
+        .filter((t: any) => t.type === 'REVENUE')
+        .forEach((t: any) => {
+          const date = new Date(t.date)
+          if (date.getUTCFullYear() === year) {
+            const month = date.getUTCMonth() + 1
+            completedByMonth[month] = (completedByMonth[month] || 0) + (t.amount || 0)
+          }
+        })
+    }
 
-    // Calculate pending payments by month
+    // If financialReport wasn't used or didn't have data, calculate from local payments and invoices
+    if (Object.keys(completedByMonth).length === 0) {
+      const allPaymentsAndInvoices = [...payments, ...invoices]
+      
+      allPaymentsAndInvoices.forEach((p) => {
+        // Only count completed payments
+        if (!isCompletedPayment(p)) return
+        
+        // Exclude invoices that have corresponding Payment records (avoid duplication)
+        if (shouldExcludeForDuplication(p, allPaymentsAndInvoices)) return
+        
+        // Use actual payment date
+        const paymentDate = (p as any).paymentDate || (p as any).dataPagamento || (p as any).paidAt
+        if (!paymentDate) return
+        
+        const date = new Date(paymentDate)
+        if (date.getUTCFullYear() === year) {
+          const month = date.getUTCMonth() + 1
+          const amount = (p as any).isInvoice
+            ? Number((p as any).paidValue || 0)
+            : Number(p.amount || p.valorPago || 0)
+          completedByMonth[month] = (completedByMonth[month] || 0) + amount
+        }
+      })
+    }
+
+    // Calculate pending payments by month (always use local data since financialReport doesn't include pending)
     const allPending = [...pendingPayments, ...pendingInvoices]
     const pendingByMonth: Record<number, number> = {}
     
@@ -1021,19 +1102,16 @@ export default function Reports() {
       }
 
       if (format === 'csv') {
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:8081'}/api/financial-reports/export/csv?${params.toString()}`,
+        const response = await apiClient.get(
+          `/financial-reports/export/csv?${params.toString()}`,
           {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-            },
+            responseType: 'blob',
           }
         );
-        if (!response.ok) throw new Error('Failed to export CSV');
-        blob = await response.blob();
-        hash = response.headers.get('X-Integrity-Hash');
-        const generatedAt = response.headers.get('X-Generated-At');
-        const ip = response.headers.get('X-Generated-By-IP');
+        blob = response.data;
+        hash = response.headers['x-integrity-hash'] || response.headers['X-Integrity-Hash'] || null;
+        const generatedAt = response.headers['x-generated-at'] || response.headers['X-Generated-At'] || null;
+        const ip = response.headers['x-generated-by-ip'] || response.headers['X-Generated-By-IP'] || null;
         let dateStr = '';
         if (financialReportType === 'annual') {
           dateStr = year.toString();
@@ -1052,19 +1130,16 @@ export default function Reports() {
 
         toast.success(`CSV exportado! ${details}`);
       } else {
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL || 'http://localhost:8081'}/api/financial-reports/export/pdf?${params.toString()}`,
+        const response = await apiClient.get(
+          `/financial-reports/export/pdf?${params.toString()}`,
           {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
-            },
+            responseType: 'blob',
           }
         );
-        if (!response.ok) throw new Error('Failed to export PDF');
-        blob = await response.blob();
-        hash = response.headers.get('X-Integrity-Hash');
-        const generatedAt = response.headers.get('X-Generated-At');
-        const ip = response.headers.get('X-Generated-By-IP');
+        blob = response.data;
+        hash = response.headers['x-integrity-hash'] || response.headers['X-Integrity-Hash'] || null;
+        const generatedAt = response.headers['x-generated-at'] || response.headers['X-Generated-At'] || null;
+        const ip = response.headers['x-generated-by-ip'] || response.headers['X-Generated-By-IP'] || null;
         const dateStr = financialReportType === 'annual' ? year.toString() : new Date().toISOString().split('T')[0];
         filename = `relatorio-financeiro-${financialReportType}-${dateStr}.pdf`;
 

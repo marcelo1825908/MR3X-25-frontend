@@ -159,14 +159,15 @@ export function AgencyManagerDashboard() {
   }
 
   const overview = dashboard?.overview || {};
-
   const totalProperties = overview.totalProperties || 0;
   const occupiedProperties = overview.occupiedProperties || 0;
   const availableProperties = overview.vacantUnits || overview.availableProperties || 0;
   const activeContracts = overview.activeContracts || 0;
   const tenantCount = overview.tenantCount || 0;
-  const monthlyRevenue = overview.monthlyRevenue || 0;
-  const receivedValue = overview.receivedValue || 0;
+  const totalIncome = overview.totalIncome || overview.monthlyRevenue || 0;
+  const roleSpecificIncome = overview.roleSpecificIncome || overview.monthlyRevenue || 0;
+  const monthlyRevenue = roleSpecificIncome; // For backward compatibility
+  const receivedValue = overview.receivedValue || roleSpecificIncome || 0;
   const overdueValue = overview.overdueValue || 0;
   const overdueCount = overview.overdueCount || 0;
   const occupancyRate = totalProperties > 0 ? Math.round((occupiedProperties / totalProperties) * 100) : 0;
@@ -351,11 +352,9 @@ export function AgencyManagerDashboard() {
   return (
     <div className="space-y-6 sm:space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Dashboard do Gerente</h1>
-          <p className="text-muted-foreground text-sm sm:text-base">Visão geral da sua agência</p>
-        </div>
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold">Dashboard do Diretor</h1>
+        <p className="text-muted-foreground text-sm sm:text-base">Visão geral da sua agência imobiliária</p>
       </div>
 
       {/* KPI Cards - First Row */}
@@ -384,13 +383,23 @@ export function AgencyManagerDashboard() {
           onClick={() => navigate('/dashboard/tenants')}
         />
         <KPICard
-          title="Receita Mensal"
-          value={formatCurrency(monthlyRevenue)}
+          title="Receita Total"
+          value={formatCurrency(totalIncome)}
           icon={DollarSign}
-          color="green"
-          trend={monthlyRevenue > 0 ? 'up' : 'neutral'}
-          trendLabel={monthlyRevenue > 0 ? 'Recebido' : 'Sem receita'}
+          color="blue"
+          trend={totalIncome > 0 ? 'up' : 'neutral'}
+          trendLabel={totalIncome > 0 ? 'Total recebido' : 'Sem receita'}
         />
+        {totalIncome > 0 && roleSpecificIncome !== totalIncome && (
+          <KPICard
+            title="Sua Receita"
+            value={formatCurrency(roleSpecificIncome)}
+            icon={DollarSign}
+            color="green"
+            trend={roleSpecificIncome > 0 ? 'up' : 'neutral'}
+            trendLabel={roleSpecificIncome > 0 ? 'Sua parte' : 'Sem receita'}
+          />
+        )}
       </div>
 
       {/* KPI Cards - Second Row */}
@@ -465,7 +474,12 @@ export function AgencyManagerDashboard() {
               )}
             </div>
             <div className="text-center mt-2 font-semibold text-sm sm:text-base">
-              Receita Mensal Total: {formatCurrency(monthlyRevenue)}
+              Receita Total: {formatCurrency(totalIncome)}
+              {totalIncome > 0 && roleSpecificIncome !== totalIncome && (
+                <div className="text-xs text-muted-foreground mt-1">
+                  Sua Receita: {formatCurrency(roleSpecificIncome)}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notificationsAPI } from '@/api'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
@@ -24,7 +24,7 @@ import {
   Ticket,
   Package,
   CreditCard,
-  Shield
+  Shield,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
@@ -60,6 +60,8 @@ export function Notifications() {
   const [notificationToDelete, setNotificationToDelete] = useState<any>(null)
   const [filterSource, setFilterSource] = useState<string>('ALL')
   const [filterType, setFilterType] = useState<string>('ALL')
+  const [currentPage, setCurrentPage] = useState<number>(1)
+  const itemsPerPage = 15
 
   if (!canViewNotifications) {
     return (
@@ -73,43 +75,46 @@ export function Notifications() {
   }
 
   const { data: notificationsData, isLoading } = useQuery({
-    queryKey: ['notifications'],
-    queryFn: () => notificationsAPI.getNotifications(),
+    queryKey: ['notifications', currentPage],
+    queryFn: () => {
+      const skip = (currentPage - 1) * itemsPerPage
+      return notificationsAPI.getNotifications(skip, itemsPerPage)
+    },
     enabled: canViewNotifications,
   })
 
   const notifications = notificationsData?.items || []
 
   const markAsReadMutation = useMutation({
-    mutationFn: (id: string) => notificationsAPI.markAsRead(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      queryClient.invalidateQueries({ queryKey: ['notifications-unread'] })
-      toast.success('Notificação marcada como lida')
+    mutationFn: ({ id, notification }: { id: string; notification: any }) => {
+      // Dismiss the notification permanently from database
+      return notificationsAPI.dismissNotification(id, notification.source)
     },
-    onError: (error: any) => {
-      toast.error(error.message || 'Erro ao marcar notificação')
-    },
-  })
-
-  const handleMarkAsRead = (notification: any) => {
-    // Only payment reminders can be marked as read via API
-    if (notification.source === 'PAYMENT_REMINDER') {
-      const originalId = notification.metadata?.notificationId || notification.id.replace('payment_reminder_', '')
-      markAsReadMutation.mutate(originalId)
-    } else {
-      // For other types, update local state (they are read-only in the centralized view)
+    onSuccess: (_, variables) => {
+      // Remove notification from list after deletion
       queryClient.setQueryData(['notifications'], (old: any) => {
         if (!old) return old
         return {
           ...old,
-          items: old.items.map((item: any) =>
-            item.id === notification.id ? { ...item, read: true } : item
-          ),
+          items: old.items.filter((item: any) => {
+            // Remove the notification that was deleted
+            return item.id !== variables.notification.id
+          }),
         }
       })
-      toast.success('Notificação marcada como lida')
-    }
+      // Invalidate queries to ensure fresh data on next fetch
+      queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      queryClient.invalidateQueries({ queryKey: ['notifications-unread'] })
+      toast.success('Notificação removida')
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Erro ao remover notificação')
+    },
+  })
+
+  const handleMarkAsRead = (notification: any) => {
+    // Dismiss notification permanently from database when clicking check
+    markAsReadMutation.mutate({ id: notification.id, notification })
   }
 
   const deleteNotificationMutation = useMutation({
@@ -305,7 +310,14 @@ export function Notifications() {
     }
   }
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filterSource, filterType])
+
   // Filter notifications based on selected filters
+  // Note: Since we're using server-side pagination, filters should ideally be applied on the backend
+  // For now, we'll apply client-side filtering on the current page's notifications
   const filteredNotifications = notifications.filter((n: any) => {
     if (filterSource !== 'ALL' && n.source !== filterSource) return false
     if (filterType !== 'ALL' && n.type !== filterType) return false
@@ -528,7 +540,7 @@ export function Notifications() {
             </Card>
           ))}
         </div>
-      ) : notifications.length > 0 ? (
+      ) : filteredNotifications.length === 0 && notifications.length > 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <Filter className="w-12 h-12 text-muted-foreground mx-auto mb-4" />

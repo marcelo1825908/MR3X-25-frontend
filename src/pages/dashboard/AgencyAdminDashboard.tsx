@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { dashboardAPI, contractsAPI, paymentsAPI } from '../../api';
+import { dashboardAPI, contractsAPI, paymentsAPI, notificationsAPI, withdrawAPI } from '../../api';
 import { formatCurrency } from '../../lib/utils';
 import {
   Building2,
@@ -11,8 +11,17 @@ import {
   TrendingDown,
   CalendarDays,
   Home,
-  Inbox
+  Inbox,
+  Bell,
+  Wallet,
+  History
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
+import { WithdrawModal } from '../../components/withdraw/WithdrawModal';
+import { useAuth } from '../../contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
 import { Skeleton } from '../../components/ui/skeleton';
 import {
@@ -93,26 +102,65 @@ const COLORS = {
 };
 
 export function AgencyAdminDashboard() {
-  
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [showWithdrawButton, setShowWithdrawButton] = useState(false);
+  const [showWithdrawModal, setShowWithdrawModal] = useState(false);
+  const withdrawRef = useRef<HTMLDivElement>(null);
+
   const { data: dashboard, isLoading } = useQuery({
-    queryKey: ['dashboard', 'agency-admin'],
+    queryKey: ['dashboard', 'agency-admin', user?.id, user?.agencyId],
     queryFn: () => dashboardAPI.getDashboard(),
   });
 
   const { data: dueDates, isLoading: dueDatesLoading } = useQuery({
-    queryKey: ['due-dates', 'agency-admin'],
+    queryKey: ['due-dates', 'agency-admin', user?.id, user?.agencyId],
     queryFn: () => dashboardAPI.getDueDates(),
   });
 
   const { data: contracts } = useQuery({
-    queryKey: ['contracts', 'agency-admin'],
+    queryKey: ['contracts', 'agency-admin', user?.id, user?.agencyId],
     queryFn: () => contractsAPI.getContracts(),
   });
 
   const { data: payments } = useQuery({
-    queryKey: ['payments', 'agency-admin'],
+    queryKey: ['payments', 'agency-admin', user?.id, user?.agencyId],
     queryFn: () => paymentsAPI.getPayments(),
   });
+
+  // Get unread notifications count
+  const { data: notificationsUnreadData } = useQuery({
+    queryKey: ['notifications-unread', user?.id],
+    queryFn: () => notificationsAPI.getUnreadCount(),
+    refetchInterval: 30000, // Refetch every 30 seconds
+  });
+
+  const unreadNotificationsCount = notificationsUnreadData?.count || 0;
+
+  // Get available balance for withdrawal
+  const { data: balanceData, isLoading: balanceLoading } = useQuery({
+    queryKey: ['withdraw-balance', user?.id],
+    queryFn: () => withdrawAPI.getAvailableBalance(),
+    staleTime: 0, // Always fetch fresh data
+    refetchInterval: 10000, // Refetch every 10 seconds to keep balance updated
+  });
+
+  // Close withdraw button when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (withdrawRef.current && !withdrawRef.current.contains(event.target as Node)) {
+        setShowWithdrawButton(false);
+      }
+    };
+
+    if (showWithdrawButton) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showWithdrawButton]);
 
   if (isLoading) {
     return (
@@ -230,8 +278,10 @@ export function AgencyAdminDashboard() {
   const availableProperties = overview.vacantUnits || overview.availableProperties || 0;
   const activeContracts = overview.activeContracts || 0;
   const tenantCount = overview.tenantCount || 0;
-  const monthlyRevenue = overview.monthlyRevenue || 0;
-  const receivedValue = overview.receivedValue || 0;
+  const totalIncome = overview.totalIncome || overview.monthlyRevenue || 0;
+  const roleSpecificIncome = overview.roleSpecificIncome || overview.monthlyRevenue || 0;
+  const monthlyRevenue = roleSpecificIncome; // For backward compatibility
+  const receivedValue = overview.receivedValue || roleSpecificIncome || 0;
   const overdueValue = overview.overdueValue || 0;
   const occupancyRate = totalProperties > 0 ? Math.round((occupiedProperties / totalProperties) * 100) : 0;
 
@@ -525,16 +575,79 @@ export function AgencyAdminDashboard() {
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      {}
-      <div className="flex items-center gap-3">
-        <div className="p-3 bg-orange-100 rounded-lg">
-          <Home className="w-6 h-6 text-orange-700" />
-        </div>
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Dashboard do Diretor</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Visão geral da sua agência imobiliária
-          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold">Dashboard Administrativo</h1>
+          <p className="text-muted-foreground text-sm sm:text-base">Visão geral da sua agência</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div 
+            className="relative bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow"
+            ref={withdrawRef}
+          >
+            <div className="flex items-center gap-2">
+              <Wallet className="h-4 w-4 text-green-600" />
+              <div className="flex flex-col">
+                {/* <span className="text-xs text-green-700 font-medium">Valor Disponível para Saque</span> */}
+                <button
+                  onClick={() => setShowWithdrawButton(!showWithdrawButton)}
+                  className="text-xl font-bold text-green-600 hover:text-green-700 transition-colors cursor-pointer text-left"
+                  title="Clique para ver opções de saque"
+                  disabled={balanceLoading}
+                >
+                  {balanceLoading ? (
+                    <span className="text-sm">Carregando...</span>
+                  ) : (
+                    formatCurrency(balanceData?.availableBalance ?? 0)
+                  )}
+                </button>
+              </div>
+            </div>
+            {showWithdrawButton && (
+              <div className="absolute top-full mt-2 right-0 z-10 bg-white border border-green-200 rounded-lg shadow-xl p-3 min-w-[180px] space-y-2">
+                <Button
+                  onClick={() => {
+                    setShowWithdrawModal(true);
+                    setShowWithdrawButton(false);
+                  }}
+                  className="bg-green-600 hover:bg-green-700 text-white w-full shadow-sm"
+                  size="sm"
+                >
+                  <Wallet className="h-4 w-4 mr-2" />
+                  Sacar
+                </Button>
+                <Button
+                  onClick={() => {
+                    navigate('/dashboard/payment-history');
+                    setShowWithdrawButton(false);
+                  }}
+                  variant="outline"
+                  className="w-full"
+                  size="sm"
+                >
+                  <History className="h-4 w-4 mr-2" />
+                  Histórico de pagamentos
+                </Button>
+              </div>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            className="relative"
+            onClick={() => navigate('/dashboard/notifications')}
+            title="Notificações"
+          >
+            <Bell className="h-5 w-5" />
+            {unreadNotificationsCount > 0 && (
+              <Badge 
+                className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 bg-red-500 text-white text-xs rounded-full"
+              >
+                {unreadNotificationsCount > 99 ? '99+' : unreadNotificationsCount}
+              </Badge>
+            )}
+          </Button>
         </div>
       </div>
 
@@ -561,11 +674,19 @@ export function AgencyAdminDashboard() {
           color="purple"
         />
         <KPICard
-          title="Receita Mensal"
-          value={formatCurrency(monthlyRevenue)}
+          title="Receita Total"
+          value={formatCurrency(totalIncome)}
           icon={DollarSign}
-          color="yellow"
+          color="blue"
         />
+        {totalIncome > 0 && roleSpecificIncome !== totalIncome && (
+          <KPICard
+            title="Sua Receita"
+            value={formatCurrency(roleSpecificIncome)}
+            icon={DollarSign}
+            color="yellow"
+          />
+        )}
       </div>
 
       {}
@@ -914,6 +1035,12 @@ export function AgencyAdminDashboard() {
           </CardContent>
         </Card>
       )}
+
+      <WithdrawModal
+        open={showWithdrawModal}
+        onOpenChange={setShowWithdrawModal}
+        availableBalance={balanceData?.availableBalance ?? 0}
+      />
     </div>
   );
 }

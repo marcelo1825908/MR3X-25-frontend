@@ -54,6 +54,9 @@ export function MandatoryTenantBanner({ upcomingDueDate, daysUntilUpcoming }: Ma
   const [hasAcknowledged, setHasAcknowledged] = useState(false);
   const [userIp, setUserIp] = useState<string>('');
 
+  // Only show this banner for tenant users
+  const isTenant = user?.role === 'INQUILINO';
+
   // Get user IP address
   useEffect(() => {
     const getIp = async () => {
@@ -68,11 +71,11 @@ export function MandatoryTenantBanner({ upcomingDueDate, daysUntilUpcoming }: Ma
     getIp();
   }, []);
 
-  // Fetch tenant alerts
+  // Fetch tenant alerts - only for tenant users
   const { data: tenantAlerts, isLoading } = useQuery<TenantAlerts>({
     queryKey: ['tenant-alerts', user?.id],
     queryFn: () => dashboardAPI.getTenantAlerts(),
-    enabled: !!user?.id && !hasAcknowledged,
+    enabled: isTenant && !!user?.id && !hasAcknowledged,
   });
 
   // Acknowledge banner mutation
@@ -94,6 +97,8 @@ export function MandatoryTenantBanner({ upcomingDueDate, daysUntilUpcoming }: Ma
 
   // Determine if banner should be shown
   const shouldShowBanner = () => {
+    // Only show for tenant users
+    if (!isTenant) return false;
     if (hasAcknowledged) return false;
     if (isLoading) return false;
 

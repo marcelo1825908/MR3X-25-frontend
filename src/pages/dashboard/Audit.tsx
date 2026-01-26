@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { auditAPI } from '@/api'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { useAuth } from '@/contexts/AuthContext'
 import apiClient from '@/api/client'
@@ -13,7 +13,8 @@ import {
   Clock,
   ChevronDown,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  ChevronLeft
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -43,6 +44,11 @@ export function Audit() {
   const [endDate, setEndDate] = useState<string>('')
   const [page, setPage] = useState(1)
   const [expandedLogs, setExpandedLogs] = useState<Set<string>>(new Set())
+  
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setPage(1)
+  }, [entityFilter, activeSearch, startDate, endDate])
 
   if (!canViewAudit) {
     return (
@@ -55,12 +61,14 @@ export function Audit() {
     )
   }
 
+  const pageSize = 15
+
   const { data: auditData, isLoading } = useQuery({
     queryKey: ['audit-logs', entityFilter, activeSearch, startDate, endDate, page],
     queryFn: () => auditAPI.getAuditLogs({
       entity: entityFilter && entityFilter !== 'all' ? entityFilter : undefined,
       page,
-      pageSize: 50,
+      pageSize: pageSize,
       startDate: startDate || undefined,
       endDate: endDate || undefined,
       search: activeSearch.trim() || undefined,
@@ -414,28 +422,60 @@ export function Audit() {
               ))}
             </div>
 
-            {}
-            <div className="flex justify-between items-center mt-6 pt-4 border-t">
-              <p className="text-sm text-muted-foreground">
-                Pagina {auditData.page} de {Math.ceil(auditData.total / auditData.pageSize)}
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                >
-                  Anterior
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setPage(p => p + 1)}
-                  disabled={page >= Math.ceil(auditData.total / auditData.pageSize)}
-                >
-                  Proxima
-                </Button>
+            {/* Pagination Controls */}
+            {auditData && auditData.total > 0 && (
+              <div className="flex items-center justify-between mt-6 pt-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Mostrando {((auditData.page - 1) * pageSize) + 1} a {Math.min(auditData.page * pageSize, auditData.total)} de {auditData.total} registros
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Anterior
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, Math.ceil(auditData.total / pageSize)) }, (_, i) => {
+                      const totalPages = Math.ceil(auditData.total / pageSize);
+                      let pageNum: number;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (auditData.page <= 3) {
+                        pageNum = i + 1;
+                      } else if (auditData.page >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = auditData.page - 2 + i;
+                      }
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={auditData.page === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setPage(pageNum)}
+                          className="min-w-[40px]"
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.min(Math.ceil(auditData.total / pageSize), p + 1))}
+                    disabled={page >= Math.ceil(auditData.total / pageSize)}
+                  >
+                    Próxima
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
       ) : (

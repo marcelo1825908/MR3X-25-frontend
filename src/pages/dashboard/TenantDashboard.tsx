@@ -4,7 +4,7 @@ import { formatCurrency } from '../../lib/utils';
 import {
   FileText, DollarSign, Clock,
   CheckCircle, AlertTriangle, User, Phone, Mail,
-  CreditCard, Receipt, TrendingUp, Calendar, Building2,
+  CreditCard, Receipt, TrendingUp, Building2,
   Scale, Handshake, AlertOctagon, Shield, MapPin, ArrowDown
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card';
@@ -696,21 +696,6 @@ export function TenantDashboard() {
           </CardContent>
         </Card>
 
-        <Card className="bg-gradient-to-br from-orange-50 to-orange-100 border-orange-200">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-orange-600 font-medium">Dias Restantes</p>
-                <p className="text-2xl font-bold text-orange-700">
-                  {contractProgress.remaining}
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-orange-200 rounded-full flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-orange-600" />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {}
@@ -812,7 +797,7 @@ export function TenantDashboard() {
       </div>
 
       {}
-      {property ? (
+      {property && (
         <Card className="border-l-4 border-l-blue-500">
           <CardHeader className="pb-2">
             <div className="flex items-center justify-between">
@@ -894,16 +879,6 @@ export function TenantDashboard() {
                 </div>
               )}
             </div>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent className="py-8 text-center">
-            <Building2 className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold text-lg mb-2">Nenhum imóvel vinculado</h3>
-            <p className="text-muted-foreground">
-              Você ainda não possui um imóvel vinculado à sua conta.
-            </p>
           </CardContent>
         </Card>
       )}

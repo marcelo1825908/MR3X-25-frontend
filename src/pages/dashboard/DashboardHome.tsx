@@ -241,7 +241,24 @@ export function DashboardHome() {
               <StatCard title="Contratos Ativos" value={overview.activeContracts || 0} icon={FileText} color="purple" />
             )}
             {canViewPayments && (
-              <StatCard title="Receita Mensal" value={formatCurrency(overview.monthlyRevenue || 0)} icon={DollarSign} color="yellow" isAmount />
+              <>
+                <StatCard 
+                  title="Receita Total" 
+                  value={formatCurrency(overview.totalIncome || overview.monthlyRevenue || 0)} 
+                  icon={DollarSign} 
+                  color="blue" 
+                  isAmount 
+                />
+                {overview.roleSpecificIncome !== undefined && overview.totalIncome !== undefined && overview.totalIncome > 0 && (
+                  <StatCard 
+                    title="Sua Receita" 
+                    value={formatCurrency(overview.roleSpecificIncome || 0)} 
+                    icon={DollarSign} 
+                    color="yellow" 
+                    isAmount 
+                  />
+                )}
+              </>
             )}
           </>
         )}
@@ -250,8 +267,8 @@ export function DashboardHome() {
       {}
       {isCEO && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-          <StatCard title="Receita Mensal Total" value={formatCurrency(overview.monthlyRevenue || 0)} icon={DollarSign} color="green" isAmount />
-          <StatCard title="Taxa MR3X (2%)" value={formatCurrency(overview.platformFee || 0)} icon={DollarSign} color="yellow" isAmount />
+          <StatCard title="Receita Total" value={formatCurrency(overview.totalIncome || overview.monthlyRevenue || 0)} icon={DollarSign} color="green" isAmount />
+          <StatCard title="Sua Receita (2%)" value={formatCurrency(overview.roleSpecificIncome || overview.platformFee || 0)} icon={DollarSign} color="yellow" isAmount />
           <StatCard title="Inadimplência" value={`${overview.defaultRate || 0}%`} icon={AlertCircle} color={overview.defaultRate > 10 ? 'red' : overview.defaultRate > 5 ? 'yellow' : 'green'} />
           <StatCard title="Pagamentos Vencidos" value={overview.overdueCount || 0} icon={AlertCircle} color="red" />
         </div>
@@ -307,7 +324,12 @@ export function DashboardHome() {
                 )}
               </div>
               <div className="text-center mt-2 font-semibold text-sm sm:text-base">
-                Receita Mensal Total: {formatCurrency(overview.monthlyRevenue ?? 0)}
+                Receita Total: {formatCurrency(overview.totalIncome ?? overview.monthlyRevenue ?? 0)}
+                {overview.roleSpecificIncome !== undefined && overview.totalIncome !== undefined && overview.totalIncome > 0 && (
+                  <div className="text-sm text-muted-foreground mt-1">
+                    Sua Receita: {formatCurrency(overview.roleSpecificIncome ?? 0)}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

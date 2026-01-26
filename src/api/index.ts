@@ -61,11 +61,30 @@ export const dashboardAPI = {
 };
 
 export const propertiesAPI = {
-  getProperties: async (params?: { search?: string }) => {
-    const query = params?.search ? `?search=${encodeURIComponent(params.search)}` : '';
+  getProperties: async (params?: { search?: string; take?: number; skip?: number }) => {
+    const queryParams = new URLSearchParams();
+    if (params?.search) {
+      queryParams.append('search', params.search);
+    }
+    if (params?.take) {
+      queryParams.append('take', params.take.toString());
+    }
+    if (params?.skip) {
+      queryParams.append('skip', params.skip.toString());
+    }
+    const query = queryParams.toString() ? `?${queryParams.toString()}` : '';
     const response = await apiClient.get(`/properties${query}`);
     
-    return Array.isArray(response.data) ? response.data : (response.data?.data || []);
+    // Handle different response formats
+    if (Array.isArray(response.data)) {
+      return response.data;
+    } else if (response.data?.data && Array.isArray(response.data.data)) {
+      return response.data.data;
+    } else if (response.data?.items && Array.isArray(response.data.items)) {
+      return response.data.items;
+    }
+    
+    return [];
   },
 
   getPropertyById: async (id: string) => {
@@ -624,6 +643,11 @@ export const agenciesAPI = {
     return response.data;
   },
 
+  payPlanWithBalance: async (id: string, newPlan: string) => {
+    const response = await apiClient.post(`/agencies/${id}/pay-plan-with-balance`, { newPlan });
+    return response.data;
+  },
+
   confirmPlanPayment: async (id: string, paymentId: string, newPlan: string) => {
     const response = await apiClient.post(`/agencies/${id}/confirm-plan-payment`, { paymentId, newPlan });
     return response.data;
@@ -875,9 +899,58 @@ export const plansAPI = {
   },
 };
 
+export const withdrawAPI = {
+  getAvailableBalance: async () => {
+    const response = await apiClient.get('/withdraw/balance');
+    return response.data;
+  },
+
+  createWithdraw: async (data: {
+    value: number;
+    type: 'BANK_ACCOUNT' | 'PIX';
+    bankCode?: string;
+    bankName?: string;
+    agency?: string;
+    agencyDigit?: string;
+    account?: string;
+    accountDigit?: string;
+    accountType?: 'CORRENTE' | 'POUPANCA';
+    operation?: string;
+    pixKey?: string;
+    pixKeyType?: 'CPF' | 'CNPJ' | 'EMAIL' | 'PHONE' | 'RANDOM';
+    description?: string;
+  }) => {
+    const response = await apiClient.post('/withdraw', data);
+    return response.data;
+  },
+
+  getWithdrawHistory: async (skip?: number, take?: number) => {
+    const params = new URLSearchParams();
+    if (skip !== undefined) params.append('skip', skip.toString());
+    if (take !== undefined) params.append('take', take.toString());
+    const queryString = params.toString();
+    const response = await apiClient.get(`/withdraw/history${queryString ? `?${queryString}` : ''}`);
+    return response.data;
+  },
+
+  getTransferStatus: async (transferId: string) => {
+    const response = await apiClient.get(`/withdraw/transfer/${transferId}`);
+    return response.data;
+  },
+
+  getPlanPayments: async () => {
+    const response = await apiClient.get('/withdraw/plan-payments');
+    return response.data;
+  },
+};
+
 export const notificationsAPI = {
-  getNotifications: async () => {
-    const response = await apiClient.get('/notifications');
+  getNotifications: async (skip?: number, take?: number) => {
+    const params = new URLSearchParams();
+    if (skip !== undefined) params.append('skip', skip.toString());
+    if (take !== undefined) params.append('take', take.toString());
+    const queryString = params.toString();
+    const response = await apiClient.get(`/notifications${queryString ? `?${queryString}` : ''}`);
     return response.data;
   },
 
@@ -903,6 +976,11 @@ export const notificationsAPI = {
 
   markAllAsRead: async () => {
     const response = await apiClient.put('/notifications/mark-all-read');
+    return response.data;
+  },
+
+  dismissNotification: async (id: string, source: string) => {
+    const response = await apiClient.put(`/notifications/${id}/dismiss`, { source });
     return response.data;
   },
 

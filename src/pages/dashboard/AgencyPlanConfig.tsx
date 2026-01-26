@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '../../contexts/AuthContext';
-import { agenciesAPI, plansAPI, usersAPI } from '../../api';
+import { agenciesAPI, plansAPI, usersAPI, withdrawAPI } from '../../api';
 
 // Storage key for pending payment
 const PENDING_PAYMENT_KEY = 'pending_plan_payment';
@@ -26,6 +26,7 @@ import {
   Copy,
   ExternalLink,
   FileCheck,
+  Wallet,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -181,9 +182,19 @@ export function AgencyPlanConfig() {
   const [changingPlan, setChangingPlan] = useState(false);
   const [creatingPayment, setCreatingPayment] = useState(false);
   const [checkingPayment, setCheckingPayment] = useState(false);
+  const [payingWithBalance, setPayingWithBalance] = useState(false);
 
   const canViewPlan = hasPermission('agencies:read') || user?.role === 'AGENCY_ADMIN';
   const agencyId = user?.agencyId;
+
+  // Fetch available balance
+  const { data: balanceData } = useQuery({
+    queryKey: ['withdraw-balance', user?.id],
+    queryFn: () => withdrawAPI.getAvailableBalance(),
+    enabled: !!user?.id && (user?.role === 'AGENCY_ADMIN' || user?.role === 'CEO'),
+  });
+
+  const availableBalance = balanceData?.availableBalance || 0;
 
   // Function to check payment status and confirm plan upgrade
   const checkPaymentStatus = useCallback(async (paymentId: string, newPlan: string, showToast = true) => {
@@ -1465,6 +1476,83 @@ export function AgencyPlanConfig() {
               {/* Payment Options */}
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold">Opções de Pagamento:</h4>
+
+                {/* Platform Balance Option */}
+                {availableBalance > 0 && (
+                  <div className="border-2 border-green-500 rounded-lg p-4 space-y-3 bg-green-50">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Wallet className="w-5 h-5 text-green-600" />
+                        <span className="font-semibold">Saldo da Plataforma</span>
+                        <Badge className="bg-green-100 text-green-800 text-xs">Aprovação instantânea</Badge>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Saldo disponível:</span>
+                        <span className="font-bold text-green-600">
+                          R$ {availableBalance.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">Valor necessário:</span>
+                        <span className="font-bold">
+                          R$ {paymentData.value?.toFixed(2)}
+                        </span>
+                      </div>
+                      {availableBalance >= (paymentData.value || 0) ? (
+                        <Button
+                          variant="default"
+                          className="w-full bg-green-600 hover:bg-green-700"
+                          onClick={async () => {
+                            if (!selectedPlan || !agencyId) return;
+                            setPayingWithBalance(true);
+                            try {
+                              const result = await agenciesAPI.payPlanWithBalance(agencyId, selectedPlan);
+                              toast.success(result.message || 'Plano atualizado com sucesso!');
+                              
+                              // Clear pending payment
+                              localStorage.removeItem(PENDING_PAYMENT_KEY);
+                              
+                              // Refresh data
+                              queryClient.invalidateQueries({ queryKey: ['agency', agencyId] });
+                              queryClient.invalidateQueries({ queryKey: ['agency-plan-usage', agencyId] });
+                              queryClient.invalidateQueries({ queryKey: ['agency-frozen-entities', agencyId] });
+                              queryClient.invalidateQueries({ queryKey: ['withdraw-balance', user?.id] });
+                              
+                              // Close modals
+                              setShowPaymentModal(false);
+                              setShowUpgradeModal(false);
+                              setPaymentData(null);
+                              setSelectedPlan(null);
+                            } catch (error: any) {
+                              toast.error(error.response?.data?.message || error.message || 'Erro ao processar pagamento');
+                            } finally {
+                              setPayingWithBalance(false);
+                            }
+                          }}
+                          disabled={payingWithBalance}
+                        >
+                          {payingWithBalance ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Processando...
+                            </>
+                          ) : (
+                            <>
+                              <Wallet className="w-4 h-4 mr-2" />
+                              Pagar com Saldo
+                            </>
+                          )}
+                        </Button>
+                      ) : (
+                        <div className="p-3 bg-amber-50 border border-amber-200 rounded text-sm text-amber-800">
+                          Saldo insuficiente. Você precisa de R$ {((paymentData.value || 0) - availableBalance).toFixed(2)} a mais.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 {/* PIX Option */}
                 {paymentData.pixQrCode && (

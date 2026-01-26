@@ -215,6 +215,8 @@ export function Chat() {
             <p className="text-sm sm:text-base text-muted-foreground mt-1">
               {user?.role === 'REPRESENTATIVE' 
                 ? 'Converse com administradores da plataforma'
+                : user?.role === 'CEO'
+                ? 'Converse com administradores da plataforma'
                 : 'Converse com inquilinos e gerencie comunicações'}
             </p>
           </div>

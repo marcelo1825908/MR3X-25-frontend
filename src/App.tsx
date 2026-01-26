@@ -12,6 +12,7 @@ import { DashboardHome } from './pages/dashboard/DashboardHome';
 import { Properties } from './pages/dashboard/Properties';
 import { Contracts } from './pages/dashboard/Contracts';
 import { Payments } from './pages/dashboard/Payments';
+import { PaymentHistory } from './pages/dashboard/PaymentHistory';
 import { UsersPage } from './pages/dashboard/UsersPage';
 import { AdminUsersPage } from './pages/dashboard/AdminUsersPage';
 import { UserNewPage } from './pages/dashboard/UserNewPage';
@@ -207,6 +208,7 @@ function App() {
               <Route path="payments/new" element={<PlaceholderPage title="Novo Pagamento" />} />
               <Route path="payments/:id" element={<PlaceholderPage title="Detalhes do Pagamento" />} />
               <Route path="payments/:id/edit" element={<PlaceholderPage title="Editar Pagamento" />} />
+              <Route path="payment-history" element={<PaymentHistory />} />
 
               <Route path="users" element={<UsersPage />} />
               <Route path="admin-users" element={<AdminUsersPage />} />
